@@ -1,0 +1,210 @@
+# The companies FilingCheck covers. Written by `python -m filingcheck.ingest companies`.
+#
+# cik: the SEC's 10-digit company ID, resolved from the ticker via the SEC's
+#      company_tickers.json. Do not edit by hand.
+# fiscal_year_end: the month the fiscal year ends, checked against each 10-K's period of report.
+# revenue_rule: "standard" (us-gaap Revenues) or "bank" (net revenue, as banks report it).
+# financebench: the company appears in the public FinanceBench questions.
+# aliases: names people type for the company; used to resolve a name to one company.
+
+companies:
+- ticker: JPM
+  name: JPMorgan Chase & Co.
+  cik: '0000019617'
+  sector: banking
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: true
+  aliases: [JPMorgan, JP Morgan, JPMorgan Chase, Chase, JPM]
+- ticker: GS
+  name: The Goldman Sachs Group, Inc.
+  cik: '0000886982'
+  sector: banking
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: false
+  aliases: [Goldman, Goldman Sachs, GS]
+- ticker: MS
+  name: Morgan Stanley
+  cik: '0000895421'
+  sector: banking
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: false
+  aliases: [Morgan Stanley, MS]
+- ticker: C
+  name: Citigroup Inc.
+  cik: '0000831001'
+  sector: banking
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: false
+  aliases: [Citi, Citigroup, Citibank]
+- ticker: AXP
+  name: American Express Company
+  cik: '0000004962'
+  sector: payments
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: true
+  aliases: [American Express, Amex, AmEx, AXP]
+- ticker: COF
+  name: Capital One Financial Corporation
+  cik: '0000927628'
+  sector: banking
+  fiscal_year_end: 12
+  revenue_rule: bank
+  financebench: false
+  aliases: [Capital One, CapOne, COF]
+- ticker: BLK
+  name: BlackRock, Inc.
+  cik: '0002012383'
+  sector: asset management
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [BlackRock, Blackrock, BLK]
+- ticker: SPGI
+  name: S&P Global Inc.
+  cik: '0000064040'
+  sector: financial data
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [S&P Global, S&P, SPGI, Standard & Poor's]
+- ticker: MA
+  name: Mastercard Incorporated
+  cik: '0001141391'
+  sector: payments
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [Mastercard, MasterCard, MA]
+- ticker: AAPL
+  name: Apple Inc.
+  cik: '0000320193'
+  sector: technology
+  fiscal_year_end: 9
+  revenue_rule: standard
+  financebench: true
+  aliases: [Apple, AAPL]
+- ticker: MSFT
+  name: Microsoft Corporation
+  cik: '0000789019'
+  sector: technology
+  fiscal_year_end: 6
+  revenue_rule: standard
+  financebench: true
+  aliases: [Microsoft, MSFT]
+- ticker: AMZN
+  name: Amazon.com, Inc.
+  cik: '0001018724'
+  sector: technology
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Amazon, AMZN, Amazon.com]
+- ticker: GOOGL
+  name: Alphabet Inc.
+  cik: '0001652044'
+  sector: technology
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [Alphabet, Google, GOOGL, GOOG]
+- ticker: META
+  name: Meta Platforms, Inc.
+  cik: '0001326801'
+  sector: technology
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [Meta, Facebook, Meta Platforms, META]
+- ticker: NVDA
+  name: NVIDIA Corporation
+  cik: '0001045810'
+  sector: technology
+  fiscal_year_end: 1
+  revenue_rule: standard
+  financebench: false
+  aliases: [Nvidia, NVIDIA, NVDA]
+- ticker: IBM
+  name: International Business Machines Corporation
+  cik: '0000051143'
+  sector: technology
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [IBM, International Business Machines]
+- ticker: WMT
+  name: Walmart Inc.
+  cik: '0000104169'
+  sector: retail
+  fiscal_year_end: 1
+  revenue_rule: standard
+  financebench: true
+  aliases: [Walmart, Wal-Mart, WMT]
+- ticker: COST
+  name: Costco Wholesale Corporation
+  cik: '0000909832'
+  sector: retail
+  fiscal_year_end: 8
+  revenue_rule: standard
+  financebench: true
+  aliases: [Costco, COST]
+- ticker: KO
+  name: The Coca-Cola Company
+  cik: '0000021344'
+  sector: consumer
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Coca-Cola, Coke, Coca Cola, KO]
+- ticker: NKE
+  name: NIKE, Inc.
+  cik: '0000320187'
+  sector: consumer
+  fiscal_year_end: 5
+  revenue_rule: standard
+  financebench: true
+  aliases: [Nike, NKE]
+- ticker: PFE
+  name: Pfizer Inc.
+  cik: '0000078003'
+  sector: pharma
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Pfizer, PFE]
+- ticker: JNJ
+  name: Johnson & Johnson
+  cik: '0000200406'
+  sector: healthcare
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Johnson & Johnson, J&J, JNJ, Johnson and Johnson]
+- ticker: UNH
+  name: UnitedHealth Group Incorporated
+  cik: '0000731766'
+  sector: healthcare
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: false
+  aliases: [UnitedHealth, United Health, UnitedHealth Group, UNH]
+- ticker: VZ
+  name: Verizon Communications Inc.
+  cik: '0000732712'
+  sector: telecom
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Verizon, VZ]
+- ticker: NFLX
+  name: Netflix, Inc.
+  cik: '0001065280'
+  sector: media
+  fiscal_year_end: 12
+  revenue_rule: standard
+  financebench: true
+  aliases: [Netflix, NFLX]

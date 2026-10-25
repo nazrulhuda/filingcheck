@@ -30,7 +30,7 @@ db-reset:
 	docker compose up -d --wait db
 
 ingest:
-	@echo "not built yet (week 1, day 2 onward)"
+	uv run python -m filingcheck.ingest companies
 
 validate-questions:
 	@echo "not built yet (week 1, day 6)"
