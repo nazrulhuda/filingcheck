@@ -56,14 +56,14 @@ companies:
   revenue_rule: bank
   financebench: false
   aliases: [Capital One, CapOne, COF]
-- ticker: BLK
-  name: BlackRock, Inc.
-  cik: '0002012383'
-  sector: asset management
+- ticker: MCO
+  name: Moody's Corporation
+  cik: '0001059556'
+  sector: financial data
   fiscal_year_end: 12
   revenue_rule: standard
   financebench: false
-  aliases: [BlackRock, Blackrock, BLK]
+  aliases: [Moody's, Moodys, Moody's Corporation, MCO]
 - ticker: SPGI
   name: S&P Global Inc.
   cik: '0000064040'

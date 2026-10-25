@@ -8,6 +8,7 @@ download the same URL twice.
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -21,12 +22,6 @@ from dotenv import load_dotenv
 from filingcheck.paths import CACHE_DIR
 
 load_dotenv()
-CONTACT_EMAIL = os.environ.get("SEC_CONTACT_EMAIL", "").strip()
-if not CONTACT_EMAIL:
-    raise RuntimeError(
-        "SEC_CONTACT_EMAIL is empty. Copy .env.example to .env and set it: the SEC "
-        "requires a contact email in the User-Agent header of every request."
-    )
 
 REQUESTS_PER_SECOND = 8.0  # the SEC allows 10; staying under it leaves a margin
 MAX_RETRIES = 5
@@ -34,9 +29,31 @@ BACKOFF_SECONDS = 0.5
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
+CHARSET_RE = re.compile(rb"""charset\s*=\s*["']?([A-Za-z0-9._:-]+)""", re.IGNORECASE)
+
+
 def user_agent(email: str) -> str:
     """The User-Agent the SEC asks every automated client to send."""
     return f"FilingCheck/0.1 (Nazrul Huda Shanto; {email})"
+
+
+def decode_document(body: bytes) -> str:
+    """Decode a downloaded document without ever failing.
+
+    Tries UTF-8, then the charset the document declares in its first 4 KB, and finally
+    UTF-8 with undecodable bytes replaced by U+FFFD. Older EDGAR HTML is often not UTF-8.
+    """
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    declared = CHARSET_RE.search(body[:4096])
+    if declared:
+        try:
+            return body.decode(declared.group(1).decode("ascii"), errors="replace")
+        except LookupError:
+            pass  # a charset name Python does not know
+    return body.decode("utf-8", errors="replace")
 
 
 class CacheMissError(LookupError):
@@ -95,18 +112,31 @@ class SecClient:
         *,
         cache_dir: Path = CACHE_DIR,
         cache_only: bool = False,
-        contact_email: str = CONTACT_EMAIL,
+        contact_email: str | None = None,
         limiter: RateLimiter = SEC_RATE_LIMITER,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        """Create a client; the defaults are the real cache, email and shared limiter."""
+        """Create a client; the defaults are the real cache, email and shared limiter.
+
+        Raises ValueError when there is no contact email: the SEC requires one in the
+        User-Agent of every request. The check is here, not at import, so code that
+        only reads the cache (such as the live app) can import this module without it.
+        """
+        email = (
+            contact_email if contact_email is not None else os.environ.get("SEC_CONTACT_EMAIL", "")
+        ).strip()
+        if not email:
+            raise ValueError(
+                "SEC_CONTACT_EMAIL is empty. Copy .env.example to .env and set it: the SEC "
+                "requires a contact email in the User-Agent header of every request."
+            )
         self._cache_dir = cache_dir
         self._cache_only = cache_only
         self._limiter = limiter
         self._sleep = sleep
         self._http = httpx.Client(
-            headers={"User-Agent": user_agent(contact_email)},
+            headers={"User-Agent": user_agent(email)},
             timeout=30.0,
             follow_redirects=True,
             transport=transport,
@@ -124,8 +154,8 @@ class SecClient:
         return body
 
     def get_text(self, url: str) -> str:
-        """Return the body of `url` decoded as UTF-8."""
-        return self.get_bytes(url).decode("utf-8")
+        """Return the body of `url` as text; see `decode_document` for the encoding rules."""
+        return decode_document(self.get_bytes(url))
 
     def get_json(self, url: str) -> Any:
         """Return the body of `url` parsed as JSON."""
