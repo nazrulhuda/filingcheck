@@ -116,3 +116,66 @@ def test_the_filings_stage_passes_the_reselect_flag(monkeypatch: pytest.MonkeyPa
     assert cli.main(["filings"]) == 0
     assert cli.main(["filings", "--reselect"]) == 0
     assert seen == [False, True]
+
+
+class FakeSectionsClient:
+    """A stand-in for SecClient whose filing index lists no Exhibit 13."""
+
+    def __init__(self) -> None:
+        self.downloads = 0
+
+    def __enter__(self) -> "FakeSectionsClient":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def get_bytes(self, url: str) -> bytes:
+        fixtures = Path(__file__).resolve().parents[1] / "fixtures"
+        index = (fixtures / "filing_index_sample.html").read_text(encoding="utf-8")
+        return index.replace("EX-13", "EX-99").encode()
+
+
+def test_run_sections_then_run_chunks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json
+
+    from filingcheck.ingest import sec_client
+    from filingcheck.ingest.filings import Manifest, write_manifest
+    from tests.ingest.test_sections import filing, fixture, write_document
+
+    path = write_document(tmp_path, fixture("tenk_sample.html"))
+    manifest = tmp_path / "manifest.json"
+    write_manifest(manifest, Manifest(filings=[filing(path)]))
+    monkeypatch.setattr(sec_client, "SecClient", FakeSectionsClient)
+
+    assert cli.run_sections(manifest, tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "5 Items saved from 1 filings" in out
+    assert "GAP: Items 7 and 8 are short and the filing has no Exhibit 13" in out  # tiny sample
+    assert (tmp_path / cli.SECTIONS_SUMMARY).exists()
+
+    assert cli.run_chunks(manifest, tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "chunks written" in out
+    lines = (tmp_path / cli.CHUNKS_FILE).read_text(encoding="utf-8").splitlines()
+    assert lines and {json.loads(line)["ticker"] for line in lines} == {"EXMP"}
+
+
+def test_the_sections_and_chunks_stages_are_wired(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def fake_sections(manifest: Path, root: Path) -> int:
+        calls.append("s")
+        return 0
+
+    def fake_chunks(manifest: Path, root: Path) -> int:
+        calls.append("c")
+        return 0
+
+    monkeypatch.setattr(cli, "run_sections", fake_sections)
+    monkeypatch.setattr(cli, "run_chunks", fake_chunks)
+    assert cli.main(["sections"]) == 0
+    assert cli.main(["chunks"]) == 0
+    assert calls == ["s", "c"]
