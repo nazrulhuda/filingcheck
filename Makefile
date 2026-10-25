@@ -40,12 +40,14 @@ db-reset:
 ingest:
 	uv run python -m filingcheck.ingest companies
 	uv run python -m filingcheck.ingest filings
+	uv run python -m filingcheck.ingest companyfacts
 	uv run python -m filingcheck.ingest sections
 	uv run python -m filingcheck.ingest chunks
 	uv run python -m filingcheck.ingest load
+	uv run python -m filingcheck.ingest report
 
 validate-questions:
-	@echo "not built yet (week 1, day 6)"
+	uv run python -m filingcheck.eval.questions validate
 
 eval-smoke:
 	@echo "not built yet (week 3)"

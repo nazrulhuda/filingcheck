@@ -386,6 +386,12 @@ def write_summary(path: Path, summaries: list[SectionSummary]) -> None:
     path.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
+def load_summary(path: Path) -> list[SectionSummary]:
+    """Read the section summary written by `write_summary`."""
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return [SectionSummary.model_validate(row) for row in rows]
+
+
 def iter_chunks(manifest: Manifest, root: Path) -> Iterator[tuple[list[Chunk], dict[str, int]]]:
     """Chunk every saved Item; yields each Item's chunks with the count of dropped ones."""
     for filing in manifest.filings:
