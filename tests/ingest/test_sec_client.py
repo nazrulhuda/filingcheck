@@ -92,7 +92,9 @@ def test_every_request_sends_the_contact_user_agent(tmp_path: Path) -> None:
 
     client = make_client(tmp_path, httpx.MockTransport(handler), FakeClock())
     client.get_text(URL)
-    assert seen == ["FilingCheck/0.1 (Nazrul Huda Shanto; tests@example.com)"]
+    # The email comes from the environment (conftest sets a placeholder if none is set).
+    email = os.environ["SEC_CONTACT_EMAIL"].strip()
+    assert seen == [f"FilingCheck/0.1 (Nazrul Huda Shanto; {email})"]
     assert user_agent("someone@example.com") == (
         "FilingCheck/0.1 (Nazrul Huda Shanto; someone@example.com)"
     )
