@@ -33,6 +33,35 @@ jobs:
             coverage.xml
             htmlcov/
 
+  integration:
+    name: Integration tests (Postgres + pgvector)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: filingcheck
+          POSTGRES_PASSWORD: filingcheck
+          POSTGRES_DB: filingcheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U filingcheck -d filingcheck"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL: postgresql://filingcheck:filingcheck@localhost:5432/filingcheck
+      REQUIRE_DB: "1"  # fail, do not skip, if the database is missing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies from the lock file
+        run: uv sync --locked
+      - name: Integration tests
+        run: make test-integration
+
   smoke-eval:
     # Placeholder for the 20-question cached eval gate. Enabled in week 3.
     name: Smoke eval gate (week 3)

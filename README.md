@@ -13,10 +13,10 @@ Needs [uv](https://docs.astral.sh/uv/), GNU make and Docker. Copy `.env.example`
 ```bash
 make setup    # install Python 3.12, the dependencies and the pre-commit hooks
 make db-up    # start the local Postgres + pgvector database
-make ingest   # download and load the SEC data (not built yet)
+make ingest   # download the filings, split and chunk them, and load the database
 ```
 
-`make lint` and `make test` run the same checks as CI.
+`make lint` and `make test` run the same checks as CI; `make test-integration` runs the database tests against the local database from `make db-up`.
 
 ## Related work
 

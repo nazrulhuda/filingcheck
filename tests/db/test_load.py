@@ -114,3 +114,26 @@ def test_a_chunk_for_an_unknown_filing_fails_loudly(db: psycopg.Connection, tmp_
     path = write_jsonl(tmp_path / "chunks.jsonl", [stray])
     with pytest.raises(KeyError, match="no-such-filing"):
         load_all(db, [APPLE], Manifest(filings=[FILING]), path)
+
+
+@pytest.mark.integration
+def test_the_load_stage_loads_the_files_and_checks_the_count(
+    fresh_db_url: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from filingcheck.ingest import __main__ as cli
+    from filingcheck.ingest.companies import save_companies
+    from filingcheck.ingest.filings import write_manifest
+
+    monkeypatch.setenv("DATABASE_URL", fresh_db_url)
+    companies, manifest = tmp_path / "companies.yaml", tmp_path / "manifest.json"
+    save_companies(companies, [APPLE])
+    write_manifest(manifest, Manifest(filings=[FILING]))
+    (tmp_path / "data").mkdir()
+    write_jsonl(tmp_path / cli.CHUNKS_FILE, chunks())
+    assert cli.run_load(companies, manifest, tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "applied migrations: 0001_initial" in out
+    assert "loaded 1 companies, 1 filings and 100 chunks (100 in data/chunks.jsonl)" in out

@@ -118,6 +118,34 @@ def run_chunks(manifest_path: Path, root: Path) -> int:
     return 0
 
 
+def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
+    """Apply the migrations, then replace the companies, filings and chunks in the database."""
+    from filingcheck.db import connect
+    from filingcheck.db.load import load_all
+    from filingcheck.db.migrate import migrate
+    from filingcheck.ingest.companies import load_companies
+    from filingcheck.ingest.filings import load_manifest
+
+    chunks_path = root / CHUNKS_FILE
+    with connect() as conn:
+        applied = migrate(conn)
+        counts = load_all(
+            conn, load_companies(companies_path), load_manifest(manifest_path), chunks_path
+        )
+    with chunks_path.open(encoding="utf-8") as handle:
+        in_file = sum(1 for line in handle if line.strip())
+    if applied:
+        print(f"applied migrations: {', '.join(applied)}")
+    print(
+        f"loaded {counts['companies']} companies, {counts['filings']} filings and "
+        f"{counts['chunks']:,} chunks ({in_file:,} in {CHUNKS_FILE})"
+    )
+    if counts["chunks"] != in_file:
+        print("ERROR: the database and the chunk file disagree")
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run one ingest stage."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.ingest")
@@ -129,6 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     stages.add_parser("sections", help="split each filing into Items 1, 1A, 7, 7A and 8")
     stages.add_parser("chunks", help="chunk the saved Items into data/chunks.jsonl")
+    stages.add_parser("load", help="load companies, filings and chunks into Postgres")
     args = parser.parse_args(argv)
     if args.stage == "companies":
         return run_companies(COMPANIES_FILE)
@@ -138,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_sections(MANIFEST_FILE, REPO_ROOT)
     if args.stage == "chunks":
         return run_chunks(MANIFEST_FILE, REPO_ROOT)
+    if args.stage == "load":
+        return run_load(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
     return 1  # pragma: no cover  (argparse rejects unknown stages first)
 
 
