@@ -160,7 +160,9 @@ def test_extra_pages_are_not_fetched_once_three_years_are_found() -> None:
 
 
 def test_the_latest_three_fiscal_years_are_chosen_and_originals_beat_amendments() -> None:
-    chosen = select_annual_filings(company(), submission_rows(FakeClient(submissions()), "x"))
+    chosen = select_annual_filings(
+        company(), submission_rows(FakeClient(submissions()), "0000320193")
+    )
     assert [(row.accession, fy) for row, fy in chosen] == [
         ("0000320193-25-000079", 2025),
         ("0000320193-24-000123", 2024),  # the original, not the 10-K/A
@@ -174,7 +176,7 @@ def test_an_amendment_is_used_when_the_original_is_missing() -> None:
     original = recent["accessionNumber"].index("0000320193-24-000123")
     for values in recent.values():
         del values[original]
-    chosen = select_annual_filings(company(), submission_rows(FakeClient(data), "x"))
+    chosen = select_annual_filings(company(), submission_rows(FakeClient(data), "0000320193"))
     assert [row.form for row, _ in chosen] == ["10-K", "10-K/A", "10-K"]
 
 
@@ -185,7 +187,7 @@ def test_fewer_than_three_years_fails_loudly() -> None:
         [("10-K", "a-25", "2025-10-31", "2025-09-27", "k25.htm")]
     )
     with pytest.raises(NotEnoughFilingsError, match="AAPL"):
-        select_annual_filings(company(), submission_rows(FakeClient(data), "x"))
+        select_annual_filings(company(), submission_rows(FakeClient(data), "0000320193"))
 
 
 def test_the_primary_document_url_uses_the_archive_layout() -> None:

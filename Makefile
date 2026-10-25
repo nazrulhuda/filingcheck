@@ -31,6 +31,7 @@ db-reset:
 
 ingest:
 	uv run python -m filingcheck.ingest companies
+	uv run python -m filingcheck.ingest filings
 
 validate-questions:
 	@echo "not built yet (week 1, day 6)"
