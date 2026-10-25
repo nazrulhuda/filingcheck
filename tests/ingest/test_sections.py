@@ -23,7 +23,7 @@ from filingcheck.ingest.sections import (
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 MARKERS = {
     "1": "BUSINESS-MARKER",
-    "1A": "RISK-MARKER",
+    "1A": "RISKFACTORS-MARKER",
     "7": "MDA-MARKER",
     "7A": "MARKET-RISK-MARKER",
     "8": "STATEMENTS-MARKER",
@@ -193,7 +193,7 @@ def test_short_items_7_and_8_are_taken_from_exhibit_13(tmp_path: Path) -> None:
         }
     )
     manifest, summary = build_sections(
-        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=100
+        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=300
     )
     row = summary[0]
     assert (row.items["7"].method, row.items["8"].method) == ("exhibit", "exhibit")
@@ -211,7 +211,7 @@ def test_a_missing_exhibit_is_listed_as_a_gap(tmp_path: Path) -> None:
     index_without_ex13 = fixture("filing_index_sample.html").replace("EX-13", "EX-99")
     client = FakeClient({filing_index_url(IBM_CIK, IBM_ACCESSION): index_without_ex13.encode()})
     _, summary = build_sections(
-        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=100
+        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=300
     )
     gaps = summary[0].gaps
     assert any("no Exhibit 13" in gap for gap in gaps)

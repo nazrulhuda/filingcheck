@@ -143,3 +143,17 @@ def test_junk_chunks_are_dropped_and_counted() -> None:
     chunks, dropped = chunks_of(text)
     assert dropped["table"] >= 1
     assert not any("$ 3,234 |" in c.text for c in chunks)
+
+
+def test_unicode_spaces_become_plain_spaces() -> None:
+    no_break, narrow, zero_width = chr(0xA0), chr(0x202F), chr(0x200B)
+    text = f"$0.7{no_break}billion, up 5{narrow}%{zero_width}"
+    assert clean_item_text(text) == "$0.7 billion, up 5 %"
+
+
+def test_a_table_of_contents_without_item_labels_is_junk() -> None:
+    entries = ["Overview", "6", "Basis & Policies", "7", "A", "Significant Accounting Policies"]
+    entries += ["48", "Management Discussion Snapshot", "8", "B", "Accounting Changes", "62"]
+    assert junk_reason("\n".join(entries * 3)) == "toc"
+    prose = SENTENCE * 3 + "\n\nIn millions\n\n" + SENTENCE * 3  # a few short lines are fine
+    assert junk_reason(prose) is None
