@@ -1,0 +1,7 @@
+# Keep LF line endings in the repo and on checkout, so the Makefile and scripts work on Linux and Windows.
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.jpg binary
+*.pdf binary
+*.parquet binary

@@ -1,0 +1,23 @@
+# Local database for development and ingest. The live demo uses a hosted Postgres (Neon) instead.
+name: filingcheck
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: filingcheck-db
+    environment:
+      POSTGRES_USER: filingcheck
+      POSTGRES_PASSWORD: filingcheck
+      POSTGRES_DB: filingcheck
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filingcheck -d filingcheck"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
