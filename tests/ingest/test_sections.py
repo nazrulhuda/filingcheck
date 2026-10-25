@@ -14,7 +14,9 @@ from filingcheck.ingest.sections import (
     exhibit_13_documents,
     extract_items,
     filing_index_url,
+    financial_statements_start,
     html_to_text,
+    relocate_financial_statements,
     short_items,
     split_exhibit_13,
     split_items_by_heading,
@@ -216,3 +218,43 @@ def test_a_missing_exhibit_is_listed_as_a_gap(tmp_path: Path) -> None:
     gaps = summary[0].gaps
     assert any("no Exhibit 13" in gap for gap in gaps)
     assert summary[0].items["8"].method in ("edgartools", "regex")  # kept, but flagged
+
+
+# ---------------------------------------------------------------- Item 8 elsewhere in the 10-K
+
+
+def test_the_statements_start_at_the_report_with_an_opinion_on_the_financial_statements() -> None:
+    text = html_to_text(fixture("tenk_relocated_sample.html"))
+    start = financial_statements_start(text)
+    assert start is not None
+    # not the internal-control report in Item 9A, and not the line in Item 15's list
+    first_line = text[start:].splitlines()[0]
+    assert first_line == "Report of Independent Registered Public Accounting Firm"
+    assert "Opinion on the Financial Statements" in text[start : start + 300]
+
+
+def test_relocated_statements_run_from_the_auditor_report_to_the_exhibit_index() -> None:
+    statements = relocate_financial_statements(html_to_text(fixture("tenk_relocated_sample.html")))
+    assert statements is not None
+    assert "RELOCATED-STATEMENTS-MARKER" in statements
+    assert "NOTES-MARKER" in statements
+    assert "ICFR-MARKER" not in statements
+    assert "EXHIBITS-MARKER" not in statements
+
+
+def test_without_a_financial_statements_report_nothing_is_relocated() -> None:
+    assert relocate_financial_statements("Item 8. See the annual report. SIGNATURES") is None
+
+
+def test_a_short_item_8_with_no_exhibit_is_taken_from_elsewhere_in_the_10k(tmp_path: Path) -> None:
+    path = write_document(tmp_path, fixture("tenk_relocated_sample.html"))
+    index_without_ex13 = fixture("filing_index_sample.html").replace("EX-13", "EX-99")
+    client = FakeClient({filing_index_url(IBM_CIK, IBM_ACCESSION): index_without_ex13.encode()})
+    _, summary = build_sections(
+        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=300
+    )
+    row = summary[0]
+    assert row.items["8"].method == "relocated"
+    item8 = (tmp_path / "data/sections/EXMP/2025/item_8.txt").read_text(encoding="utf-8")
+    assert "NOTES-MARKER" in item8
+    assert not any("Item 8" in gap for gap in row.gaps)
