@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.ingest.companies import Company
 from filingcheck.ingest.sec_client import decode_document
@@ -63,6 +63,16 @@ class FilingRow(BaseModel):
     primary_document: str
 
 
+class ExtraDocument(BaseModel):
+    """A document of the filing besides the primary one, such as an Exhibit 13 annual report."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: str
+    url: str
+    document_path: str
+
+
 class Filing(BaseModel):
     """One pinned 10-K filing in the manifest."""
 
@@ -78,6 +88,7 @@ class Filing(BaseModel):
     period_of_report: date
     primary_document_url: str
     document_path: str
+    extra_documents: list[ExtraDocument] = Field(default_factory=list)
 
 
 class Manifest(BaseModel):
@@ -177,7 +188,8 @@ def document_path(ticker: str, fiscal_year: int, accession: str) -> str:
     return f"data/filings/{ticker}/{fiscal_year}_{accession}.html"
 
 
-def _write(path: Path, body: bytes) -> None:
+def write_atomic(path: Path, body: bytes) -> None:
+    """Write a file through a temporary name, so an interrupted run never leaves half of it."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_bytes(body)
@@ -203,7 +215,7 @@ def build_manifest(companies: list[Company], client: SecFetcher, root: Path) -> 
                 )
             fiscal_year = dei if dei is not None else derived
             path = document_path(company.ticker, fiscal_year, row.accession)
-            _write(root / path, body)
+            write_atomic(root / path, body)
             filings.append(
                 Filing(
                     ticker=company.ticker,
@@ -240,6 +252,6 @@ def ensure_documents(manifest: Manifest, client: SecFetcher, root: Path) -> int:
         path = root / filing.document_path
         if path.exists():
             continue
-        _write(path, client.get_bytes(filing.primary_document_url))
+        write_atomic(path, client.get_bytes(filing.primary_document_url))
         saved += 1
     return saved

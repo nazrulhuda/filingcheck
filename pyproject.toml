@@ -22,6 +22,14 @@ dev = [
     "ruff>=0.17",
     "types-pyyaml>=6.0",
 ]
+ingest = [
+    "edgartools==5.62.1",
+]
+
+[tool.uv]
+# edgartools is only needed to prepare the data; the live app installs without it
+# (`uv sync --no-group ingest`).
+default-groups = ["dev", "ingest"]
 
 [build-system]
 requires = ["hatchling"]
@@ -56,6 +64,10 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 files = ["filingcheck", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["edgar", "edgar.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
