@@ -179,3 +179,76 @@ def test_the_sections_and_chunks_stages_are_wired(monkeypatch: pytest.MonkeyPatc
     assert cli.main(["sections"]) == 0
     assert cli.main(["chunks"]) == 0
     assert calls == ["s", "c"]
+
+
+class FakeFactsClient:
+    def __init__(self) -> None:
+        self.downloads = 1
+
+    def __enter__(self) -> "FakeFactsClient":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def get_bytes(self, url: str) -> bytes:
+        return b'{"facts": {"us-gaap": {"Assets": {}, "Revenues": {}}}}'
+
+
+def test_companyfacts_and_report_stages_write_their_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from filingcheck.ingest import sec_client
+    from filingcheck.ingest.companies import Company, save_companies
+    from filingcheck.ingest.filings import Manifest, write_manifest
+    from tests.ingest.test_sections import filing, fixture, write_document
+
+    companies = tmp_path / "companies.yaml"
+    save_companies(
+        companies,
+        [
+            Company(
+                ticker="EXMP",
+                name="Example Corp",
+                cik="0000051143",
+                sector="technology",
+                fiscal_year_end=12,
+                revenue_rule="standard",
+                financebench=False,
+                aliases=["Example"],
+            )
+        ],
+    )
+    manifest = tmp_path / "manifest.json"
+    write_manifest(
+        manifest, Manifest(filings=[filing(write_document(tmp_path, fixture("tenk_sample.html")))])
+    )
+    monkeypatch.setattr(sec_client, "SecClient", FakeSectionsClient)
+    cli.run_sections(manifest, tmp_path)
+    cli.run_chunks(manifest, tmp_path)
+    monkeypatch.setattr(sec_client, "SecClient", FakeFactsClient)
+    assert cli.run_companyfacts(companies, tmp_path) == 0
+    assert "EXMP       2 us-gaap tags" in capsys.readouterr().out
+    assert cli.run_report(companies, manifest, tmp_path) == 0
+    report = (tmp_path / cli.DATA_REPORT).read_text(encoding="utf-8")
+    assert "## EXMP" in report
+    assert "2 us-gaap tags" in report
+    assert "Items 7 and 8 are short and the filing has no Exhibit 13" in report
+
+
+def test_the_companyfacts_and_report_stages_are_wired(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def fake_facts(companies: Path, root: Path) -> int:
+        calls.append("f")
+        return 0
+
+    def fake_report(companies: Path, manifest: Path, root: Path) -> int:
+        calls.append("r")
+        return 0
+
+    monkeypatch.setattr(cli, "run_companyfacts", fake_facts)
+    monkeypatch.setattr(cli, "run_report", fake_report)
+    assert cli.main(["companyfacts"]) == 0
+    assert cli.main(["report"]) == 0
+    assert calls == ["f", "r"]

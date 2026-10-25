@@ -11,6 +11,7 @@ COMPANIES_FILE = DATA_DIR / "companies.yaml"
 MANIFEST_FILE = DATA_DIR / "manifest.json"
 SECTIONS_SUMMARY = "data/sections/summary.json"
 CHUNKS_FILE = "data/chunks.jsonl"
+DATA_REPORT = "docs/data_report.md"
 
 
 def run_companies(path: Path) -> int:
@@ -146,6 +147,55 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
     return 0
 
 
+def run_companyfacts(companies_path: Path, root: Path) -> int:
+    """Download and check every company's XBRL companyfacts file."""
+    from filingcheck.ingest.companies import load_companies
+    from filingcheck.ingest.companyfacts import fetch_companyfacts
+    from filingcheck.ingest.sec_client import SecClient
+
+    with SecClient() as client:
+        tags = {
+            c.ticker: fetch_companyfacts(c, client, root) for c in load_companies(companies_path)
+        }
+        downloads = client.downloads
+    for ticker, count in tags.items():
+        print(f"{ticker:<6} {count:>5,} us-gaap tags")
+    print(f"{len(tags)} companyfacts files; {downloads} downloaded from sec.gov in this run")
+    return 0
+
+
+def run_report(companies_path: Path, manifest_path: Path, root: Path) -> int:
+    """Write docs/data_report.md from the files the other stages produced."""
+    from collections import Counter
+
+    from filingcheck.db.load import read_chunks
+    from filingcheck.ingest.companies import load_companies
+    from filingcheck.ingest.companyfacts import companyfacts_path, count_us_gaap_tags
+    from filingcheck.ingest.filings import load_manifest
+    from filingcheck.ingest.report import build_report
+    from filingcheck.ingest.sections import load_summary
+
+    companies = load_companies(companies_path)
+    chunk_counts = Counter((c.accession, c.item) for c in read_chunks(root / CHUNKS_FILE))
+    tags = {}
+    for company in companies:
+        path = root / companyfacts_path(company.ticker)
+        if path.exists():
+            tags[company.ticker] = count_us_gaap_tags(path.read_bytes())
+    text = build_report(
+        companies,
+        load_manifest(manifest_path),
+        load_summary(root / SECTIONS_SUMMARY),
+        dict(chunk_counts),
+        tags,
+    )
+    out = root / DATA_REPORT
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text.rstrip("\n") + "\n", encoding="utf-8", newline="\n")  # one final newline
+    print(f"wrote {DATA_REPORT}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run one ingest stage."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.ingest")
@@ -155,9 +205,11 @@ def main(argv: list[str] | None = None) -> int:
     filings.add_argument(
         "--reselect", action="store_true", help="choose the filings again instead of reusing"
     )
+    stages.add_parser("companyfacts", help="download each company's XBRL companyfacts file")
     stages.add_parser("sections", help="split each filing into Items 1, 1A, 7, 7A and 8")
     stages.add_parser("chunks", help="chunk the saved Items into data/chunks.jsonl")
     stages.add_parser("load", help="load companies, filings and chunks into Postgres")
+    stages.add_parser("report", help="write docs/data_report.md")
     args = parser.parse_args(argv)
     if args.stage == "companies":
         return run_companies(COMPANIES_FILE)
@@ -167,8 +219,12 @@ def main(argv: list[str] | None = None) -> int:
         return run_sections(MANIFEST_FILE, REPO_ROOT)
     if args.stage == "chunks":
         return run_chunks(MANIFEST_FILE, REPO_ROOT)
+    if args.stage == "companyfacts":
+        return run_companyfacts(COMPANIES_FILE, REPO_ROOT)
     if args.stage == "load":
         return run_load(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
+    if args.stage == "report":
+        return run_report(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
     return 1  # pragma: no cover  (argparse rejects unknown stages first)
 
 
