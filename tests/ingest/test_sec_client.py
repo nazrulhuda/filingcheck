@@ -198,10 +198,42 @@ def test_client_works_as_a_context_manager(tmp_path: Path) -> None:
         assert client.get_text(URL) == "ok"
 
 
-# ---------------------------------------------------------------- import-time check
+# ---------------------------------------------------------------- decoding documents
 
 
-def test_import_fails_with_a_clear_message_without_a_contact_email() -> None:
+def body_client(tmp_path: Path, body: bytes) -> SecClient:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=body))
+    return make_client(tmp_path, transport, FakeClock())
+
+
+def test_utf8_documents_decode_normally(tmp_path: Path) -> None:
+    text = "Nestl" + chr(0xE9) + chr(0x2019) + "s"  # an accented e and a curly apostrophe
+    assert body_client(tmp_path, text.encode()).get_text(URL) == text
+
+
+def test_a_declared_charset_is_used_when_the_document_is_not_utf8(tmp_path: Path) -> None:
+    body = b'<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">'
+    body += b"</head><body>caf\xe9</body></html>"
+    assert "café" in body_client(tmp_path, body).get_text(URL)
+
+
+def test_undecodable_bytes_are_replaced_instead_of_crashing(tmp_path: Path) -> None:
+    text = body_client(tmp_path, b"revenue \xff\xfe rose").get_text(URL)
+    assert text.startswith("revenue ")
+    assert text.endswith(" rose")
+    assert "�" in text
+
+
+def test_an_unknown_declared_charset_falls_back_to_replacement(tmp_path: Path) -> None:
+    body = b'<meta charset="no-such-charset"><p>caf\xe9</p>'
+    assert "caf�" in body_client(tmp_path, body).get_text(URL)
+
+
+# ---------------------------------------------------------------- contact email check
+
+
+def test_the_module_imports_without_a_contact_email() -> None:
+    # The live app imports the package but never downloads, so it must not need the email.
     env = dict(os.environ, SEC_CONTACT_EMAIL="")
     result = subprocess.run(
         [sys.executable, "-c", "import filingcheck.ingest.sec_client"],
@@ -210,5 +242,9 @@ def test_import_fails_with_a_clear_message_without_a_contact_email() -> None:
         text=True,
         check=False,
     )
-    assert result.returncode != 0
-    assert "SEC_CONTACT_EMAIL" in result.stderr
+    assert result.returncode == 0, result.stderr
+
+
+def test_creating_a_client_without_a_contact_email_fails_clearly(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="SEC_CONTACT_EMAIL"):
+        SecClient(cache_dir=tmp_path, contact_email="  ")
