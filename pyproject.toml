@@ -6,7 +6,12 @@ readme = "README.md"
 license = "MIT"
 authors = [{ name = "Nazrul Huda Shanto" }]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx>=0.28",
+    "pydantic>=2.14",
+    "python-dotenv>=1.2",
+    "pyyaml>=6.0",
+]
 
 [dependency-groups]
 dev = [
@@ -15,6 +20,7 @@ dev = [
     "pytest>=9.0",
     "pytest-cov>=7.0",
     "ruff>=0.17",
+    "types-pyyaml>=6.0",
 ]
 
 [build-system]
@@ -34,6 +40,9 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "RUF", "D"]
 # Docstrings are required on public functions and classes, optional on
 # modules, packages, magic methods and __init__.
 ignore = ["D100", "D104", "D105", "D107"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["filingcheck"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
