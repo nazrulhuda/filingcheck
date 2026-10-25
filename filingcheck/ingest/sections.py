@@ -48,6 +48,10 @@ TAG_RE = re.compile(r"<[^>]+>")
 EXHIBIT_13_RE = re.compile(r"EX-13(?:\.\d+)?", re.IGNORECASE)
 AUDITOR_RE = re.compile(r"Report of Independent Registered Public Accounting Firm", re.IGNORECASE)
 ADDRESSEE_RE = re.compile(r"\bTo the (?:Board|Stockholders|Shareholders|Shareowners)", re.I)
+OPINION_RE = re.compile(r"Opinions? on the (?:Consolidated )?Financial Statements", re.I)
+RELOCATED_END_RE = re.compile(
+    r"^[ \t]*(?:(?:exhibit index|signatures?)[ \t]*$|item[ \t]+16\b)", re.I | re.MULTILINE
+)
 RIGHT_QUOTE = chr(0x2019)  # the curly apostrophe in "Management's"
 MDNA_RE = re.compile("Management(?:'s|" + RIGHT_QUOTE + "s)?" + r"\s+Discussion", re.IGNORECASE)
 EXHIBIT_END_RE = re.compile(
@@ -58,7 +62,7 @@ EXHIBIT_END_RE = re.compile(
 SPACES_RE = re.compile(r"[ \t" + chr(0xA0) + "]+")  # spaces, tabs and no-break spaces
 BLANK_RUN_RE = re.compile(r"\n{3,}")
 
-Method = Literal["edgartools", "regex", "exhibit"]
+Method = Literal["edgartools", "regex", "exhibit", "relocated"]
 
 
 class ItemText(BaseModel):
@@ -223,21 +227,49 @@ def exhibit_13_documents(index_html: str) -> list[str]:
     return names
 
 
+def financial_statements_start(text: str) -> int | None:
+    """Where the auditor's report on the financial statements begins, or None.
+
+    A 10-K can hold several "Report of Independent Registered Public Accounting Firm"
+    headings: a line in a contents list, a report on internal control only (often in Item
+    9A), and the report that opens the financial statements. The last one is recognised by
+    its "Opinion on the Financial Statements"; failing that, by its addressee ("To the
+    Board ..."). Each heading is judged only by the text before the next heading, so a
+    contents line cannot borrow the opinion of the report that follows it.
+    """
+    heads = list(AUDITOR_RE.finditer(text))
+    for marker, window in ((OPINION_RE, 600), (ADDRESSEE_RE, 200)):
+        for i, head in enumerate(heads):
+            limit = head.end() + window
+            if i + 1 < len(heads):
+                limit = min(limit, heads[i + 1].start())
+            if marker.search(text, head.end(), limit):
+                return head.start()
+    return None
+
+
+def relocate_financial_statements(text: str) -> str | None:
+    """Cut the financial statements out of a 10-K whose Item 8 only points to them.
+
+    They run from the auditor's report on the financial statements to the exhibit index,
+    the signatures or Item 16, whichever comes first. Netflix places them after Part IV;
+    Nvidia places them under Item 15.
+    """
+    start = financial_statements_start(text)
+    if start is None:
+        return None
+    end = RELOCATED_END_RE.search(text, start + 1)
+    return text[start : end.start() if end else len(text)].strip()
+
+
 def split_exhibit_13(text: str) -> dict[str, str] | None:
     """Cut an annual-report exhibit into Item 7 (MD&A) and Item 8 (financial statements).
 
-    Item 8 starts at the auditor's report, the one followed by its addressee ("To the Board
-    ..."), not its line in the table of contents, and ends before closing sections such as
-    "Performance Graphs". Item 7 runs from the first MD&A heading up to Item 8.
+    Item 8 starts at the auditor's report on the financial statements and ends before
+    closing sections such as "Performance Graphs". Item 7 runs from the first MD&A heading
+    up to Item 8.
     """
-    start8 = next(
-        (
-            m.start()
-            for m in AUDITOR_RE.finditer(text)
-            if ADDRESSEE_RE.search(text, m.end(), m.end() + 400)
-        ),
-        None,
-    )
+    start8 = financial_statements_start(text)
     if start8 is None:
         return None
     mdna = MDNA_RE.search(text, 0, start8)
@@ -288,21 +320,30 @@ def _section_filing(
     extra = list(filing.extra_documents)
     weak = [item for item in EXHIBIT_ITEMS if item in short_items(items, min_chars)]
     if weak:
+        # First choice: an Exhibit 13 annual report filed with the 10-K.
         documents, parts = _exhibit_13(filing, client, root)
         known = {doc.url for doc in extra}
         extra += [doc for doc in documents if doc.url not in known]
-        if not documents:
-            listed = " and ".join(weak)
-            words = ("Item", "is") if len(weak) == 1 else ("Items", "are")
+        for item in weak:
+            if parts is not None and len(parts[item]) >= min_chars:
+                items[item] = ItemText(text=parts[item], method="exhibit")
+        unresolved = [i for i in weak if i not in items or items[i].method != "exhibit"]
+        # Second choice for Item 8: the statements elsewhere in the same 10-K.
+        if "8" in unresolved:
+            moved = relocate_financial_statements(html_to_text(html))
+            if moved is not None and len(moved) >= min_chars:
+                items["8"] = ItemText(text=moved, method="relocated")
+                unresolved.remove("8")
+        if unresolved and not documents:
+            listed = " and ".join(unresolved)
+            words = ("Item", "is") if len(unresolved) == 1 else ("Items", "are")
             gaps.append(f"{words[0]} {listed} {words[1]} short and the filing has no Exhibit 13")
-        elif parts is None:
+        elif unresolved and parts is None:
             gaps.append("Exhibit 13 found, but its MD&A and financial statements were not")
         else:
-            for item in weak:
-                if len(parts[item]) >= min_chars:
-                    items[item] = ItemText(text=parts[item], method="exhibit")
-                else:
-                    gaps.append(f"Item {item} is short in both the 10-K and its Exhibit 13")
+            gaps += [
+                f"Item {item} is short in both the 10-K and its Exhibit 13" for item in unresolved
+            ]
     summaries: dict[str, ItemSummary] = {}
     for item, found in items.items():
         cleaned = clean_item_text(found.text)
