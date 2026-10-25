@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, type-check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2  # setup-uv publishes no floating v10 tag
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies from the lock file
+        run: uv sync --locked
+      - name: Lint and type-check
+        run: make lint
+      - name: Unit tests with coverage
+        run: make test
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            coverage.xml
+            htmlcov/
+
+  smoke-eval:
+    # Placeholder for the 20-question cached eval gate. Enabled in week 3.
+    name: Smoke eval gate (week 3)
+    runs-on: ubuntu-latest
+    if: ${{ false }}
+    steps:
+      - run: echo "not built yet"

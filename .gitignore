@@ -1,0 +1,32 @@
+# Secrets
+.env
+
+# SEC data. Downloaded by `make ingest`; rebuilt from data/manifest.json, never committed.
+data/cache/
+data/filings/
+data/sections/
+data/companyfacts/
+data/chunks.*
+
+# Raw evaluation outputs
+eval/results/raw/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
