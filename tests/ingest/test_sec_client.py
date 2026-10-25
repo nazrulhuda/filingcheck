@@ -198,6 +198,15 @@ def test_client_works_as_a_context_manager(tmp_path: Path) -> None:
         assert client.get_text(URL) == "ok"
 
 
+def test_network_downloads_are_counted_and_cache_hits_are_not(tmp_path: Path) -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, text="ok"))
+    client = make_client(tmp_path, transport, FakeClock())
+    client.get_text(URL)
+    client.get_text(URL)
+    client.get_text(URL + "?page=2")
+    assert client.downloads == 2
+
+
 # ---------------------------------------------------------------- decoding documents
 
 
