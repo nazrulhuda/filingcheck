@@ -135,6 +135,7 @@ class SecClient:
         self._cache_only = cache_only
         self._limiter = limiter
         self._sleep = sleep
+        self.downloads = 0  # responses fetched from sec.gov, not from the cache
         self._http = httpx.Client(
             headers={"User-Agent": user_agent(email)},
             timeout=30.0,
@@ -150,6 +151,7 @@ class SecClient:
         if self._cache_only:
             raise CacheMissError(f"not cached: {url}")
         body = self._download(url)
+        self.downloads += 1
         self._write_cache(path, body)
         return body
 
