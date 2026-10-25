@@ -29,6 +29,10 @@ db-reset:
 	docker compose down -v
 	docker compose up -d --wait db
 
+# The filings are pinned in data/manifest.json, and re-runs reuse them. The manifest is re-pinned
+# once, in early November 2026, to add Apple's FY2026 10-K:
+#   uv run python -m filingcheck.ingest filings --reselect
+# and then frozen for the evaluation.
 ingest:
 	uv run python -m filingcheck.ingest companies
 	uv run python -m filingcheck.ingest filings
