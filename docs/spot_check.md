@@ -1,291 +1,234 @@
 # Spot check
 
-A fixed random sample (seed 2026) of the chunks and section starts, to read against the SEC documents by eye. Written by `make verify-data`; do not edit by hand.
+A fixed random sample (seed 2027) of the chunks and section starts, to read against the SEC documents by eye. Written by `make verify-data`; do not edit by hand.
 
 ## Chunks
 
-### Chunk 1: C FY2024, Item 7A, chunk 161
+### Chunk 1: AMZN FY2023, Item 8, chunk 121
+
+Source: https://www.sec.gov/Archives/edgar/data/1018724/000101872424000008/amzn-20231231.htm
+
+```text
+a change in our application of tax regulations related to the computation of qualifying foreign income and includes a tax benefit of approximately $655 million related to years prior to 2022.
+
+65
+
+We recorded a provision for income taxes in 2023 as compared to an income tax benefit in 2022 primarily
+```
+
+### Chunk 2: C FY2023, Item 8, chunk 617
+
+Source: https://www.sec.gov/Archives/edgar/data/831001/000083100124000033/c-20231231.htm
+
+```text
+the Clayton Act, and seek declaratory relief, injunctive relief, and treble damages. In October 2022, plaintiffs filed an amended complaint. On October 10, 2023, the court granted defendants’
+
+302
+
+motion to dismiss the amended complaint with prejudice for all claims against Citigroup, Citibank, and
+```
+
+### Chunk 3: C FY2024, Item 1-7A, chunk 116
 
 Source: https://www.sec.gov/Archives/edgar/data/831001/000083100125000067/c-20241231.htm
 
 ```text
-—        $                                                       —         $                           26      $             26
-  Net reserve builds (releases)                                         (7)                                        (23)
+at December 31, 2023, primarily reflecting the impact of macroeconomic pressures related to the elevated inflationary and interest rate environment and growth in cards balances.
+
+Consumer ACLL
+
+Citi’s total consumer allowance for credit losses on loans (ACLL) as of December 31, 2024 was $ 16,018 mil
 ```
 
-### Chunk 2: C FY2025, Item 1, chunk 55
+### Chunk 4: COST FY2025, Item 1, chunk 26
 
-Source: https://www.sec.gov/Archives/edgar/data/831001/000083100126000011/c-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm
 
 ```text
-$26 billion, or 20%. See Notes 2, 10, 13 and 29.
-
-Preferred stock: increased $2.2 billion, or 12%, reflecting $7.2 billion of issuances, partially offset by $5.0 billion of redemptions. See Note 22.
-
-Common equity: increased $1.5 billion, or 1%, as $14.3 billion in net income, $3.5 billion in lower
+to December 2018.  2019  63
+Caton Frates  Executive Vice President, Chief Operating Officer, Southwest Division. Mr. Frates was Senior Vice President, Los Angeles Region, from 2015 to May 2022. Mr. Frates will be appointed Senior Executive Vice President, Warehouse Operations - U.S. and Mexico, effe
 ```
 
-### Chunk 3: GS FY2023, Item 1, chunk 107
+### Chunk 5: COST FY2025, Item 7, chunk 4
 
-Source: https://www.sec.gov/Archives/edgar/data/886982/000088698224000006/gs-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm
 
 ```text
-Inc., must be on market terms and are subject to special internal approval requirements. PRA rules also provide requirements for transactions between GSI and GSIB and their respective affiliates.
-
-Resolution and Recovery Plans. We are required by the FRB and the FDIC to submit a periodic plan for ou
+the long-term. Another substantial factor in net sales growth is the health of the economies in which we do business, including the effects of inflation or deflation, especially the United States. Net sales growth and gross margins are also impacted by competition, which is vigorous and widespread,
 ```
 
-### Chunk 4: JNJ FY2023, Item 8, chunk 114
+### Chunk 6: COST FY2026, Item 1A, chunk 61
 
-Source: https://www.sec.gov/Archives/edgar/data/200406/000020040624000013/jnj-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/909832/000090983226000093/cost-20260830.htm
 
 ```text
-recognized in other comprehensive income, before tax  $1,195  (1,398)  116  (868)
-Total recognized in net periodic benefit cost and other comprehensive income  $519  (1,460)  603  (335)
-
-72
-
-The Company plans to continue to fund its U.S. Qualified Plans to comply with the Pension Protection Act of 2
+We cannot predict with certainty the outcomes of these proceedings and other contingencies, including environmental remediation and other proceedings commenced by governmental authorities. The outcome of some of these proceedings, audits, unclaimed property laws, and other contingencies could requir
 ```
 
-### Chunk 5: KO FY2024, Item 8, chunk 82
+### Chunk 7: IBM FY2024, Item 8, chunk 224
 
-Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
+Source: https://www.sec.gov/Archives/edgar/data/51143/000005114325000015/ibm-20241231_d2.htm
 
 ```text
-that uses a combination of options to limit the range of possible positive or negative returns on an underlying asset or liability to a specific range, or to protect expected future cash flows. To do this, an investor simultaneously buys a put option and sells (writes) a call option, or alternativel
+court’s dismissal of IBM’s fraud claim. In December 2024, the parties settled the lawsuit, with no material financial impact to IBM, and in January 2025, the lawsuit was discontinued with prejudice.
+
+On June 2, 2022, a putative class action lawsuit was filed in the United States District Court for t
 ```
 
-### Chunk 6: META FY2024, Item 1A, chunk 70
+### Chunk 8: JPM FY2023, Item 1-7A, chunk 260
 
-Source: https://www.sec.gov/Archives/edgar/data/1326801/000132680125000017/meta-20241231.htm
+Source: https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/jpm-20231231.htm
 
 ```text
-may be adversely affected.
+objective is to provide independent oversight of liquidity risk across the Firm. Liquidity Risk Management’s responsibilities include:
 
-Risks Related to Our Business Operations and Financial Results
+•Defining, monitoring and reporting liquidity risk metrics;
 
-Our business is highly competitive. Competition presents an ongoing threat to the success of our business.
+•Independently establishing and monitoring limits and indicators, including liquidity risk appetite;
 
-We compete with companies providing connection, sharing, discovery, and communication products and s
+•
 ```
 
-### Chunk 7: META FY2025, Item 7, chunk 7
+### Chunk 9: JPM FY2024, Item 8, chunk 567
+
+Source: https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm
+
+```text
+average balances, interest and rates on a taxable-equivalent basis for the years 2022 through 2024. Income computed on a taxable-equivalent basis is the income reported in the Consolidated statements
+
+of income, adjusted to present interest income and rates earned on assets exempt from income taxes
+```
+
+### Chunk 10: KO FY2025, Item 8, chunk 165
+
+Source: https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm
+
+```text
+international subsidiaries’ pension plan assets and consisted of 57% cash and cash equivalents; 24% fixed-income securities; 13% insurance contracts; and 6% equity securities as of December 31, 2025.
+
+The target allocation for the remaining 38% of our non-U.S. plans is broadly characterized as a mix
+```
+
+### Chunk 11: MA FY2023, Item 8, chunk 95
+
+Source: https://www.sec.gov/Archives/edgar/data/1141391/000114139124000022/ma-20231231.htm
+
+```text
+or nonrecurring in nature.
+
+Recurring Measurements
+
+The distribution of the Company’s financial instruments measured at fair value on a recurring basis within the Valuation Hierarchy were as follows:
+
+1The Company’s U.S. government securities are classified within Level 1 of the Valuation Hierarchy
+```
+
+### Chunk 12: META FY2025, Item 8, chunk 60
 
 Source: https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/meta-20251231.htm
 
 ```text
-as of December 31, 2025, an increase of 6% year-over-year.
-
-Family of Apps Metrics
-
-•Family daily active people (DAP) was 3.58 billion on average for December 2025, an increase of 7% year-over-year.
-
-•Ad impressions delivered across our Family of Apps increased by 12% year-over-year in 2025.
-
-•Avera
+interpretation and enforcement by regulatory and other authorities, and any failure or perceived failure to comply with such obligations could eventually lead to asserted legal or regulatory action. With respect to these matters, asserted and unasserted, we evaluate the associated developments on a
 ```
 
-### Chunk 8: MS FY2023, Item 7, chunk 157
-
-Source: https://www.sec.gov/Archives/edgar/data/895421/000089542124000300/ms-20231231.htm
-
-```text
-risk: Inadequate or failed processes or systems, from human factors or from external events (e.g., fraud, theft, legal and compliance risks, cyber attacks or damage to physical assets).
-
-Our risk-based capital ratios are computed under each of (i) the Standardized Approach and (ii) the Advanced Appr
-```
-
-### Chunk 9: MS FY2025, Item 8, chunk 296
-
-Source: https://www.sec.gov/Archives/edgar/data/895421/000089542126000086/ms-20251231.htm
-
-```text
-the outcome of such proceedings or investigations may significantly impact the Firm’s business or results of operations for any particular reporting period, or cause significant reputational harm.
-
-While the Firm has identified below certain proceedings or investigations that the Firm believes to be
-```
-
-### Chunk 10: MSFT FY2025, Item 1, chunk 10
-
-Source: https://www.sec.gov/Archives/edgar/data/789019/000095017025100235/msft-20250630.htm
-
-```text
-– Segment Information and Geographic Data of the Notes to Financial Statements (Part II, Item 8 of this Form 10-K).
-
-Our reportable segments are described below.
-
-Productivity and Business Processes
-
-Our Productivity and Business Processes segment consists of products and services in our portfolio o
-```
-
-### Chunk 11: NFLX FY2024, Item 1A, chunk 35
-
-Source: https://www.sec.gov/Archives/edgar/data/1065280/000106528025000044/nflx-20241231.htm
-
-```text
-accuracy, utility, and security of analytics and measurement solutions offered by us or third parties that demonstrate the value of our ads to marketers, or our ability to further improve such tools;
-
-•changes in the way advertising on devices, connected TVs or on personal computers is measured or p
-```
-
-### Chunk 12: NKE FY2026, Item 8, chunk 112
-
-Source: https://www.sec.gov/Archives/edgar/data/320187/000032018726000088/nke-20260531.htm
-
-```text
-plan were $139 million, $151 million and $153 million and included in Cost of sales or Operating overhead expense, as applicable, for the fiscal years ended May 31, 2026, 2025 and 2024, respectively.
-
-The Company allows certain highly compensated employees and non-employee directors of the Company t
-```
-
-### Chunk 13: PFE FY2023, Item 1, chunk 80
-
-Source: https://www.sec.gov/Archives/edgar/data/78003/000007800324000039/pfe-20231231.htm
-
-```text
-of compliance standards or programs. State attorneys general have also taken action to regulate the marketing of prescription drugs under state consumer protection and false advertising laws.
-
-Pricing, Reimbursement and Access Regulations. Pricing and reimbursement for our products depend in part on
-```
-
-### Chunk 14: PFE FY2025, Item 1A, chunk 86
+### Chunk 13: PFE FY2025, Item 8, chunk 206
 
 Source: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
 
 ```text
-Further, technology and security vulnerabilities of acquisitions, business partners or third-party providers may not be identified during due diligence or soon enough to mitigate potential risks. The size and complexity of our IT and information security systems, and those of our third-party provide
+intellectual property-, collaboration- or co-promotion-related and product-pricing claims and environmental claims and proceedings, and can involve complexities that will vary from matter to matter.
+
+•Government investigations, which often are related to the extensive regulation of pharmaceutical co
 ```
 
-### Chunk 15: WMT FY2025, Item 1A, chunk 132
+### Chunk 14: UNH FY2023, Item 8, chunk 18
 
-Source: https://www.sec.gov/Archives/edgar/data/104169/000010416925000021/wmt-20250131.htm
+Source: https://www.sec.gov/Archives/edgar/data/731766/000073176624000081/unh-20231231.htm
 
 ```text
-alleged relative monopolistic practices in connection with the supply and wholesale distribution of certain consumer goods and retail marketing practices of such consumer goods and related services. On December 12, 2024, the Comisión Federal de Competencia Económica of México ("COFECE") issued a spl
+on managed funds. Optum Insight provides software and information products, advisory consulting arrangements and managed services outsourcing contracts, which may be delivered over several years. Optum Insight revenues are generally recognized over time and measured each period based on the progress
+```
+
+### Chunk 15: VZ FY2025, Item 7, chunk 126
+
+Source: https://www.sec.gov/Archives/edgar/data/732712/000073271226000007/vz-20251231.htm
+
+```text
+amount of benefit plan income, expense, assets and obligations. Changes to one or more of these assumptions could significantly impact our accounting for pension and other postretirement benefits.
+
+In determining pension and other postretirement obligations, the weighted-average discount rate was se
 ```
 
 ## Section starts
 
-### Section 1: AAPL FY2023, Item 1A (edgartools)
+### Section 1: AXP FY2024, Item 8 (edgartools)
 
-Source: https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm
+Source: https://www.sec.gov/Archives/edgar/data/4962/000000496225000016/axp-20241231.htm
 
 ```text
-Item 1A.    Risk Factors
+ITEM 8.    FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA
 
-The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described below. When any one or more of these risks materialize from time to time, the Company’s business, reputation, results of operations, financial condition and stock price can be m
+MANAGEMENT’S REPORT ON INTERNAL CONTROL OVER FINANCIAL REPORTING
+
+Our management is responsible for establishing and maintaining adequate internal control over financial reporting.
+
+Our internal control over financial reporting is a process designed to provide reasonable assurance regarding the reliability of financial reporting and the prepa
 ```
 
-### Section 2: IBM FY2023, Item 7 (exhibit)
+### Section 2: JPM FY2023, Item 1 (edgartools)
 
-Source: https://www.sec.gov/Archives/edgar/data/51143/000005114324000012/ibm-20231231_d2.htm
+Source: https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/jpm-20231231.htm
 
 ```text
-NOTES TO CONSOLIDATED FINANCIAL STATEMENTS
+Item 1. Business.
 
 Overview
 
-6
-
-Basis & Policies
-
-Forward-Looking and Cautionary Statements
-
-7
-
-A
-
-Significant Accounting Policies
-
-50
-
-Management Discussion Snapshot
-
-8
-
-B
-
-Accounting Changes
-
-63
-
-Description of Business
-
-11
-
-Performance & Operations
-
-Year in Review
-
-17
-
-C
-
-Revenue Recognition
-
-64
-
-Prior Year in Review
-
-28
-
-D
-
-Segments
-
-66
-
-Other Information
-
-29
-
-E
-
-Acqui
+JPMorgan Chase & Co. (“JPMorgan Chase” or the “Firm”, NYSE: JPM), a financial holding company incorporated under Delaware law in 1968, is a leading financial services firm based in the United States of America (“U.S.”), with operations worldwide. JPMorgan Chase had $3.9 trillion in assets and $327.9 billion in stockholders’ equity as of December 31, 2023. The Firm is a
 ```
 
-### Section 3: MS FY2023, Item 1 (edgartools)
+### Section 3: SPGI FY2023, Item 1 (regex)
 
-Source: https://www.sec.gov/Archives/edgar/data/895421/000089542124000300/ms-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/64040/000006404024000071/spgi-20231231.htm
+
+```text
+Item 1. Business
+
+Overview
+
+S&P Global Inc. (together with its consolidated subsidiaries, “S&P Global,” the “Company,” the “Registrant,” “we,” “us” or “our”) is a provider of credit ratings, benchmarks, analytics and workflow solutions in the global capital, commodity and automotive markets. The capital markets include asset managers, investment banks, commercial banks, insurance companies, exchan
+```
+
+### Section 4: UNH FY2023, Item 1 (edgartools)
+
+Source: https://www.sec.gov/Archives/edgar/data/731766/000073176624000081/unh-20231231.htm
+
+```text
+ITEM  1.    BUSINESS
+
+OUR BUSINESSES
+
+Overview
+
+The terms “we,” “our,” “us,” “its,” “UnitedHealth Group,” or the “Company” used in this report refer to UnitedHealth Group Incorporated and its subsidiaries.
+
+UnitedHealth Group Incorporated is a health care and well-being company with a mission to help people live healthier lives and help make the health system work better for everyone. Our two dist
+```
+
+### Section 5: VZ FY2024, Item 8 (edgartools)
+
+Source: https://www.sec.gov/Archives/edgar/data/732712/000073271225000006/vz-20241231.htm
 
 ```text
 Table of Contents
 
-Business
-
-Overview
-
-We are a global financial services firm that, through our subsidiaries and affiliates, advises, and originates, trades, manages and distributes capital for governments, institutions and individuals. We were originally incorporated under the laws of the State of Delaware in 1981, and our predecessor companies date back to 1924. We are a financial holding compa
-```
-
-### Section 4: PFE FY2023, Item 1 (edgartools)
-
-Source: https://www.sec.gov/Archives/edgar/data/78003/000007800324000039/pfe-20231231.htm
-
-```text
-ITEM 1.  BUSINESS
-
-ABOUT PFIZER
-
-Pfizer Inc. is a research-based, global biopharmaceutical company. We apply science and our global resources to bring therapies to people that extend and significantly improve their lives through the discovery, development, manufacture, marketing, sale and distribution of biopharmaceutical products worldwide. We work across developed and emerging markets to advance
-```
-
-### Section 5: PFE FY2025, Item 8 (edgartools)
-
-Source: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
-
-```text
-ITEM 8.  FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA
+Item 8. Financial Statements and Supplementary Data
 
 Report of Independent Registered Public Accounting Firm
 
-To the Board of Directors and Shareholders
+To the Shareholders and the Board of Directors of Verizon Communications Inc.
 
-Pfizer Inc.:
+Opinion on Internal Control Over Financial Reporting
 
-Opinion on the Consolidated Financial Statements
-
-We have audited the accompanying consolidated balance sheets of Pfizer Inc. and Subsidiary Companies (the Company) as of December 31, 2025 and 2024, the related consolidated stateme
+We have audited Verizon Communications Inc. and subsidiaries’ (Verizon) internal control over financial reporting as of December 31, 2024,
 ```

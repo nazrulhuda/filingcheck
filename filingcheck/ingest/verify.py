@@ -19,9 +19,9 @@ from typing import Any
 
 from filingcheck.paths import REPO_ROOT
 
-ITEM_ORDER = ["1", "1A", "7", "7A", "8"]
+ITEM_ORDER = ["1", "1A", "7", "7A", "8", "1-7A"]  # "1-7A": Items not separable
 HEAD_CHARS = 500
-SEED = 2026
+SEED = 2027
 SAMPLE_CHUNKS = 15
 SAMPLE_SECTIONS = 5
 APOSTROPHE = "['" + chr(0x2019) + "]"  # straight or curly
@@ -76,6 +76,14 @@ def heading_before_in_source(item: str, section: str, source: str) -> bool:
         if re.search(pattern, before, re.IGNORECASE):
             return True
     return False
+
+
+def heading_source(method: str) -> str | None:
+    """Which document may confirm a heading just before the section: the 10-K, the exhibit.
+
+    A relocated Item 8 starts at the auditor's report itself, so it is never excused.
+    """
+    return {"edgartools": "primary", "regex": "primary", "exhibit": "exhibit"}.get(method)
 
 
 def check_heading(item: str, method: str, text: str) -> str | None:
@@ -237,15 +245,21 @@ def spot_check(root: Path) -> str:
 def main(root: Path = REPO_ROOT) -> int:
     """Run every check, print the failures, and write docs/spot_check.md."""
     failures: dict[str, list[str]] = {}
-    documents = {
-        (f["ticker"], f["fiscal_year"]): root / f["document_path"]
-        for f in _read_json(root / "data" / "manifest.json")["filings"]
-    }
-    sources: dict[tuple[str, int], str] = {}
+    documents: dict[tuple[str, int, str], list[Path]] = {}
+    for f in _read_json(root / "data" / "manifest.json")["filings"]:
+        key = (f["ticker"], f["fiscal_year"])
+        documents[(*key, "primary")] = [root / f["document_path"]]
+        documents[(*key, "exhibit")] = [
+            root / d["document_path"] for d in f.get("extra_documents", [])
+        ]
+    sources: dict[tuple[str, int, str], str] = {}
 
-    def source(key: tuple[str, int]) -> str:
+    def source(key: tuple[str, int, str]) -> str:
         if key not in sources:
-            sources[key] = plain_text(documents[key].read_text(encoding="utf-8", errors="replace"))
+            sources[key] = " ".join(
+                plain_text(path.read_text(encoding="utf-8", errors="replace"))
+                for path in documents[key]
+            )
         return sources[key]
 
     heading_problems: list[str] = []
@@ -258,10 +272,11 @@ def main(root: Path = REPO_ROOT) -> int:
             encoding="utf-8"
         )
         problem = check_heading(item, found["method"], text)
+        document = heading_source(found["method"])
         if (
             problem
-            and found["method"] in ("edgartools", "regex")
-            and heading_before_in_source(item, text, source((ticker, year)))
+            and document
+            and heading_before_in_source(item, text, source((ticker, year, document)))
         ):
             problem = None
         if problem:

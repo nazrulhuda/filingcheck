@@ -32,7 +32,7 @@ TOC_LINE_RE = re.compile(
 )
 EDGE_NUMBERS_RE = re.compile(r"^[\s\d|.\-]+|[\s\d|.\-]+$")
 BLANK_RUN_RE = re.compile(r"\n{3,}")
-ITEM_ORDER = ("1", "1A", "7", "7A", "8")
+ITEM_ORDER = ("1", "1A", "7", "7A", "8", "1-7A")  # "1-7A": Items not separable
 
 Boundary = Literal["exact", "approximate"]
 SharedSpan = tuple[int, int, list[str]]  # (start, end, other Items) in an Item's saved text
@@ -57,6 +57,21 @@ class Chunk(BaseModel):
     # "approximate" when the 10-K maps Items to pages through its own index, so the section's
     # edges are where those pages begin and end rather than at a heading.
     boundary: Boundary = "exact"
+
+
+class TableChunk(BaseModel):
+    """One number table set aside from the prose; kept for numbers XBRL does not have."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ticker: str
+    fiscal_year: int
+    accession: str
+    item: str | None  # None when the table is outside the Items that are kept
+    table_index: int
+    source_url: str  # the 10-K or the Exhibit 13 that holds the table
+    position: int  # character offset of the table in that document
+    text: str  # one row per line, "label: value | value"
 
 
 def _line_key(line: str) -> str:
