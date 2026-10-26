@@ -4,9 +4,9 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from filingcheck.db.load import load_all, read_chunks
+from filingcheck.db.load import load_all, read_chunks, read_table_chunks
 from filingcheck.db.migrate import migrate
-from filingcheck.ingest.chunking import Chunk
+from filingcheck.ingest.chunking import Chunk, TableChunk
 from filingcheck.ingest.companies import Company
 from filingcheck.ingest.filings import Filing, Manifest
 
@@ -73,7 +73,7 @@ def test_loading_100_chunks_round_trips(db: psycopg.Connection, tmp_path: Path) 
     migrate(db)
     path = write_jsonl(tmp_path / "chunks.jsonl", chunks())
     counts = load_all(db, [APPLE], Manifest(filings=[FILING]), path)
-    assert counts == {"companies": 1, "filings": 1, "chunks": 100}
+    assert counts == {"companies": 1, "filings": 1, "chunks": 100, "table_chunks": 0}
     rows = db.execute(
         "SELECT c.item, c.chunk_index, c.char_start, c.char_end, c.text, f.accession "
         "FROM chunks c JOIN filings f ON f.id = c.filing_id ORDER BY c.id"
@@ -141,3 +141,63 @@ def test_the_load_stage_loads_the_files_and_checks_the_count(
     out = capsys.readouterr().out
     assert "applied migrations: 0001_initial" in out
     assert "loaded 1 companies, 1 filings and 100 chunks (100 in data/chunks.jsonl)" in out
+
+
+SEGMENTS = TableChunk(
+    ticker="AAPL",
+    fiscal_year=2025,
+    accession=FILING.accession,
+    item="8",
+    table_index=41,
+    source_url=FILING.primary_document_url,
+    position=912_345,
+    text="iPhone: $209,586 | $201,183\nServices: $109,158 | $96,169",
+)
+
+
+def write_tables(path: Path, rows: list[TableChunk]) -> Path:
+    path.write_text("".join(t.model_dump_json() + "\n" for t in rows), encoding="utf-8")
+    return path
+
+
+def test_read_table_chunks_parses_the_jsonl_file(tmp_path: Path) -> None:
+    path = write_tables(tmp_path / "t.jsonl", [SEGMENTS])
+    assert list(read_table_chunks(path)) == [SEGMENTS]
+
+
+@pytest.mark.integration
+def test_number_tables_load_into_their_own_table_not_chunks(
+    db: psycopg.Connection, tmp_path: Path
+) -> None:
+    migrate(db)
+    outside = SEGMENTS.model_copy(update={"item": None, "table_index": 42})
+    counts = load_all(
+        db,
+        [APPLE],
+        Manifest(filings=[FILING]),
+        write_jsonl(tmp_path / "c.jsonl", chunks(2)),
+        write_tables(tmp_path / "t.jsonl", [SEGMENTS, outside]),
+    )
+    assert counts == {"companies": 1, "filings": 1, "chunks": 2, "table_chunks": 2}
+    rows = db.execute(
+        "SELECT f.ticker, f.fiscal_year, t.item, t.table_index, t.source_url, t.position, t.text "
+        "FROM table_chunks t JOIN filings f ON f.id = t.filing_id ORDER BY t.table_index"
+    ).fetchall()
+    assert rows[0] == ("AAPL", 2025, "8", 41, SEGMENTS.source_url, 912_345, SEGMENTS.text)
+    assert rows[1][2] is None
+    found = db.execute("SELECT count(*) FROM chunks WHERE text LIKE '%209,586%'").fetchone()
+    assert found == (0,)
+
+
+@pytest.mark.integration
+def test_a_table_for_an_unknown_filing_fails_loudly(db: psycopg.Connection, tmp_path: Path) -> None:
+    migrate(db)
+    stray = SEGMENTS.model_copy(update={"accession": "no-such-filing"})
+    with pytest.raises(KeyError, match="no-such-filing"):
+        load_all(
+            db,
+            [APPLE],
+            Manifest(filings=[FILING]),
+            write_jsonl(tmp_path / "c.jsonl", chunks(1)),
+            write_tables(tmp_path / "t.jsonl", [stray]),
+        )

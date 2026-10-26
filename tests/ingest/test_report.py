@@ -138,3 +138,36 @@ def test_approximate_boundaries_and_removed_repeats_are_shown() -> None:
     approx_part = text[text.index("## Sections with approximate boundaries") :]
     assert "AAPL FY2025: Items 1, 1A, 7, 7A, 8" in approx_part
     assert "- AAPL FY2025: 12" in text[text.index("## Repeated passages removed") :]
+
+
+def test_a_merged_section_gets_its_own_column_and_is_not_reported_missing() -> None:
+    merged_items = {
+        "1A": ItemSummary(chars=88_529, method="edgartools", boundary="approximate"),
+        "7": ItemSummary(chars=232_498, method="edgartools", boundary="approximate"),
+        "8": ItemSummary(chars=436_810, method="relocated"),
+        "1-7A": ItemSummary(chars=477_675, method="edgartools", boundary="approximate"),
+    }
+    citi = SectionSummary(
+        ticker="AAPL",
+        fiscal_year=2025,
+        accession="0000320193-25-000079",
+        items=merged_items,
+        short=[],
+        gaps=[],
+        cross_reference_index=True,
+        merged=["1", "7A"],
+        tables_saved=280,
+    )
+    text = build_report(COMPANIES, MANIFEST, [citi, SUMMARIES[1]], CHUNKS, TAGS)
+    assert "10-K text, sections not separable" in text
+    assert "477,675 (approx.)" in text
+    assert "in 1-7A" in text
+    assert "No filing is missing an Item." in text
+    assert "| Number tables set aside (table_chunks) | 280 |" in text
+
+
+def test_sections_whose_tables_were_kept_are_listed() -> None:
+    kept = SUMMARIES[0].model_copy(update={"tables_saved": 120, "tables_kept": ["8"]})
+    text = build_report(COMPANIES, MANIFEST, [kept, SUMMARIES[1]], CHUNKS, TAGS)
+    part = text[text.index("## Number tables") :]
+    assert f"- {kept.ticker} FY{kept.fiscal_year}: Item 8" in part.split("\n## ")[0]

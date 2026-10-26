@@ -159,6 +159,8 @@ def test_run_sections_then_run_chunks(
     assert cli.run_chunks(manifest, tmp_path) == 0
     out = capsys.readouterr().out
     assert "chunks written" in out
+    assert "0 number tables written to data/table_chunks.jsonl" in out  # the sample has none
+    assert (tmp_path / cli.TABLE_CHUNKS_FILE).exists()
     lines = (tmp_path / cli.CHUNKS_FILE).read_text(encoding="utf-8").splitlines()
     assert lines and {json.loads(line)["ticker"] for line in lines} == {"EXMP"}
 

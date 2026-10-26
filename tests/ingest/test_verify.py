@@ -180,3 +180,19 @@ def test_a_section_that_does_not_occur_in_the_source_is_not_confirmed() -> None:
     from filingcheck.ingest.verify import heading_before_in_source, plain_text
 
     assert not heading_before_in_source("1A", "Something else entirely", plain_text("<p>x</p>"))
+
+
+def test_an_exhibit_section_is_confirmed_against_the_exhibit_document() -> None:
+    from filingcheck.ingest.verify import heading_before_in_source, heading_source, plain_text
+
+    # IBM: the cut starts at "Management Discussion", which the cleaner then removes as a
+    # running page header; the heading is still right before the section in the exhibit.
+    exhibit = plain_text(
+        "<p>Management Discussion</p><p>International Business Machines Corporation</p>"
+        "<p>OVERVIEW</p><p>The financial section of the annual report includes the MD&amp;A.</p>"
+    )
+    section = "OVERVIEW\n\nThe financial section of the annual report includes the MD&A."
+    assert heading_source("exhibit") == "exhibit"
+    assert heading_source("edgartools") == heading_source("regex") == "primary"
+    assert heading_source("relocated") is None
+    assert heading_before_in_source("7", section, exhibit)
