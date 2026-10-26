@@ -8,6 +8,7 @@ report filed as Exhibit 13; then the exhibit is downloaded and the two Items com
 
 import json
 import re
+from collections import Counter, defaultdict
 from collections.abc import Iterator
 from html import unescape
 from html.parser import HTMLParser
@@ -16,7 +17,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from filingcheck.ingest.chunking import Chunk, chunk_item, clean_item_text
+from filingcheck.ingest.chunking import (
+    Boundary,
+    Chunk,
+    SharedSpan,
+    chunk_item,
+    clean_item_text,
+)
 from filingcheck.ingest.filings import (
     ExtraDocument,
     Filing,
@@ -52,6 +59,22 @@ OPINION_RE = re.compile(r"Opinions? on the (?:Consolidated )?Financial Statement
 RELOCATED_END_RE = re.compile(
     r"^[ \t]*(?:(?:exhibit index|signatures?)[ \t]*$|item[ \t]+16\b)", re.I | re.MULTILINE
 )
+# A 10-K that maps Items to pages through its own index ("Form 10-K Cross-Reference Index"
+# at Citigroup, "Form 10-K Index" at JPMorgan) is laid out like an annual report.
+CROSS_REFERENCE_RE = re.compile(
+    r"^[ \t]*(?:form[ \t]+)?10-K[ \t]+(?:cross[- ]reference[ \t]+)?index[ \t]*$"
+    r"|^[ \t]*cross[- ]reference[ \t]+index[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+INDEX_SEARCH_CHARS = 80_000  # the index sits near the front, after the cover page
+# In such a 10-K the notes to the financial statements are followed by sections like these.
+CLOSING_SECTIONS_RE = re.compile(
+    r"^[ \t]*(?:(?:financial data supplement|glossary of terms|supervision and regulation|"
+    r"corporate information|exhibit index|signatures?)\b[^\n]{0,60}$|item[ \t]+16\b)",
+    re.IGNORECASE | re.MULTILINE,
+)
+MIN_SHARED_CHARS = 80  # shorter repeated lines (headings such as "Overview") are left alone
+SHARED_SUFFIX = ".shared.json"
 RIGHT_QUOTE = chr(0x2019)  # the curly apostrophe in "Management's"
 MDNA_RE = re.compile("Management(?:'s|" + RIGHT_QUOTE + "s)?" + r"\s+Discussion", re.IGNORECASE)
 EXHIBIT_END_RE = re.compile(
@@ -75,10 +98,11 @@ class ItemText(BaseModel):
 
 
 class ItemSummary(BaseModel):
-    """Size and source of one saved Item."""
+    """Size, source and boundary of one saved Item."""
 
     chars: int
     method: Method
+    boundary: Boundary = "exact"
 
 
 class SectionSummary(BaseModel):
@@ -90,6 +114,8 @@ class SectionSummary(BaseModel):
     items: dict[str, ItemSummary]
     short: list[str]
     gaps: list[str]
+    cross_reference_index: bool = False
+    repeats_removed: int = 0
 
 
 # ---------------------------------------------------------------- HTML to text
@@ -248,18 +274,80 @@ def financial_statements_start(text: str) -> int | None:
     return None
 
 
-def relocate_financial_statements(text: str) -> str | None:
+def relocate_financial_statements(
+    text: str, end_re: re.Pattern[str] = RELOCATED_END_RE
+) -> str | None:
     """Cut the financial statements out of a 10-K whose Item 8 only points to them.
 
-    They run from the auditor's report on the financial statements to the exhibit index,
-    the signatures or Item 16, whichever comes first. Netflix places them after Part IV;
-    Nvidia places them under Item 15.
+    They run from the auditor's report on the financial statements to the first heading that
+    `end_re` matches: by default the exhibit index, the signatures or Item 16. Netflix places
+    them after Part IV; Nvidia places them under Item 15.
     """
     start = financial_statements_start(text)
     if start is None:
         return None
-    end = RELOCATED_END_RE.search(text, start + 1)
+    end = end_re.search(text, start + 1)
     return text[start : end.start() if end else len(text)].strip()
+
+
+def has_cross_reference_index(text: str) -> bool:
+    """Whether the 10-K maps its Items to pages through its own index, near its front."""
+    return CROSS_REFERENCE_RE.search(text[:INDEX_SEARCH_CHARS]) is not None
+
+
+def section_boundary(index_based: bool, method: str) -> Boundary:
+    """'approximate' for Items found through a page index; Items cut at a heading are exact."""
+    return "approximate" if index_based and method in ("edgartools", "regex") else "exact"
+
+
+def _paragraph_key(paragraph: str) -> str:
+    return " ".join(paragraph.split()).lower()
+
+
+def dedupe_paragraphs(
+    texts: dict[str, str],
+    min_chars: int = MIN_SHARED_CHARS,
+    order: list[str] | None = None,
+) -> tuple[dict[str, str], dict[str, list[SharedSpan]], int]:
+    """Keep each repeated passage of a filing once, under the first Item (in `order`) that has it.
+
+    Returns the Item texts without the repeats, the passages each Item shares with other
+    Items (as character spans, with those Items), and how many repeats were removed.
+    Paragraphs shorter than `min_chars`, such as headings, are never treated as repeats.
+    `order` defaults to the Item order; pass exact sections first so that a passage shared
+    with an approximate section stays in the exact one.
+    """
+    owner: dict[str, str] = {}
+    also: dict[str, set[str]] = defaultdict(set)
+    kept: dict[str, list[str]] = {}
+    removed = 0
+    for item in [i for i in (order or list(ITEMS)) if i in texts]:
+        paragraphs = []
+        for paragraph in texts[item].split("\n\n"):
+            key = _paragraph_key(paragraph)
+            if len(key) >= min_chars and key in owner:
+                if owner[key] != item:
+                    also[key].add(item)
+                removed += 1
+                continue
+            if len(key) >= min_chars:
+                owner[key] = item
+            paragraphs.append(paragraph)
+        kept[item] = paragraphs
+    result: dict[str, str] = {}
+    spans: dict[str, list[SharedSpan]] = {}
+    for item, paragraphs in kept.items():
+        position, item_spans = 0, []
+        for n, paragraph in enumerate(paragraphs):
+            position += 2 if n else 0  # the "\n\n" between paragraphs
+            key = _paragraph_key(paragraph)
+            if key in also:
+                others = sorted(also[key], key=ITEMS.index)
+                item_spans.append((position, position + len(paragraph), others))
+            position += len(paragraph)
+        result[item] = "\n\n".join(paragraphs)
+        spans[item] = item_spans
+    return result, spans, removed
 
 
 def split_exhibit_13(text: str) -> dict[str, str] | None:
@@ -315,9 +403,19 @@ def _section_filing(
     filing: Filing, client: SecFetcher, root: Path, min_chars: int
 ) -> tuple[Filing, SectionSummary]:
     html = decode_document((root / filing.document_path).read_bytes())
+    text = html_to_text(html)
     items = extract_items(html)
     gaps: list[str] = []
     extra = list(filing.extra_documents)
+    index_based = has_cross_reference_index(text)
+    if index_based:
+        # Items come from page ranges, so their edges are approximate; Item 8 is cut instead
+        # from the auditor's report to the first section that follows the notes.
+        statements = relocate_financial_statements(text, CLOSING_SECTIONS_RE)
+        if statements is not None and len(statements) >= min_chars:
+            items["8"] = ItemText(text=statements, method="relocated")
+        else:
+            gaps.append("Item 8: the auditor's report on the financial statements was not found")
     weak = [item for item in EXHIBIT_ITEMS if item in short_items(items, min_chars)]
     if weak:
         # First choice: an Exhibit 13 annual report filed with the 10-K.
@@ -330,7 +428,7 @@ def _section_filing(
         unresolved = [i for i in weak if i not in items or items[i].method != "exhibit"]
         # Second choice for Item 8: the statements elsewhere in the same 10-K.
         if "8" in unresolved:
-            moved = relocate_financial_statements(html_to_text(html))
+            moved = relocate_financial_statements(text)
             if moved is not None and len(moved) >= min_chars:
                 items["8"] = ItemText(text=moved, method="relocated")
                 unresolved.remove("8")
@@ -344,13 +442,25 @@ def _section_filing(
             gaps += [
                 f"Item {item} is short in both the 10-K and its Exhibit 13" for item in unresolved
             ]
+    cleaned = {item: clean_item_text(found.text) for item, found in items.items()}
+    boundaries = {
+        item: section_boundary(index_based, found.method) for item, found in items.items()
+    }
+    exact_first = sorted(cleaned, key=lambda i: (boundaries[i] != "exact", ITEMS.index(i)))
+    deduped, shared, removed = dedupe_paragraphs(cleaned, order=exact_first)
     summaries: dict[str, ItemSummary] = {}
-    for item, found in items.items():
-        cleaned = clean_item_text(found.text)
+    for item in [i for i in ITEMS if i in deduped]:
         path = root / section_path(filing, item)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(cleaned, encoding="utf-8", newline="\n")
-        summaries[item] = ItemSummary(chars=len(cleaned), method=found.method)
+        path.write_text(deduped[item], encoding="utf-8", newline="\n")
+        sidecar = path.with_name(path.stem + SHARED_SUFFIX)
+        if shared[item]:
+            sidecar.write_text(json.dumps(shared[item]) + "\n", encoding="utf-8", newline="\n")
+        elif sidecar.exists():
+            sidecar.unlink()  # left from an earlier run
+        summaries[item] = ItemSummary(
+            chars=len(deduped[item]), method=items[item].method, boundary=boundaries[item]
+        )
     missing = [item for item in ITEMS if item not in items]
     if missing:
         gaps.append(f"not found: Item {', Item '.join(missing)}")
@@ -362,6 +472,8 @@ def _section_filing(
         items=summaries,
         short=short,
         gaps=gaps,
+        cross_reference_index=index_based,
+        repeats_removed=removed,
     )
     return filing.model_copy(update={"extra_documents": extra}), summary
 
@@ -392,19 +504,51 @@ def load_summary(path: Path) -> list[SectionSummary]:
     return [SectionSummary.model_validate(row) for row in rows]
 
 
+def _read_shared(path: Path) -> list[SharedSpan]:
+    sidecar = path.with_name(path.stem + SHARED_SUFFIX)
+    if not sidecar.exists():
+        return []
+    return [(int(s), int(e), list(items)) for s, e, items in json.loads(sidecar.read_text())]
+
+
 def iter_chunks(manifest: Manifest, root: Path) -> Iterator[tuple[list[Chunk], dict[str, int]]]:
-    """Chunk every saved Item; yields each Item's chunks with the count of dropped ones."""
+    """Chunk every saved Item; yields each filing's chunks with the count of dropped ones.
+
+    A chunk whose text already appeared in the same filing is dropped (counted as "repeat")
+    and its Item is added to the first one's `also_in`; repeats across filings are kept.
+    """
+    summaries = {s.accession: s for s in load_summary(root / "data/sections/summary.json")}
     for filing in manifest.filings:
+        summary = summaries.get(filing.accession)
+        kept: list[Chunk] = []
+        first_with_text: dict[str, int] = {}
+        dropped: Counter[str] = Counter()
         for item in ITEMS:
             path = root / section_path(filing, item)
             if not path.exists():
                 continue
-            chunks, dropped = chunk_item(
+            found = summary.items.get(item) if summary else None
+            chunks, item_dropped = chunk_item(
                 path.read_text(encoding="utf-8"),
                 ticker=filing.ticker,
                 cik=filing.cik,
                 fiscal_year=filing.fiscal_year,
                 accession=filing.accession,
                 item=item,
+                shared=_read_shared(path),
+                boundary=found.boundary if found else "exact",
             )
-            yield chunks, dict(dropped)
+            dropped.update(item_dropped)
+            for chunk in chunks:
+                if chunk.text in first_with_text:
+                    index = first_with_text[chunk.text]
+                    first = kept[index]
+                    others = (set(first.also_in) | {chunk.item, *chunk.also_in}) - {first.item}
+                    kept[index] = first.model_copy(
+                        update={"also_in": sorted(others, key=ITEMS.index)}
+                    )
+                    dropped["repeat"] += 1
+                    continue
+                first_with_text[chunk.text] = len(kept)
+                kept.append(chunk)
+        yield kept, dict(dropped)

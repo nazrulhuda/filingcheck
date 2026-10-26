@@ -10,7 +10,11 @@ from filingcheck.ingest.chunking import Chunk
 from filingcheck.ingest.companies import Company
 from filingcheck.ingest.filings import Manifest
 
-COPY_CHUNKS = "COPY chunks (filing_id, item, chunk_index, char_start, char_end, text) FROM STDIN"
+COPY_CHUNKS = (
+    "COPY chunks (filing_id, item, chunk_index, char_start, char_end, text, boundary, also_in) "
+    "FROM STDIN"
+)
+COPY_TYPES = ["bigint", "text", "integer", "integer", "integer", "text", "text", "text[]"]
 
 
 def read_chunks(path: Path) -> Iterator[Chunk]:
@@ -68,6 +72,7 @@ def load_all(
             assert row is not None
             filing_ids[f.accession] = row[0]
         with conn.cursor() as cur, cur.copy(COPY_CHUNKS) as copy:
+            copy.set_types(COPY_TYPES)
             for chunk in read_chunks(chunks_path):
                 if chunk.accession not in filing_ids:
                     raise KeyError(f"chunk for a filing not in the manifest: {chunk.accession}")
@@ -79,6 +84,8 @@ def load_all(
                         chunk.char_start,
                         chunk.char_end,
                         chunk.text,
+                        chunk.boundary,
+                        chunk.also_in,
                     )
                 )
     counts = {}

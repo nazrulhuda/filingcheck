@@ -13,6 +13,7 @@ import re
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from html import unescape
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,36 @@ TITLES = {
 # Sections cut from an Exhibit 13 or from later in the 10-K start at a known heading.
 MOVED_HEADINGS = {"7": TITLES["7"], "8": AUDITOR}
 REPORT_ROW_RE = re.compile(r"^\|\s*\d{4}\s*\|\s*([^|]+?)\s*\|.*\|\s*([\d,]+)\s*\|\s*$", re.M)
+
+
+SOURCE_WINDOW = 300  # how far before a section's start, in the source, its heading may sit
+PROBE_CHARS = 60
+
+
+def plain_text(html: str) -> str:
+    """A flat text version of a filing: tags removed, entities decoded, whitespace collapsed.
+
+    Deliberately simpler than the pipeline's own converter, so the two do not share mistakes.
+    """
+    html = re.sub(r"(?is)<(script|style|ix:header)\b.*?</\1\s*>", " ", html)
+    return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", html))).strip().lower()
+
+
+def heading_before_in_source(item: str, section: str, source: str) -> bool:
+    """Whether the Item's label or title sits just before where the section starts in the source.
+
+    Some parsers drop the heading line itself (Mastercard's "Item 1A. Risk factors"); the
+    section is still right if that heading comes directly before its first words.
+    """
+    probe = re.sub(r"\s+", " ", section).strip().lower()[:PROBE_CHARS]
+    if not probe:
+        return False
+    pattern = (LABELS[item] + "|" + TITLES[item]).replace(LINE, "")
+    for match in re.finditer(re.escape(probe), source):
+        before = source[max(0, match.start() - SOURCE_WINDOW) : match.start()]
+        if re.search(pattern, before, re.IGNORECASE):
+            return True
+    return False
 
 
 def check_heading(item: str, method: str, text: str) -> str | None:
@@ -139,13 +170,17 @@ def _source_urls(root: Path) -> tuple[dict[tuple[str, int], str], dict[tuple[str
     return primary, exhibit
 
 
-def _methods(root: Path) -> dict[tuple[str, int, str], str]:
+def _sections(root: Path) -> dict[tuple[str, int, str], dict[str, Any]]:
     rows = _read_json(root / "data" / "sections" / "summary.json")
     return {
-        (row["ticker"], row["fiscal_year"], item): found["method"]
+        (row["ticker"], row["fiscal_year"], item): found
         for row in rows
         for item, found in row["items"].items()
     }
+
+
+def _methods(root: Path) -> dict[tuple[str, int, str], str]:
+    return {key: found["method"] for key, found in _sections(root).items()}
 
 
 def _fence(text: str) -> list[str]:
@@ -202,21 +237,38 @@ def spot_check(root: Path) -> str:
 def main(root: Path = REPO_ROOT) -> int:
     """Run every check, print the failures, and write docs/spot_check.md."""
     failures: dict[str, list[str]] = {}
+    documents = {
+        (f["ticker"], f["fiscal_year"]): root / f["document_path"]
+        for f in _read_json(root / "data" / "manifest.json")["filings"]
+    }
+    sources: dict[tuple[str, int], str] = {}
 
-    methods = _methods(root)
-    failures["Sections without their Item heading in the first 500 characters"] = [
-        f"{ticker} FY{year}: {problem}"
-        for (ticker, year, item), method in sorted(methods.items())
-        if (
-            problem := check_heading(
-                item,
-                method,
-                (root / "data" / "sections" / ticker / str(year) / f"item_{item}.txt").read_text(
-                    encoding="utf-8"
-                ),
-            )
+    def source(key: tuple[str, int]) -> str:
+        if key not in sources:
+            sources[key] = plain_text(documents[key].read_text(encoding="utf-8", errors="replace"))
+        return sources[key]
+
+    heading_problems: list[str] = []
+    approximate: list[str] = []
+    for (ticker, year, item), found in sorted(_sections(root).items()):
+        if found.get("boundary", "exact") == "approximate":
+            approximate.append(f"{ticker} FY{year}: Item {item}")
+            continue
+        text = (root / "data" / "sections" / ticker / str(year) / f"item_{item}.txt").read_text(
+            encoding="utf-8"
         )
-    ]
+        problem = check_heading(item, found["method"], text)
+        if (
+            problem
+            and found["method"] in ("edgartools", "regex")
+            and heading_before_in_source(item, text, source((ticker, year)))
+        ):
+            problem = None
+        if problem:
+            heading_problems.append(f"{ticker} FY{year}: {problem}")
+    failures["Sections without their Item heading (in the section or just before it)"] = (
+        heading_problems
+    )
     rows = _read_chunks(root)
     duplicates = check_duplicates(rows)
     failures["Chunk texts repeated inside one filing"] = duplicates.failures
@@ -233,6 +285,12 @@ def main(root: Path = REPO_ROOT) -> int:
         for problem in problems:
             print(f"  {problem}")
         total += len(problems)
+    print(
+        f"Sections with approximate boundaries (10-Ks that map Items to pages through their "
+        f"own index; not checked for a heading, flagged in the data report): {len(approximate)}"
+    )
+    for entry in approximate:
+        print(f"  {entry}")
     print(
         f"Chunk texts shared by different filings (allowed, e.g. risk factors repeated "
         f"year to year): {duplicates.across_filings:,}"

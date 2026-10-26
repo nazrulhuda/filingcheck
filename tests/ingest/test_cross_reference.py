@@ -9,13 +9,21 @@ from filingcheck.ingest.sections import (
     CLOSING_SECTIONS_RE,
     build_sections,
     dedupe_paragraphs,
+    filing_index_url,
     has_cross_reference_index,
     html_to_text,
     iter_chunks,
     relocate_financial_statements,
     section_boundary,
 )
-from tests.ingest.test_sections import FakeClient, filing, fixture, write_document
+from tests.ingest.test_sections import (
+    IBM_ACCESSION,
+    IBM_CIK,
+    FakeClient,
+    filing,
+    fixture,
+    write_document,
+)
 
 SHARED = "A long passage that the company's own index places in more than one Item of the 10-K."
 SENTENCE = "Net revenue rose because the bank earned more net interest income on higher balances. "
@@ -50,8 +58,10 @@ def test_boundaries_are_exact_unless_pages_were_mapped_through_an_index() -> Non
 
 def test_build_sections_cuts_item_8_of_an_index_based_10k(tmp_path: Path) -> None:
     path = write_document(tmp_path, fixture("tenk_xref_sample.html"))
+    no_exhibit = fixture("filing_index_sample.html").replace("EX-13", "EX-99").encode()
+    client = FakeClient({filing_index_url(IBM_CIK, IBM_ACCESSION): no_exhibit})
     _, summary = build_sections(
-        Manifest(filings=[filing(path)]), FakeClient({}), root=tmp_path, min_chars=100
+        Manifest(filings=[filing(path)]), client, root=tmp_path, min_chars=100
     )
     row = summary[0]
     assert row.cross_reference_index is True
@@ -106,7 +116,7 @@ def test_a_chunk_over_a_shared_passage_lists_the_other_items() -> None:
 
 
 def test_iter_chunks_drops_an_identical_chunk_and_records_its_item(tmp_path: Path) -> None:
-    body = (SENTENCE.strip() + "\n") * 8  # short lines: not caught as a repeated paragraph
+    body = (SENTENCE.strip() + "\n") * 8  # written directly, so only the chunk-level check applies
     f = filing("data/filings/EXMP/x.html")
     folder = tmp_path / "data/sections/EXMP/2025"
     folder.mkdir(parents=True)
@@ -129,3 +139,11 @@ def test_iter_chunks_drops_an_identical_chunk_and_records_its_item(tmp_path: Pat
     assert [c.item for c in chunks] == ["7"]
     assert chunks[0].also_in == ["8"]
     assert dropped == 1
+
+
+def test_an_exact_section_keeps_a_passage_it_shares_with_an_approximate_one() -> None:
+    texts = {"7A": f"{SHARED}\n\nRisk. {SENTENCE}", "8": f"Report. {SENTENCE}\n\n{SHARED}"}
+    kept, shared, _ = dedupe_paragraphs(texts, order=["8", "7A"])
+    assert SHARED in kept["8"]  # the exact financial statements stay complete
+    assert SHARED not in kept["7A"]
+    assert shared["8"][0][2] == ["7A"]
