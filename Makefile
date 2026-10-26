@@ -1,26 +1,27 @@
 # FilingCheck developer commands. Run these from Git Bash on Windows or any shell on Linux/macOS.
+# Tools run as `python -m <tool>`: Windows can block the small .exe launchers that uv creates.
 
-.PHONY: setup lint format test test-integration db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: setup lint format test test-integration verify-data db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
 	uv sync
-	uv run pre-commit install
+	uv run python -m pre_commit install
 
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy
+	uv run python -m mypy
 
 format:
 	uv run ruff check --fix .
 	uv run ruff format .
 
 test:
-	uv run pytest -m "not integration and not slow" --cov=filingcheck --cov-report=term-missing --cov-report=xml --cov-report=html
+	uv run python -m pytest -m "not integration and not slow" --cov=filingcheck --cov-report=term-missing --cov-report=xml --cov-report=html
 
 test-integration:  # needs the database from `make db-up`
-	uv run pytest -m integration
+	uv run python -m pytest -m integration
 
 db-up:
 	docker compose up -d --wait db
@@ -45,6 +46,9 @@ ingest:
 	uv run python -m filingcheck.ingest chunks
 	uv run python -m filingcheck.ingest load
 	uv run python -m filingcheck.ingest report
+
+verify-data:  # independent check of the ingest outputs; writes docs/spot_check.md
+	uv run python -m filingcheck.ingest.verify
 
 validate-questions:
 	uv run python -m filingcheck.eval.questions validate

@@ -154,3 +154,8 @@ def test_the_spot_check_has_15_chunks_and_5_section_starts_with_links(tmp_path: 
 def test_the_spot_check_is_the_same_every_time(tmp_path: Path) -> None:
     write_inputs(tmp_path)
     assert spot_check(tmp_path) == spot_check(tmp_path)
+
+
+def test_morgan_stanleys_item_7a_title_passes() -> None:
+    lines = ["Table of Contents", "", "Quantitative and Qualitative Disclosures about Risk", "Risk"]
+    assert check_heading("7A", "edgartools", "\n".join(lines)) is None
