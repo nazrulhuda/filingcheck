@@ -51,6 +51,8 @@ def chunks(count: int = 100) -> list[Chunk]:
             char_start=i * 10,
             char_end=i * 10 + len(TEXT[items[i % 2]]),
             text=f"{TEXT[items[i % 2]]} (chunk {i})",
+            also_in=["7A"] if i == 0 else [],
+            boundary="approximate" if i == 1 else "exact",
         )
         for i in range(count)
     ]
@@ -80,6 +82,8 @@ def test_loading_100_chunks_round_trips(db: psycopg.Connection, tmp_path: Path) 
         (c.item, c.chunk_index, c.char_start, c.char_end, c.text, c.accession) for c in chunks()
     ]
     assert rows == expected
+    extra = db.execute("SELECT also_in, boundary FROM chunks ORDER BY id LIMIT 2").fetchall()
+    assert extra == [(["7A"], "exact"), ([], "approximate")]
     aliases = db.execute("SELECT aliases FROM companies WHERE ticker = 'AAPL'").fetchone()
     assert aliases == (["Apple", "AAPL"],)
 
