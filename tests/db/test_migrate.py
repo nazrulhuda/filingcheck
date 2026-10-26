@@ -30,6 +30,7 @@ TABLES = {
     "companies",
     "filings",
     "chunks",
+    "table_chunks",
     "facts",
     "embeddings_meta",
     "eval_questions",

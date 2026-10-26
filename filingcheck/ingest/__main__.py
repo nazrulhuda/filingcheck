@@ -11,6 +11,7 @@ COMPANIES_FILE = DATA_DIR / "companies.yaml"
 MANIFEST_FILE = DATA_DIR / "manifest.json"
 SECTIONS_SUMMARY = "data/sections/summary.json"
 CHUNKS_FILE = "data/chunks.jsonl"
+TABLE_CHUNKS_FILE = "data/table_chunks.jsonl"
 DATA_REPORT = "docs/data_report.md"
 
 
@@ -95,11 +96,11 @@ def run_sections(manifest_path: Path, root: Path) -> int:
 
 
 def run_chunks(manifest_path: Path, root: Path) -> int:
-    """Chunk every saved Item into `data/chunks.jsonl`."""
+    """Chunk every saved Item into `data/chunks.jsonl`; gather the number tables too."""
     from collections import Counter
 
     from filingcheck.ingest.filings import load_manifest
-    from filingcheck.ingest.sections import iter_chunks
+    from filingcheck.ingest.sections import iter_chunks, iter_table_chunks
 
     kept: Counter[str] = Counter()
     dropped: Counter[str] = Counter()
@@ -113,9 +114,19 @@ def run_chunks(manifest_path: Path, root: Path) -> int:
                 kept[chunk.item] += 1
             dropped.update(item_dropped)
     tmp.replace(out)
+    tables = root / TABLE_CHUNKS_FILE
+    tmp = tables.with_name(tables.name + ".tmp")
+    in_items: Counter[str] = Counter()
+    with tmp.open("w", encoding="utf-8", newline="\n") as handle:
+        for table in iter_table_chunks(load_manifest(manifest_path), root):
+            handle.write(table.model_dump_json() + "\n")
+            in_items[table.item or "none"] += 1
+    tmp.replace(tables)
     print("chunks per Item: " + ", ".join(f"{item} {n:,}" for item, n in sorted(kept.items())))
     print("dropped as noise: " + ", ".join(f"{why} {n:,}" for why, n in sorted(dropped.items())))
     print(f"{sum(kept.values()):,} chunks written to {CHUNKS_FILE}")
+    print("number tables per Item: " + ", ".join(f"{i} {n:,}" for i, n in sorted(in_items.items())))
+    print(f"{sum(in_items.values()):,} number tables written to {TABLE_CHUNKS_FILE}")
     return 0
 
 
@@ -128,21 +139,34 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
     from filingcheck.ingest.filings import load_manifest
 
     chunks_path = root / CHUNKS_FILE
+    tables_path = root / TABLE_CHUNKS_FILE
     with connect() as conn:
         applied = migrate(conn)
         counts = load_all(
-            conn, load_companies(companies_path), load_manifest(manifest_path), chunks_path
+            conn,
+            load_companies(companies_path),
+            load_manifest(manifest_path),
+            chunks_path,
+            tables_path if tables_path.exists() else None,
         )
     with chunks_path.open(encoding="utf-8") as handle:
         in_file = sum(1 for line in handle if line.strip())
+    tables_in_file = 0
+    if tables_path.exists():
+        with tables_path.open(encoding="utf-8") as handle:
+            tables_in_file = sum(1 for line in handle if line.strip())
     if applied:
         print(f"applied migrations: {', '.join(applied)}")
     print(
         f"loaded {counts['companies']} companies, {counts['filings']} filings and "
         f"{counts['chunks']:,} chunks ({in_file:,} in {CHUNKS_FILE})"
     )
-    if counts["chunks"] != in_file:
-        print("ERROR: the database and the chunk file disagree")
+    print(
+        f"loaded {counts['table_chunks']:,} number tables "
+        f"({tables_in_file:,} in {TABLE_CHUNKS_FILE})"
+    )
+    if counts["chunks"] != in_file or counts["table_chunks"] != tables_in_file:
+        print("ERROR: the database and the chunk files disagree")
         return 1
     return 0
 
