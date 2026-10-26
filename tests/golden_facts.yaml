@@ -1,0 +1,55 @@
+# Facts read by hand from the filings on sec.gov, as an independent check on the XBRL code.
+#
+# How to verify one: open source_url, find the line named in where_to_look, copy the number
+# exactly as printed (in the units the statement states), fill in value_as_printed and
+# printed_units, convert it to raw units in value (dollars, not millions), and set
+# verified_by_hand: true.
+#
+# Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code
+# (tests/test_golden_facts.py enforces the format now; the fact check is added with that code).
+
+facts:
+  - id: jpm-fy2023-total-net-revenue
+    ticker: JPM
+    fiscal_year: 2023
+    period_end: 2023-12-31
+    metric: revenue
+    xbrl_tag: us-gaap:RevenuesNetOfInterestExpense
+    where_to_look: Consolidated statements of income, line "Total net revenue"
+    source_url: https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/jpm-20231231.htm
+    expected_around: "158,104 million USD"
+    value_as_printed: null
+    printed_units: null
+    value: null
+    unit: USD
+    verified_by_hand: false
+
+  - id: aapl-fy2025-total-net-sales
+    ticker: AAPL
+    fiscal_year: 2025
+    period_end: 2025-09-27
+    metric: revenue
+    xbrl_tag: us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax
+    where_to_look: Consolidated statements of operations, line "Total net sales"
+    source_url: https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm
+    expected_around: null
+    value_as_printed: null
+    printed_units: null
+    value: null
+    unit: USD
+    verified_by_hand: false
+
+  - id: wmt-fy2026-total-revenues
+    ticker: WMT
+    fiscal_year: 2026
+    period_end: 2026-01-31
+    metric: revenue
+    xbrl_tag: us-gaap:Revenues
+    where_to_look: Consolidated statements of income, line "Total revenues"
+    source_url: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
+    expected_around: null
+    value_as_printed: null
+    printed_units: null
+    value: null
+    unit: USD
+    verified_by_hand: false
