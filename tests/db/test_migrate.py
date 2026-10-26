@@ -78,3 +78,15 @@ def test_facts_reject_a_duplicate_instant_fact(db: psycopg.Connection) -> None:
     db.execute(insert, row)
     with pytest.raises(psycopg.errors.UniqueViolation):
         db.execute(insert, row)
+
+
+@pytest.mark.integration
+def test_chunks_carry_their_boundary_and_other_items(db: psycopg.Connection) -> None:
+    migrate(db)
+    columns: dict[str, str] = dict(
+        db.execute(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_name = 'chunks' AND column_name IN ('boundary', 'also_in')"
+        ).fetchall()
+    )
+    assert columns == {"boundary": "text", "also_in": "ARRAY"}

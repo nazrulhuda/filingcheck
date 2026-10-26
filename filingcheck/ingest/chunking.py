@@ -6,8 +6,10 @@ Chunks never cross Items. Character offsets point into the cleaned Item text sav
 
 import re
 from collections import Counter
+from collections.abc import Sequence
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 CHUNK_SIZE = 1100  # characters: about one long paragraph
 OVERLAP = 200  # characters repeated at the start of the next chunk
@@ -30,6 +32,10 @@ TOC_LINE_RE = re.compile(
 )
 EDGE_NUMBERS_RE = re.compile(r"^[\s\d|.\-]+|[\s\d|.\-]+$")
 BLANK_RUN_RE = re.compile(r"\n{3,}")
+ITEM_ORDER = ("1", "1A", "7", "7A", "8")
+
+Boundary = Literal["exact", "approximate"]
+SharedSpan = tuple[int, int, list[str]]  # (start, end, other Items) in an Item's saved text
 
 
 class Chunk(BaseModel):
@@ -46,6 +52,11 @@ class Chunk(BaseModel):
     char_start: int
     char_end: int
     text: str
+    # Other Items of the same filing that contain this text; it is stored once, under `item`.
+    also_in: list[str] = Field(default_factory=list)
+    # "approximate" when the 10-K maps Items to pages through its own index, so the section's
+    # edges are where those pages begin and end rather than at a heading.
+    boundary: Boundary = "exact"
 
 
 def _line_key(line: str) -> str:
@@ -127,9 +138,21 @@ def junk_reason(text: str) -> str | None:
 
 
 def chunk_item(
-    text: str, *, ticker: str, cik: str, fiscal_year: int, accession: str, item: str
+    text: str,
+    *,
+    ticker: str,
+    cik: str,
+    fiscal_year: int,
+    accession: str,
+    item: str,
+    shared: Sequence[SharedSpan] = (),
+    boundary: Boundary = "exact",
 ) -> tuple[list[Chunk], Counter[str]]:
-    """Chunk one Item's cleaned text; return the kept chunks and the count of dropped ones."""
+    """Chunk one Item's cleaned text; return the kept chunks and the count of dropped ones.
+
+    `shared` marks passages of the text that also belong to other Items; a chunk overlapping
+    one lists those Items in `also_in`.
+    """
     chunks: list[Chunk] = []
     dropped: Counter[str] = Counter()
     for start, end in split_spans(text, CHUNK_SIZE, OVERLAP):
@@ -142,6 +165,7 @@ def chunk_item(
         if reason:
             dropped[reason] += 1
             continue
+        others = {other for s, e, items in shared if s < end and e > start for other in items}
         chunks.append(
             Chunk(
                 ticker=ticker,
@@ -153,6 +177,8 @@ def chunk_item(
                 char_start=start,
                 char_end=end,
                 text=piece,
+                also_in=sorted(others - {item}, key=ITEM_ORDER.index),
+                boundary=boundary,
             )
         )
     return chunks, dropped

@@ -159,3 +159,24 @@ def test_the_spot_check_is_the_same_every_time(tmp_path: Path) -> None:
 def test_morgan_stanleys_item_7a_title_passes() -> None:
     lines = ["Table of Contents", "", "Quantitative and Qualitative Disclosures about Risk", "Risk"]
     assert check_heading("7A", "edgartools", "\n".join(lines)) is None
+
+
+# ---------------------------------------------------------------- the source document
+
+
+def test_a_heading_just_before_the_section_in_the_source_counts() -> None:
+    from filingcheck.ingest.verify import heading_before_in_source, plain_text
+
+    source = plain_text(
+        "<p>26 MASTERCARD 2025 FORM 10-K</p><p>ITEM 1A. RISK FACTORS</p>"
+        "<p>RISK HIGHLIGHTS</p><p>Legal and Regulatory matters could hurt our business.</p>"
+    )
+    section = "RISK HIGHLIGHTS\n\nLegal and Regulatory matters could hurt our business."
+    assert heading_before_in_source("1A", section, source)
+    assert not heading_before_in_source("7", section, source)
+
+
+def test_a_section_that_does_not_occur_in_the_source_is_not_confirmed() -> None:
+    from filingcheck.ingest.verify import heading_before_in_source, plain_text
+
+    assert not heading_before_in_source("1A", "Something else entirely", plain_text("<p>x</p>"))

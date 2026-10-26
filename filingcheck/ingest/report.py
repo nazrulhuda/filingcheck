@@ -17,8 +17,10 @@ SOURCE_LABELS = {"exhibit": "EX-13", "relocated": "relocated"}
 def _cell(found: ItemSummary | None) -> str:
     if found is None:
         return "—"
-    label = SOURCE_LABELS.get(found.method)
-    return f"{found.chars:,} ({label})" if label else f"{found.chars:,}"
+    labels = [SOURCE_LABELS[found.method]] if found.method in SOURCE_LABELS else []
+    if found.boundary == "approximate":
+        labels.append("approx.")
+    return f"{found.chars:,} ({', '.join(labels)})" if labels else f"{found.chars:,}"
 
 
 def _listing(items: list[str]) -> str:
@@ -98,6 +100,39 @@ def build_report(
                 f"- {s.ticker} FY{s.fiscal_year}: {_listing(relocated)} from later in the same 10-K"
             )
     lines += moved or ["None."]
+    lines.append("")
+
+    lines += [
+        "## Sections with approximate boundaries",
+        "",
+        "These 10-Ks map their Items to page ranges through their own index, so a section "
+        "starts and ends where those pages do, not at a heading. Item 8 is cut instead from "
+        "the auditor's report on the financial statements, so its start is exact.",
+        "",
+    ]
+    approximate = [
+        f"- {s.ticker} FY{s.fiscal_year}: "
+        + _listing([i for i in ITEMS if i in s.items and s.items[i].boundary == "approximate"])
+        for s in sorted(summaries, key=lambda s: (s.ticker, s.fiscal_year))
+        if any(found.boundary == "approximate" for found in s.items.values())
+    ]
+    lines += approximate or ["None."]
+    lines.append("")
+
+    lines += [
+        "## Repeated passages removed",
+        "",
+        "Passages that appear more than once in the same filing are kept once, under the "
+        "first Item that has them, and their chunks list the other Items. Repeats across "
+        "fiscal years are kept.",
+        "",
+    ]
+    repeats = [
+        f"- {s.ticker} FY{s.fiscal_year}: {s.repeats_removed:,}"
+        for s in sorted(summaries, key=lambda s: (s.ticker, s.fiscal_year))
+        if s.repeats_removed
+    ]
+    lines += repeats or ["None."]
     lines.append("")
 
     header = "| FY | Accession | Period of report | " + " | ".join(f"Item {i}" for i in ITEMS)

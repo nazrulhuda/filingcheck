@@ -4,184 +4,166 @@ A fixed random sample (seed 2026) of the chunks and section starts, to read agai
 
 ## Chunks
 
-### Chunk 1: C FY2023, Item 8, chunk 954
-
-Source: https://www.sec.gov/Archives/edgar/data/831001/000083100124000033/c-20231231.htm
-
-```text
-amount of future payments
-  In billions of dollars at December 31, 2023      Investment                                                 Non-investment                Not                 Total
-
-                                                   grade
-```
-
-### Chunk 2: C FY2024, Item 7A, chunk 106
+### Chunk 1: C FY2024, Item 7A, chunk 161
 
 Source: https://www.sec.gov/Archives/edgar/data/831001/000083100125000067/c-20241231.htm
 
 ```text
-net credit loss coverage (based on 4Q23 NCLs). As of December 31, 2023, Branded Cards ACLL as a percentage of EOP loans was 6.0% and Retail Services ACLL as a percentage of EOP loans was 11.1%.
-
-(3) Includes residential mortgages, retail loans and personal, small business and other loans, including
+—        $                                                       —         $                           26      $             26
+  Net reserve builds (releases)                                         (7)                                        (23)
 ```
 
-### Chunk 3: COF FY2025, Item 7, chunk 42
+### Chunk 2: C FY2025, Item 1, chunk 55
 
-Source: https://www.sec.gov/Archives/edgar/data/927628/000092762826000024/cof-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/831001/000083100126000011/c-20251231.htm
 
 ```text
-5 summarizes by segment the carrying value of our loans held for investment, the allowance for credit losses and net loan balance as of December 31, 2025 and 2024.
+$26 billion, or 20%. See Notes 2, 10, 13 and 29.
 
-Table 5: Loans Held for Investment
+Preferred stock: increased $2.2 billion, or 12%, reflecting $7.2 billion of issuances, partially offset by $5.0 billion of redemptions. See Note 22.
 
-(Dollars in millions)  Loans  Allowance  Net Loans  Loans  Allowance  Net Loans
-Credit Card  $  279
+Common equity: increased $1.5 billion, or 1%, as $14.3 billion in net income, $3.5 billion in lower
 ```
 
-### Chunk 4: GS FY2025, Item 7, chunk 367
+### Chunk 3: GS FY2023, Item 1, chunk 107
 
-Source: https://www.sec.gov/Archives/edgar/data/886982/000088698226000091/gs-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/886982/000088698224000006/gs-20231231.htm
 
 ```text
-1%
+Inc., must be on market terms and are subject to special internal approval requirements. PRA rules also provide requirements for transactions between GSI and GSIB and their respective affiliates.
 
-In the table above, credit exposure included loans and lending commitments extended to clients who warehouse assets of $34.28 billion as of December 2025 and $31.67 billion as of December 2024.
-
-Credit Card Loans. We provide credit card loans (pursuant to revolving lines of credit) to consumers
+Resolution and Recovery Plans. We are required by the FRB and the FDIC to submit a periodic plan for ou
 ```
 
-### Chunk 5: JPM FY2024, Item 8, chunk 264
+### Chunk 4: JNJ FY2023, Item 8, chunk 114
 
-Source: https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm
+Source: https://www.sec.gov/Archives/edgar/data/200406/000020040624000013/jnj-20231231.htm
 
 ```text
-risk ratings generally align with the qualitative characteristics (e.g., borrower capacity to meet financial commitments and vulnerability to changes in the economic environment) defined by S&P and
+recognized in other comprehensive income, before tax  $1,195  (1,398)  116  (868)
+Total recognized in net periodic benefit cost and other comprehensive income  $519  (1,460)  603  (335)
 
-Moody’s, however the quantitative characteristics (e.g., probability of default (“PD”) and loss given
+72
+
+The Company plans to continue to fund its U.S. Qualified Plans to comply with the Pension Protection Act of 2
 ```
 
-### Chunk 6: MA FY2025, Item 7, chunk 61
+### Chunk 5: KO FY2024, Item 8, chunk 82
 
-Source: https://www.sec.gov/Archives/edgar/data/1141391/000114139126000013/ma-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-of our defenses and consultation with in-house and outside legal counsel.  Because of uncertainties related to these matters, accruals are based only on the best information available at the time.  As additional information becomes available, we reassess the potential liability related to pending cl
+that uses a combination of options to limit the range of possible positive or negative returns on an underlying asset or liability to a specific range, or to protect expected future cash flows. To do this, an investor simultaneously buys a put option and sells (writes) a call option, or alternativel
 ```
 
-### Chunk 7: MCO FY2023, Item 8, chunk 118
+### Chunk 6: META FY2024, Item 1A, chunk 70
 
-Source: https://www.sec.gov/Archives/edgar/data/1059556/000105955624000017/mco-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/1326801/000132680125000017/meta-20241231.htm
 
 ```text
-as accounting hedges:
-FX forwards on certain assets and liabilities  Accounts payable and accrued liabilities  —  2
-Total liabilities  $  1,747  $  1,653
+may be adversely affected.
 
-NOTE 8    PROPERTY AND EQUIPMENT, NET
+Risks Related to Our Business Operations and Financial Results
 
-Property and equipment, net consisted of:December 31,
-2023  2022
-Office and computer equipment (3 - 10 yea
+Our business is highly competitive. Competition presents an ongoing threat to the success of our business.
+
+We compete with companies providing connection, sharing, discovery, and communication products and s
 ```
 
-### Chunk 8: META FY2025, Item 1A, chunk 96
+### Chunk 7: META FY2025, Item 7, chunk 7
 
 Source: https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/meta-20251231.htm
 
 ```text
-Labs, have generated only limited revenue and reduced our operating margin and profitability, and we expect the adverse financial impact of such investments to continue for the foreseeable future. For example, our investments in Reality Labs reduced our 2025 overall operating profit by approximately
+as of December 31, 2025, an increase of 6% year-over-year.
+
+Family of Apps Metrics
+
+•Family daily active people (DAP) was 3.58 billion on average for December 2025, an increase of 7% year-over-year.
+
+•Ad impressions delivered across our Family of Apps increased by 12% year-over-year in 2025.
+
+•Avera
 ```
 
-### Chunk 9: MS FY2023, Item 1A, chunk 41
+### Chunk 8: MS FY2023, Item 7, chunk 157
 
 Source: https://www.sec.gov/Archives/edgar/data/895421/000089542124000300/ms-20231231.htm
 
 ```text
-or negative views about the financial services industry generally, including concerns regarding fiscal matters in the U.S. and other geographic areas, could impair our ability to raise funding.
+risk: Inadequate or failed processes or systems, from human factors or from external events (e.g., fraud, theft, legal and compliance risks, cyber attacks or damage to physical assets).
 
-In addition, our ability to raise funding could be impaired if investors, depositors or lenders develop a
+Our risk-based capital ratios are computed under each of (i) the Standardized Approach and (ii) the Advanced Appr
 ```
 
-### Chunk 10: MS FY2024, Item 7, chunk 49
+### Chunk 9: MS FY2025, Item 8, chunk 296
 
-Source: https://www.sec.gov/Archives/edgar/data/895421/000089542125000304/ms-20241231.htm
+Source: https://www.sec.gov/Archives/edgar/data/895421/000089542126000086/ms-20251231.htm
 
 ```text
-include base salary and benefits and may also include incentive compensation that is determined following the assessment of the performance of the Firm, business unit and individual.
+the outcome of such proceedings or investigations may significantly impact the Firm’s business or results of operations for any particular reporting period, or cause significant reputational harm.
 
-Income Taxes
-
-The Income tax provision for our business segments is generally determined based on the revenues, expe
+While the Firm has identified below certain proceedings or investigations that the Firm believes to be
 ```
 
-### Chunk 11: MSFT FY2024, Item 1A, chunk 76
+### Chunk 10: MSFT FY2025, Item 1, chunk 10
 
-Source: https://www.sec.gov/Archives/edgar/data/789019/000095017024087843/msft-20240630.htm
+Source: https://www.sec.gov/Archives/edgar/data/789019/000095017025100235/msft-20250630.htm
 
 ```text
-meet customer expectations or legal requirements, we could face regulatory or legal actions, and our business, operations, financial condition, and results of operations could be adversely affected.
+– Segment Information and Geographic Data of the Notes to Financial Statements (Part II, Item 8 of this Form 10-K).
 
-  We have claims and lawsuits against us that may result in adverse outcomes. We are subject to a va
+Our reportable segments are described below.
+
+Productivity and Business Processes
+
+Our Productivity and Business Processes segment consists of products and services in our portfolio o
 ```
 
-### Chunk 12: NFLX FY2024, Item 1A, chunk 44
+### Chunk 11: NFLX FY2024, Item 1A, chunk 35
 
 Source: https://www.sec.gov/Archives/edgar/data/1065280/000106528025000044/nflx-20241231.htm
 
 ```text
-rights.
+accuracy, utility, and security of analytics and measurement solutions offered by us or third parties that demonstrate the value of our ads to marketers, or our ability to further improve such tools;
 
-Intellectual property claims against us could be costly and result in the loss of significant rights related to, among other things, our technology, business processes, and content.
-
-Trademark, copyright, patent and other intellectual property rights are important to us and other companies.
+•changes in the way advertising on devices, connected TVs or on personal computers is measured or p
 ```
 
-### Chunk 13: NKE FY2026, Item 7, chunk 42
+### Chunk 12: NKE FY2026, Item 8, chunk 112
 
 Source: https://www.sec.gov/Archives/edgar/data/320187/000032018726000088/nke-20260531.htm
 
 ```text
--4%  -6%  2,799  -8%  -3%
-TOTAL REVENUES  $  6,243  $  6,251  0%  -1%  $  6,729  -7%  -3%
-Cost of sales  3,619  3,502  3%  3,639  -4%
-Gross profit  2,624  2,749  -5%  3,090  -11%
-Gross margin  42.0%  44.0%  -200 bps  45.9%  -190 bps
-Demand creation expense  416  421  -1%  407  3%
-Operating overhead
+plan were $139 million, $151 million and $153 million and included in Cost of sales or Operating overhead expense, as applicable, for the fiscal years ended May 31, 2026, 2025 and 2024, respectively.
+
+The Company allows certain highly compensated employees and non-employee directors of the Company t
 ```
 
-### Chunk 14: SPGI FY2025, Item 8, chunk 146
+### Chunk 13: PFE FY2023, Item 1, chunk 80
 
-Source: https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/78003/000007800324000039/pfe-20231231.htm
 
 ```text
-loss, net of tax:
-Net actuarial loss (gain)  $  429  $  418  $  (34)  $  (36)
-Prior service credit  —  —  (9)  (10)
-Total recognized  $  429  $  418  $  (43)  $  (46)
+of compliance standards or programs. State attorneys general have also taken action to regulate the marketing of prescription drugs under state consumer protection and false advertising laws.
 
-Net Periodic Benefit Cost
-
-For purposes of determining annual pension cost, prior service costs are being amortized straight-line ov
+Pricing, Reimbursement and Access Regulations. Pricing and reimbursement for our products depend in part on
 ```
 
-### Chunk 15: WMT FY2025, Item 8, chunk 24
+### Chunk 14: PFE FY2025, Item 1A, chunk 86
+
+Source: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
+
+```text
+Further, technology and security vulnerabilities of acquisitions, business partners or third-party providers may not be identified during due diligence or soon enough to mitigate potential risks. The size and complexity of our IT and information security systems, and those of our third-party provide
+```
+
+### Chunk 15: WMT FY2025, Item 1A, chunk 132
 
 Source: https://www.sec.gov/Archives/edgar/data/104169/000010416925000021/wmt-20250131.htm
 
 ```text
-taxes paid  $  5,884  $  5,879  $  3,310
-Interest paid  2,739  2,519  2,051
-
-57
-
-Notes to Consolidated Financial Statements
-
-Note 1.  Summary of Significant Accounting Policies
-
-General
-
-Walmart Inc. ("Walmart" or the "Company") is a people-led, technology-powered omni-channel retailer dedicated to
+alleged relative monopolistic practices in connection with the supply and wholesale distribution of certain consumer goods and retail marketing practices of such consumer goods and related services. On December 12, 2024, the Comisión Federal de Competencia Económica of México ("COFECE") issued a spl
 ```
 
 ## Section starts
@@ -278,17 +260,7 @@ Overview
 We are a global financial services firm that, through our subsidiaries and affiliates, advises, and originates, trades, manages and distributes capital for governments, institutions and individuals. We were originally incorporated under the laws of the State of Delaware in 1981, and our predecessor companies date back to 1924. We are a financial holding compa
 ```
 
-### Section 4: MSFT FY2026, Item 1A (edgartools)
-
-Source: https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm
-
-```text
-ITEM 1A. RISK FACTORS
-
-Our operations and financial results are subject to various risks and uncertainties, including those described below, that could adversely affect our business, operations, financial condition, results of operations, liquidity, and the trading price of our common stock. Statements in this section reflect our beliefs and opinions as to matters that could adversely affect us in
-```
-
-### Section 5: PFE FY2023, Item 1 (edgartools)
+### Section 4: PFE FY2023, Item 1 (edgartools)
 
 Source: https://www.sec.gov/Archives/edgar/data/78003/000007800324000039/pfe-20231231.htm
 
@@ -298,4 +270,22 @@ ITEM 1.  BUSINESS
 ABOUT PFIZER
 
 Pfizer Inc. is a research-based, global biopharmaceutical company. We apply science and our global resources to bring therapies to people that extend and significantly improve their lives through the discovery, development, manufacture, marketing, sale and distribution of biopharmaceutical products worldwide. We work across developed and emerging markets to advance
+```
+
+### Section 5: PFE FY2025, Item 8 (edgartools)
+
+Source: https://www.sec.gov/Archives/edgar/data/78003/000007800326000026/pfe-20251231.htm
+
+```text
+ITEM 8.  FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA
+
+Report of Independent Registered Public Accounting Firm
+
+To the Board of Directors and Shareholders
+
+Pfizer Inc.:
+
+Opinion on the Consolidated Financial Statements
+
+We have audited the accompanying consolidated balance sheets of Pfizer Inc. and Subsidiary Companies (the Company) as of December 31, 2025 and 2024, the related consolidated stateme
 ```

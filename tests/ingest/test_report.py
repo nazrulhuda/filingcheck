@@ -116,3 +116,25 @@ def test_short_items_and_moved_sections_are_listed() -> None:
 
 def test_the_report_is_the_same_every_time() -> None:
     assert report() == report()
+
+
+def test_approximate_boundaries_and_removed_repeats_are_shown() -> None:
+    approx = {
+        item: ItemSummary(chars=found.chars, method=found.method, boundary="approximate")
+        for item, found in items().items()
+    }
+    citi = SectionSummary(
+        ticker="AAPL",
+        fiscal_year=2025,
+        accession="0000320193-25-000079",
+        items=approx,
+        short=[],
+        gaps=[],
+        cross_reference_index=True,
+        repeats_removed=12,
+    )
+    text = build_report(COMPANIES, MANIFEST, [citi, SUMMARIES[1]], CHUNKS, TAGS)
+    assert "16,054 (approx.)" in text
+    approx_part = text[text.index("## Sections with approximate boundaries") :]
+    assert "AAPL FY2025: Items 1, 1A, 7, 7A, 8" in approx_part
+    assert "- AAPL FY2025: 12" in text[text.index("## Repeated passages removed") :]

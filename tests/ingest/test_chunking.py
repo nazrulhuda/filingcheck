@@ -80,8 +80,10 @@ def test_every_chunk_carries_complete_metadata() -> None:
         "char_start",
         "char_end",
         "text",
+        "also_in",
+        "boundary",
     }
-    assert all(value not in (None, "") for value in first.values())
+    assert all(value not in (None, "") for key, value in first.items() if key != "also_in")
 
 
 # ---------------------------------------------------------------- junk rules
