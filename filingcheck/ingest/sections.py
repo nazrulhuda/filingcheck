@@ -66,9 +66,21 @@ EXHIBIT_13_RE = re.compile(r"EX-13(?:\.\d+)?", re.IGNORECASE)
 AUDITOR_RE = re.compile(r"Report of Independent Registered Public Accounting Firm", re.IGNORECASE)
 ADDRESSEE_RE = re.compile(r"\bTo the (?:Board|Stockholders|Shareholders|Shareowners)", re.I)
 OPINION_RE = re.compile(r"Opinions? on the (?:Consolidated )?Financial Statements", re.I)
+# Relocated statements end at the next Item 9 heading (Walmart: they sit in Item 8 itself),
+# or, when they come after Part IV (Netflix) or under Item 15 (Nvidia), at the exhibit index,
+# the signatures or Item 16.
 RELOCATED_END_RE = re.compile(
-    r"^[ \t]*(?:(?:exhibit index|signatures?)[ \t]*$|item[ \t]+16\b)", re.I | re.MULTILINE
+    r"^[ \t]*(?:(?:exhibit index|signatures?)[ \t]*$|item[ \t]+(?:16|9)(?![0-9a-z]))",
+    re.I | re.MULTILINE,
 )
+# The first note to the financial statements: "Note 1 - Basis of presentation", "1. Accounting
+# Policies", "Summary of Significant Accounting Policies".
+NOTE_ONE_RE = re.compile(
+    r"^[ \t]*(?:note[ \t]+1\b|1[.:)]?[ \t]+[a-z][^\n]{0,80}"
+    r"(?:policies|presentation|organization|basis)|[^\n]{0,60}significant accounting policies)",
+    re.I | re.MULTILINE,
+)
+ITEM_8_GAP = "Item 8 lacks the auditor's opinion on the financial statements or the notes"
 # A 10-K that maps Items to pages through its own index ("Form 10-K Cross-Reference Index"
 # at Citigroup, "Form 10-K Index" at JPMorgan) is laid out like an annual report.
 CROSS_REFERENCE_RE = re.compile(
@@ -99,7 +111,7 @@ CONTENTS_LINES = 12
 PAGE_NUMBER_LINE_RE = re.compile(r"^\d{1,3}\b|\b\d{1,3}$")  # "6 Management Discussion", "Notes 48"
 # A cell with no letters: a number, a currency sign, a percent, a dash or a footnote mark.
 NUMERIC_CELL_RE = re.compile(r"[^A-Za-z]*")
-ROW_RE = re.compile(r"<tr\b.*?</tr\s*>", re.IGNORECASE | re.DOTALL)
+TABLE_ROW_RE = re.compile(r"<tr\b.*?</tr\s*>", re.IGNORECASE | re.DOTALL)
 WHITESPACE_RE = re.compile(r"\s+")
 LETTER_RE = re.compile(r"[A-Za-z]")
 MARKER_RE = re.compile(r"\[\[#(\d+)#\]\]")  # where a number table was; see table_marker
@@ -236,7 +248,7 @@ def _is_number_table(table: str) -> bool:
 def table_text(table: str) -> str:
     """A table as plain rows, "label: value | value", with "$" and "%" kept on their numbers."""
     lines = []
-    for row in ROW_RE.findall(table):
+    for row in TABLE_ROW_RE.findall(table):
         values: list[str] = []
         opening = ""
         for cell in filter(None, map(_cell_text, CELL_TEXT_RE.findall(row))):
@@ -399,14 +411,34 @@ def relocate_financial_statements(
     """Cut the financial statements out of a 10-K whose Item 8 only points to them.
 
     They run from the auditor's report on the financial statements to the first heading that
-    `end_re` matches: by default the exhibit index, the signatures or Item 16. Netflix places
-    them after Part IV; Nvidia places them under Item 15.
+    `end_re` matches: by default the next Item 9, the exhibit index, the signatures or Item 16.
+    Netflix places them after Part IV; Nvidia places them under Item 15.
     """
     start = financial_statements_start(text)
     if start is None:
         return None
     end = end_re.search(text, start + 1)
     return text[start : end.start() if end else len(text)].strip()
+
+
+def item_8_is_complete(text: str) -> bool:
+    """Whether an Item 8 holds the auditor's opinion on the statements and the first note."""
+    return bool(OPINION_RE.search(text) and NOTE_ONE_RE.search(text))
+
+
+def complete_item_8(found: ItemText, document: str) -> tuple[ItemText, str | None]:
+    """Keep a complete Item 8; otherwise cut it again from the auditor's report.
+
+    Walmart's FY2024 Item 8, as parsed, stops after the list of statements: it has the
+    opinion but not the notes. If the cut is not complete either, the Item is kept and the
+    gap is returned.
+    """
+    if item_8_is_complete(found.text):
+        return found, None
+    moved = relocate_financial_statements(document)
+    if moved is not None and item_8_is_complete(moved):
+        return ItemText(text=moved, method="relocated"), None
+    return found, ITEM_8_GAP
 
 
 def has_cross_reference_index(text: str) -> bool:
@@ -713,6 +745,9 @@ def _section_filing(
             gaps += [
                 f"Item {item} is short in both the 10-K and its Exhibit 13" for item in unresolved
             ]
+    if "8" in items:
+        items["8"], item_8_gap = complete_item_8(items["8"], text)
+        gaps += [item_8_gap] if item_8_gap else []
     # Which tables each section held: its own markers, or, for a section cut from the
     # original document, the markers between its first and last paragraphs.
     tables_kept = [item for item in tables_kept if items.get(item) == full_items[item]]

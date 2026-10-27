@@ -196,3 +196,132 @@ def test_an_exhibit_section_is_confirmed_against_the_exhibit_document() -> None:
     assert heading_source("edgartools") == heading_source("regex") == "primary"
     assert heading_source("relocated") is None
     assert heading_before_in_source("7", section, exhibit)
+
+
+# ---------------------------------------------------------------- final data round
+
+
+def test_item_8_must_hold_the_opinion_and_the_first_note() -> None:
+    from filingcheck.ingest.verify import check_item_8
+
+    opinion = (
+        "Report of Independent Registered Public Accounting Firm\n"
+        "Opinion on the Financial Statements\n"
+    )
+    note = "Note 1 - Summary of Significant Accounting Policies\n"
+    assert check_item_8(opinion + "Statements\n" + note) is None
+    assert check_item_8(note + opinion) is None
+    assert check_item_8(opinion + "Consolidated Statements of Cash Flows") == "no Note 1"
+    assert check_item_8(note) == "no opinion on the financial statements"
+
+
+def test_report_rows_must_have_as_many_cells_as_their_header() -> None:
+    from filingcheck.ingest.verify import check_report_tables
+
+    good = "| FY | Item 8 | Chunks |\n|---|---:|---:|\n| 2025 | 1,000 | 12 |\n"
+    bad = "| FY | Item 8 | Chunks |\n|---|---:|---:|\n| 2025 | 1,000 | in 1-7A | 12 |\n"
+    assert check_report_tables(good) == []
+    assert check_report_tables(bad) == ["| 2025 | 1,000 | in 1-7A | 12 |: 4 cells, header has 3"]
+
+
+def test_source_lines_keep_one_block_per_line() -> None:
+    from filingcheck.ingest.verify import source_lines
+
+    html = (
+        "<p>Item 7A.&nbsp;Market Risk</p><div>We are <b>exposed</b>.</div>"
+        "<table><tr><td>A</td><td>1</td></tr></table>"
+    )
+    assert source_lines(html).splitlines() == ["Item 7A. Market Risk", "We are exposed.", "A 1"]
+
+
+def test_a_section_is_located_in_the_source_by_its_first_and_last_paragraphs() -> None:
+    from filingcheck.ingest.verify import locate
+
+    first = "Our business depends on the demand for widgets in our largest markets."
+    last = "We expect demand to grow in the coming year as factories reopen."
+    source = (
+        f"Contents\nItem 1. Business\n{first}\nRevenue 1,234 5,678\n{last}\nItem 1A. Risk Factors\n"
+    )
+    section = f"{first}\n\n{last}"  # the table was set aside, so it is not in the section
+    span = locate(section, source)
+    assert span is not None
+    assert source[span[0] :].startswith("Our business") and source[: span[1]].endswith("reopen")
+    assert locate("A paragraph that the source does not contain anywhere at all.", source) is None
+
+
+def test_the_next_heading_skips_page_numbers_running_headers_and_table_rows() -> None:
+    from filingcheck.ingest.verify import next_heading
+
+    source = (
+        "the last words.\n27\nTable of Contents\nTotal revenue 1,234 5,678\n"
+        "Item 1A. Risk Factors\nText."
+    )
+    assert next_heading(source, source.index("\n")) == "Item 1A. Risk Factors"
+    assert next_heading("the end.\nOnly a sentence that ends with a period.", 8) is None
+
+
+def test_size_changes_over_35_percent_are_flagged() -> None:
+    from filingcheck.ingest.verify import size_change
+
+    assert size_change(100_000, 64_000) == -0.36
+    grown = size_change(10_488, 90_000)
+    assert grown is not None and grown > 0.35
+    assert size_change(0, 5) is None
+
+
+def test_the_table_sample_is_fixed_by_the_seed() -> None:
+    from filingcheck.ingest.verify import sample_tables
+
+    rows = [{"table_index": i} for i in range(100)]
+    first = sample_tables(rows, count=10, seed=2028)
+    assert len(first) == 10 and first == sample_tables(rows, count=10, seed=2028)
+    assert first != sample_tables(rows, count=10, seed=2027)
+
+
+def test_a_paragraph_rendered_differently_from_the_source_is_skipped_when_locating() -> None:
+    from filingcheck.ingest.verify import locate
+
+    # Mastercard: the parser lays out the index table's cells in another order.
+    table = "Page Index to consolidated financial statements as of December and for the years"
+    first = "Management is responsible for establishing and maintaining internal control."
+    last = "The following table reflects the location of the company's property and equipment."
+    index = "Index to consolidated financial statements Page as of December and for the years"
+    source = f"{index}\n{first}\n{last}\nItem 9."
+    span = locate(f"{table}\n\n{first}\n\n{last}", source)
+    assert span is not None and source[span[0] :].startswith("Management is")
+
+
+def test_the_next_item_heading_skips_running_headers_and_cross_references() -> None:
+    from filingcheck.ingest.verify import next_item_heading
+
+    source = (
+        "the last words.\nTHE EXAMPLE GROUP, INC. AND SUBSIDIARIES\n"
+        "See Item 7 for more.\nItem 1A. Risk Factors\nText."
+    )
+    assert next_item_heading(source, source.index("\n")) == "Item 1A. Risk Factors"
+    assert next_item_heading("the end.\nNo heading here.", 8) is None
+
+
+def test_a_heading_that_is_also_in_the_contents_list_is_located_in_the_body() -> None:
+    from filingcheck.ingest.verify import locate
+
+    heading = "Item 7. Management's Discussion and Analysis of Financial Condition"
+    body = "Revenue rose because the company sold more widgets in Europe and in Asia."
+    source = f"Contents\n{heading} 25\nItem 8. Financial Statements 40\n{heading}\n{body}\nItem 7A."
+    span = locate(f"{heading}\n\n{body}", source)
+    assert span is not None and span[0] == source.index(f"{heading}\n{body}")
+
+
+def test_a_closing_sentence_repeated_earlier_does_not_shorten_the_match() -> None:
+    from filingcheck.ingest.verify import locate
+
+    # Nike: the last sentence of Item 7 also ends Item 3.
+    heading = "Item 7. Management's Discussion and Analysis of Financial Condition"
+    body = "Revenue rose because the company sold more shoes in Europe and in Asia. " * 5
+    closing = "Refer to Note 16 in the accompanying Notes to the Financial Statements."
+    source = (
+        f"{heading} 25\nItem 3. Legal Proceedings\n{closing}\nItem 4.\n"
+        f"{heading}\n{body}\n{closing}\nItem 7A."
+    )
+    span = locate(f"{heading}\n\n{body}\n\n{closing}", source)
+    assert span is not None and source[span[1] :].startswith(".\nItem 7A.")  # ends at a letter
