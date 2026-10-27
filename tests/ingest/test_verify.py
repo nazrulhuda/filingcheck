@@ -289,3 +289,14 @@ def test_a_paragraph_rendered_differently_from_the_source_is_skipped_when_locati
     source = f"{index}\n{first}\n{last}\nItem 9."
     span = locate(f"{table}\n\n{first}\n\n{last}", source)
     assert span is not None and source[span[0] :].startswith("Management is")
+
+
+def test_the_next_item_heading_skips_running_headers_and_cross_references() -> None:
+    from filingcheck.ingest.verify import next_item_heading
+
+    source = (
+        "the last words.\nTHE EXAMPLE GROUP, INC. AND SUBSIDIARIES\n"
+        "See Item 7 for more.\nItem 1A. Risk Factors\nText."
+    )
+    assert next_item_heading(source, source.index("\n")) == "Item 1A. Risk Factors"
+    assert next_item_heading("the end.\nNo heading here.", 8) is None
