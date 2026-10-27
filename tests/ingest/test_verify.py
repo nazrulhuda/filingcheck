@@ -264,7 +264,8 @@ def test_size_changes_over_35_percent_are_flagged() -> None:
     from filingcheck.ingest.verify import size_change
 
     assert size_change(100_000, 64_000) == -0.36
-    assert size_change(10_488, 90_000) is not None and size_change(10_488, 90_000) > 0.35
+    grown = size_change(10_488, 90_000)
+    assert grown is not None and grown > 0.35
     assert size_change(0, 5) is None
 
 
@@ -275,3 +276,16 @@ def test_the_table_sample_is_fixed_by_the_seed() -> None:
     first = sample_tables(rows, count=10, seed=2028)
     assert len(first) == 10 and first == sample_tables(rows, count=10, seed=2028)
     assert first != sample_tables(rows, count=10, seed=2027)
+
+
+def test_a_paragraph_rendered_differently_from_the_source_is_skipped_when_locating() -> None:
+    from filingcheck.ingest.verify import locate
+
+    # Mastercard: the parser lays out the index table's cells in another order.
+    table = "Page Index to consolidated financial statements as of December and for the years"
+    first = "Management is responsible for establishing and maintaining internal control."
+    last = "The following table reflects the location of the company's property and equipment."
+    index = "Index to consolidated financial statements Page as of December and for the years"
+    source = f"{index}\n{first}\n{last}\nItem 9."
+    span = locate(f"{table}\n\n{first}\n\n{last}", source)
+    assert span is not None and source[span[0] :].startswith("Management is")
