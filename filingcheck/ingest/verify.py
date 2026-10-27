@@ -7,6 +7,7 @@ heading, that no chunk text appears twice in one filing, and that the chunk coun
 against the SEC documents by eye.
 """
 
+import hashlib
 import json
 import random
 import re
@@ -67,6 +68,9 @@ ITEM_LINE_RE = re.compile(r"items?\s+\d{1,2}[a-c]?\b", re.I)
 # docs/table_sample.md
 SAMPLE_TABLES = 10
 TABLE_LINES = 40
+# data/section_snapshot.json and data/chunk_snapshot.json
+SNAPSHOT_ENDS = 200
+HASH_CHARS = 16
 SOURCE_WINDOW = 300  # how far before a section's start, in the source, its heading may sit
 PROBE_CHARS = 60
 
@@ -528,8 +532,104 @@ def table_sample(root: Path) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-def main(root: Path = REPO_ROOT) -> int:
-    """Run every check, print the failures, and write docs/spot_check.md."""
+# ---------------------------------------------------------------- snapshots
+
+
+def _short_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:HASH_CHARS]
+
+
+def section_fingerprint(text: str) -> dict[str, Any]:
+    """A section's size and hashes of its first and last SNAPSHOT_ENDS characters."""
+    return {
+        "chars": len(text),
+        "head": _short_hash(text[:SNAPSHOT_ENDS]),
+        "tail": _short_hash(text[-SNAPSHOT_ENDS:]),
+    }
+
+
+def current_sections(root: Path) -> dict[str, dict[str, Any]]:
+    """The fingerprint of every saved section, keyed "TICKER FYyear Item n"."""
+    current = {}
+    for row in _read_json(root / "data" / "sections" / "summary.json"):
+        ticker, year = row["ticker"], row["fiscal_year"]
+        for item in row["items"]:
+            path = root / "data" / "sections" / ticker / str(year) / f"item_{item}.txt"
+            current[f"{ticker} FY{year} Item {item}"] = section_fingerprint(
+                path.read_text(encoding="utf-8")
+            )
+    return current
+
+
+def current_chunk_counts(root: Path) -> dict[str, int]:
+    """The number of chunks per filing, keyed "TICKER FYyear"."""
+    return dict(Counter(f"{r['ticker']} FY{r['fiscal_year']}" for r in _read_chunks(root)))
+
+
+def compare_sections(
+    expected: dict[str, dict[str, Any]], current: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Every section that is new, gone or changed since the snapshot."""
+    problems = []
+    for name in sorted(set(expected) | set(current)):
+        if name not in current:
+            problems.append(f"{name}: in the snapshot, not saved now")
+        elif name not in expected:
+            problems.append(f"{name}: saved now, not in the snapshot")
+        elif expected[name] != current[name]:
+            was, now = expected[name], current[name]
+            changes = []
+            if was["chars"] != now["chars"]:
+                changes.append(f"{was['chars']:,} to {now['chars']:,} characters")
+            if was["head"] != now["head"]:
+                changes.append(f"first {SNAPSHOT_ENDS} characters changed")
+            if was["tail"] != now["tail"]:
+                changes.append(f"last {SNAPSHOT_ENDS} characters changed")
+            problems.append(f"{name}: " + "; ".join(changes))
+    return problems
+
+
+def compare_chunk_counts(expected: dict[str, int], current: dict[str, int]) -> list[str]:
+    """Every filing whose chunk count differs from the snapshot."""
+    problems = []
+    for name in sorted(set(expected) | set(current)):
+        if name not in current:
+            problems.append(f"{name}: {expected[name]:,} chunks in the snapshot, none now")
+        elif name not in expected:
+            problems.append(f"{name}: {current[name]:,} chunks now, not in the snapshot")
+        elif expected[name] != current[name]:
+            problems.append(
+                f"{name}: {expected[name]:,} chunks in the snapshot, {current[name]:,} now"
+            )
+    return problems
+
+
+def write_snapshot(path: Path, entries: dict[str, Any]) -> None:
+    """One entry per line, sorted, so a change shows as a one-line diff."""
+    body = ",\n".join(f"  {json.dumps(k)}: {json.dumps(entries[k])}" for k in sorted(entries))
+    path.write_text("{\n" + body + "\n}\n", encoding="utf-8", newline="\n")
+
+
+def check_snapshot(path: Path, current: dict[str, Any], compare: Any) -> list[str]:
+    """Differences from a committed snapshot, or a note that it is missing."""
+    if not path.exists():
+        return [f"{path.name} is missing; run `make snapshot` and commit it"]
+    problems: list[str] = compare(_read_json(path), current)
+    return problems
+
+
+def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
+    """Run every check, print the failures, and write the review pages.
+
+    With `write_snapshots`, the section and chunk snapshots are first rewritten from the
+    current data: for an intended change, committed together with the change.
+    """
+    sections_file = root / "data" / "section_snapshot.json"
+    chunks_file = root / "data" / "chunk_snapshot.json"
+    if write_snapshots:
+        write_snapshot(sections_file, current_sections(root))
+        write_snapshot(chunks_file, current_chunk_counts(root))
+        print(f"wrote {sections_file.name} and {chunks_file.name}")
     failures: dict[str, list[str]] = {}
     documents: dict[tuple[str, int, str], list[Path]] = {}
     for f in _read_json(root / "data" / "manifest.json")["filings"]:
@@ -586,6 +686,12 @@ def main(root: Path = REPO_ROOT) -> int:
         dict(counted), parse_report_chunk_counts(report)
     )
     failures["Data report rows whose cells do not match their header"] = check_report_tables(report)
+    failures["Sections that differ from data/section_snapshot.json"] = check_snapshot(
+        sections_file, current_sections(root), compare_sections
+    )
+    failures["Chunk counts that differ from data/chunk_snapshot.json"] = check_snapshot(
+        chunks_file, current_chunk_counts(root), compare_chunk_counts
+    )
 
     (root / "docs" / "spot_check.md").write_text(spot_check(root), encoding="utf-8", newline="\n")
     for name, page in (("section_bounds.md", section_bounds), ("table_sample.md", table_sample)):
@@ -612,4 +718,4 @@ def main(root: Path = REPO_ROOT) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(write_snapshots="--write-snapshots" in sys.argv[1:]))
