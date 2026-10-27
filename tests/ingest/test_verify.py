@@ -324,4 +324,4 @@ def test_a_closing_sentence_repeated_earlier_does_not_shorten_the_match() -> Non
         f"{heading}\n{body}\n{closing}\nItem 7A."
     )
     span = locate(f"{heading}\n\n{body}\n\n{closing}", source)
-    assert span is not None and source[span[1] :].startswith("\nItem 7A.")
+    assert span is not None and source[span[1] :].startswith(".\nItem 7A.")  # ends at a letter

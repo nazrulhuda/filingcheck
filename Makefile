@@ -1,7 +1,7 @@
 # FilingCheck developer commands. Run these from Git Bash on Windows or any shell on Linux/macOS.
 # Tools run as `python -m <tool>`: Windows can block the small .exe launchers that uv creates.
 
-.PHONY: setup lint format test test-integration verify-data db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: setup lint format test test-integration verify-data verify-facts db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -47,8 +47,11 @@ ingest:
 	uv run python -m filingcheck.ingest load
 	uv run python -m filingcheck.ingest report
 
-verify-data:  # independent check of the ingest outputs; writes docs/spot_check.md
+verify-data:  # independent check of the ingest outputs; writes docs/spot_check.md, section_bounds.md, table_sample.md
 	uv run python -m filingcheck.ingest.verify
+
+verify-facts:  # which candidate XBRL tags have 10-K facts per filing; writes docs/facts_coverage.md
+	uv run python -m filingcheck.ingest.facts_coverage
 
 validate-questions:
 	uv run python -m filingcheck.eval.questions validate

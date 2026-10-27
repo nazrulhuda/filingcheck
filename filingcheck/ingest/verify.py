@@ -21,7 +21,7 @@ from filingcheck.paths import REPO_ROOT
 
 ITEM_ORDER = ["1", "1A", "7", "7A", "8", "1-7A"]  # "1-7A": Items not separable
 HEAD_CHARS = 500
-SEED = 2027
+SEED = 2028
 SAMPLE_CHUNKS = 15
 SAMPLE_SECTIONS = 5
 APOSTROPHE = "['" + chr(0x2019) + "]"  # straight or curly
@@ -48,6 +48,25 @@ MOVED_HEADINGS = {"7": TITLES["7"], "8": AUDITOR}
 REPORT_ROW_RE = re.compile(r"^\|\s*\d{4}\s*\|\s*([^|]+?)\s*\|.*\|\s*([\d,]+)\s*\|\s*$", re.M)
 
 
+# Item 8 must hold the auditor's opinion on the statements and the first note.
+FS_OPINION_RE = re.compile(r"opinions? on the (?:consolidated )?financial statements", re.I)
+FIRST_NOTE_RE = re.compile(
+    r"^[ \t]*(?:note[ \t]+1\b|1[.:)]?[ \t]+[a-z][^\n]{0,80}"
+    r"(?:policies|presentation|organization|basis)|[^\n]{0,60}significant accounting policies)",
+    re.I | re.M,
+)
+# docs/section_bounds.md
+BOUND_CHARS = 150
+PROBE_LETTERS = 300  # most of a paragraph: short endings such as "in Item 8 of this Report" repeat
+PROBE_MIN_LETTERS = 50
+NEXT_HEADING_LINES = 200
+HEADING_CHARS = 100
+SIZE_CHANGE_FLAG = 0.35
+ITEM_OR_PART_RE = re.compile(r"(?:item|part)\s+(?:\d{1,2}[a-c]?|[ivx]+)\b", re.I)
+ITEM_LINE_RE = re.compile(r"items?\s+\d{1,2}[a-c]?\b", re.I)
+# docs/table_sample.md
+SAMPLE_TABLES = 10
+TABLE_LINES = 40
 SOURCE_WINDOW = 300  # how far before a section's start, in the source, its heading may sit
 PROBE_CHARS = 60
 
@@ -242,6 +261,273 @@ def spot_check(root: Path) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+# ---------------------------------------------------------------- Item 8 and the report
+
+
+def check_item_8(text: str) -> str | None:
+    """None if an Item 8 holds the auditor's opinion on the statements and the first note."""
+    if not FS_OPINION_RE.search(text):
+        return "no opinion on the financial statements"
+    if not FIRST_NOTE_RE.search(text):
+        return "no Note 1"
+    return None
+
+
+def check_report_tables(report: str) -> list[str]:
+    """Rows of the data report's tables whose number of cells differs from their header's."""
+    problems = []
+    header = 0
+    for line in report.splitlines():
+        if not line.startswith("|"):
+            header = 0
+            continue
+        cells = line.strip().count("|") - 1
+        if not header:
+            header = cells
+        elif not line.startswith("|---") and cells != header:
+            problems.append(f"{line}: {cells} cells, header has {header}")
+    return problems
+
+
+# ---------------------------------------------------------------- section bounds
+
+
+def source_lines(html: str) -> str:
+    """The source document as text, one block (paragraph, row, heading) per line."""
+    html = re.sub(r"(?is)<(script|style|ix:header)\b.*?</\1\s*>", " ", html)
+    html = re.sub(r"(?i)<br\s*/?>|</(?:p|div|tr|h[1-6]|li|table|title)\s*>", "\n", html)
+    html = re.sub(r"(?i)</t[dh]\s*>", " ", html)
+    text = unescape(re.sub(r"<[^>]+>", "", html))
+    lines = (re.sub(r"\s+", " ", line).strip() for line in text.split("\n"))
+    return "\n".join(line for line in lines if line)
+
+
+def _letters(text: str) -> str:
+    return re.sub(r"[^a-z]+", "", text.lower())
+
+
+def _letters_pattern(letters: str) -> re.Pattern[str]:
+    # The letters in order, with anything but letters allowed between them.
+    return re.compile("[^a-z]*".join(letters), re.IGNORECASE)
+
+
+def locate(section: str, source: str) -> tuple[int, int] | None:
+    """Where a saved section starts and ends in the source text, found by letters only.
+
+    The section has lost tables, page headers and spacing on the way, so it is found by the
+    letters of its first and last long paragraphs.
+    """
+    paragraphs = [p for p in map(_letters, re.split(r"\n\s*\n", section)) if p]
+    if not paragraphs:
+        return None
+    long = [p for p in paragraphs if len(p) >= PROBE_MIN_LETTERS] or paragraphs
+    # A paragraph the parser laid out differently (a table's cells in another order) is not
+    # in the source as written, so the first and last paragraphs that are found are used.
+    # The end is found first: a section's heading line is also in the contents list at the
+    # top, so its start is the last match before the end, not the first in the document. A
+    # closing sentence can also occur elsewhere (Nike's Item 7 and Item 3 end alike), so every
+    # match of the end is tried, and the span closest in length to the section wins.
+    tail = next(
+        (
+            pattern
+            for p in long[::-1]
+            if (pattern := _letters_pattern(p[-PROBE_LETTERS:])).search(source)
+        ),
+        None,
+    )
+    if tail is None:
+        return None
+    spans = []
+    for end in tail.finditer(source):
+        for p in long:
+            starts = list(_letters_pattern(p[:PROBE_LETTERS]).finditer(source, 0, end.end()))
+            if starts:
+                spans.append((starts[-1].start(), end.end()))
+                break
+    return min(spans, key=lambda s: abs(s[1] - s[0] - len(section)), default=None)
+
+
+def next_heading(source: str, position: int) -> str | None:
+    """The first heading-like line after `position`: an Item or Part line, or a short title.
+
+    Page numbers, "Table of Contents", sentences and lines with numbers (table rows, page
+    footers) are skipped.
+    """
+    for line in source[position:].split("\n")[1 : NEXT_HEADING_LINES + 1]:
+        line = line.strip()
+        if ITEM_OR_PART_RE.match(line):
+            return line[:HEADING_CHARS]
+        if (
+            3 <= len(line) <= HEADING_CHARS
+            and line[0].isupper()
+            and not re.search(r"[\d$%]", line)
+            and not line.endswith((".", ",", ";", ":"))
+            and line.lower() != "table of contents"
+        ):
+            return line
+    return None
+
+
+def next_item_heading(source: str, position: int) -> str | None:
+    """The first line after `position` that starts with an Item label, such as "Item 1A."."""
+    for line in source[position:].split("\n")[1:]:
+        line = line.strip()
+        if ITEM_LINE_RE.match(line) and len(line) <= HEADING_CHARS:
+            return line
+    return None
+
+
+def size_change(previous: int, current: int) -> float | None:
+    """The change in size from the previous fiscal year, as a fraction (0.36 is +36%)."""
+    if previous <= 0:
+        return None
+    return round((current - previous) / previous, 2)
+
+
+def _one_line(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().replace("`", "'")
+
+
+def section_bounds(root: Path) -> str:
+    """docs/section_bounds.md: where each saved section starts and ends, and what follows it."""
+    rows = _read_json(root / "data" / "sections" / "summary.json")
+    manifest = {
+        (f["ticker"], f["fiscal_year"]): f
+        for f in _read_json(root / "data" / "manifest.json")["filings"]
+    }
+    sources: dict[tuple[str, int, str], str] = {}
+
+    def source(ticker: str, year: int, method: str) -> str:
+        kind = "exhibit" if method == "exhibit" else "primary"
+        key = (ticker, year, kind)
+        if key not in sources:
+            filing = manifest[(ticker, year)]
+            paths = (
+                [d["document_path"] for d in filing.get("extra_documents", [])]
+                if kind == "exhibit"
+                else [filing["document_path"]]
+            )
+            sources[key] = "\n".join(
+                source_lines((root / p).read_text(encoding="utf-8", errors="replace"))
+                for p in paths
+            )
+        return sources[key]
+
+    sizes = {
+        (r["ticker"], r["fiscal_year"], item): f["chars"]
+        for r in rows
+        for item, f in r["items"].items()
+    }
+    entries: list[str] = []
+    flagged: list[str] = []
+    not_located: list[str] = []
+    count = 0
+    for row in sorted(rows, key=lambda r: (r["ticker"], r["fiscal_year"])):
+        ticker, year = row["ticker"], row["fiscal_year"]
+        for item in sorted(row["items"], key=ITEM_ORDER.index):
+            found = row["items"][item]
+            name = f"{ticker} FY{year}, Item {item}"
+            text = (root / "data" / "sections" / ticker / str(year) / f"item_{item}.txt").read_text(
+                encoding="utf-8"
+            )
+            earlier = [y for (t, y, i) in sizes if t == ticker and i == item and y < year]
+            size = f"{found['chars']:,} characters"
+            if earlier:
+                before = max(earlier)
+                previous = sizes[(ticker, before, item)]
+                change = size_change(previous, found["chars"])
+                if change is not None:
+                    size += f"; {change:+.0%} from FY{before}"
+                    if abs(change) > SIZE_CHANGE_FLAG:
+                        flagged.append(
+                            f"- {name}: {change:+.0%} from FY{before} "
+                            f"({previous:,} to {found['chars']:,} characters)"
+                        )
+            src = source(ticker, year, found["method"])
+            span = locate(text, src)
+            if span is None:
+                after = next_item = "the section was not found in the source"
+                not_located.append(f"- {name}")
+            else:
+                heading = next_heading(src, span[1])
+                after = (
+                    f"`{_one_line(heading)}`"
+                    if heading
+                    else f"none in the next {NEXT_HEADING_LINES} lines"
+                )
+                item_heading = next_item_heading(src, span[1])
+                next_item = f"`{_one_line(item_heading)}`" if item_heading else "none"
+            count += 1
+            entries += [
+                f"### {name} ({found['method']}, {found.get('boundary', 'exact')}; {size})",
+                "",
+                f"- Starts: `{_one_line(text[:BOUND_CHARS])}`",
+                f"- Ends: `{_one_line(text[-BOUND_CHARS:])}`",
+                f"- Next heading in the source: {after}",
+                f"- Next Item heading in the source: {next_item}",
+                "",
+            ]
+    lines = [
+        "# Section bounds",
+        "",
+        f"Every saved section ({count}): its first and last {BOUND_CHARS} characters "
+        "the first heading-like line in the source document after the section ends (often a "
+        "page header or a table's header row), and the next Item heading. Written by "
+        "`make verify-data`; do not edit by hand.",
+        "",
+        f"## Size changes over {SIZE_CHANGE_FLAG:.0%} from the previous year",
+        "",
+        *(flagged or ["None."]),
+        "",
+        "## Sections not found in the source",
+        "",
+        *(not_located or ["None."]),
+        "",
+        "## Sections",
+        "",
+        *entries,
+    ]
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+# ---------------------------------------------------------------- number tables
+
+
+def sample_tables(rows: list[dict[str, Any]], count: int, seed: int) -> list[dict[str, Any]]:
+    """A fixed random sample of saved tables, in file order."""
+    rng = random.Random(seed)
+    return [rows[i] for i in sorted(rng.sample(range(len(rows)), min(count, len(rows))))]
+
+
+def table_sample(root: Path) -> str:
+    """docs/table_sample.md: saved number tables as parsed, each with its source link."""
+    with (root / "data" / "table_chunks.jsonl").open(encoding="utf-8") as handle:
+        rows = [json.loads(line) for line in handle if line.strip()]
+    lines = [
+        "# Number table sample",
+        "",
+        f"A fixed random sample (seed {SEED}) of the {len(rows):,} number tables set aside in "
+        "`table_chunks`, as parsed, to read against the SEC documents by eye. Written by "
+        "`make verify-data`; do not edit by hand.",
+        "",
+    ]
+    for n, row in enumerate(sample_tables(rows, SAMPLE_TABLES, SEED), 1):
+        item = f"Item {row['item']}" if row["item"] else "outside the saved Items"
+        name = f"{row['ticker']} FY{row['fiscal_year']}, {item}, table {row['table_index']}"
+        table_lines = row["text"].splitlines()
+        shown = table_lines[:TABLE_LINES]
+        if len(table_lines) > TABLE_LINES:
+            shown.append(f"... ({len(table_lines) - TABLE_LINES} more rows)")
+        lines += [
+            f"### Table {n}: {name}",
+            "",
+            f"Source: {row['source_url']} (character {row['position']:,} of the document)",
+            "",
+            *_fence("\n".join(shown)),
+        ]
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
 def main(root: Path = REPO_ROOT) -> int:
     """Run every check, print the failures, and write docs/spot_check.md."""
     failures: dict[str, list[str]] = {}
@@ -287,13 +573,23 @@ def main(root: Path = REPO_ROOT) -> int:
     rows = _read_chunks(root)
     duplicates = check_duplicates(rows)
     failures["Chunk texts repeated inside one filing"] = duplicates.failures
+    item_8_problems = []
+    for ticker, year, _ in sorted(k for k in documents if k[2] == "primary"):
+        path = root / "data" / "sections" / ticker / str(year) / "item_8.txt"
+        problem = check_item_8(path.read_text(encoding="utf-8")) if path.exists() else "no Item 8"
+        if problem:
+            item_8_problems.append(f"{ticker} FY{year}: {problem}")
+    failures["Item 8 without the auditor's opinion or the notes"] = item_8_problems
     counted = Counter(row["accession"] for row in rows)
     report = (root / "docs" / "data_report.md").read_text(encoding="utf-8")
     failures["Chunk counts that differ from docs/data_report.md"] = check_chunk_counts(
         dict(counted), parse_report_chunk_counts(report)
     )
+    failures["Data report rows whose cells do not match their header"] = check_report_tables(report)
 
     (root / "docs" / "spot_check.md").write_text(spot_check(root), encoding="utf-8", newline="\n")
+    for name, page in (("section_bounds.md", section_bounds), ("table_sample.md", table_sample)):
+        (root / "docs" / name).write_text(page(root), encoding="utf-8", newline="\n")
     total = 0
     for title, problems in failures.items():
         print(f"{title}: {len(problems)}")
@@ -310,7 +606,7 @@ def main(root: Path = REPO_ROOT) -> int:
         f"Chunk texts shared by different filings (allowed, e.g. risk factors repeated "
         f"year to year): {duplicates.across_filings:,}"
     )
-    print("wrote docs/spot_check.md")
+    print("wrote docs/spot_check.md, docs/section_bounds.md and docs/table_sample.md")
     print("PASSED" if total == 0 else f"FAILED: {total} problems")
     return 0 if total == 0 else 1
 

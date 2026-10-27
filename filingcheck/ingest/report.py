@@ -171,9 +171,9 @@ def build_report(
     lines += kept or ["None."]
     lines.append("")
 
+    # Every company table has the same columns, so "Chunks" is always the last one.
+    columns = list(ALL_ITEMS)
     for company in ordered:
-        rows = [by_accession.get(f.accession) for f in filings_by_ticker.get(company.ticker, [])]
-        columns = list(ITEMS) + ([MERGED_ITEM] if any(r and r.merged for r in rows) else [])
         names = [
             f"Items {i} ({MERGED_LABEL})" if i == MERGED_ITEM else f"Item {i}" for i in columns
         ]
