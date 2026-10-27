@@ -325,3 +325,45 @@ def test_a_closing_sentence_repeated_earlier_does_not_shorten_the_match() -> Non
     )
     span = locate(f"{heading}\n\n{body}\n\n{closing}", source)
     assert span is not None and source[span[1] :].startswith(".\nItem 7A.")  # ends at a letter
+
+
+# ---------------------------------------------------------------- snapshots
+
+
+def test_a_section_fingerprint_is_its_size_and_the_hashes_of_its_two_ends() -> None:
+    from filingcheck.ingest.verify import section_fingerprint
+
+    text = "A" * 300 + "middle" + "Z" * 300
+    print_ = section_fingerprint(text)
+    assert print_["chars"] == 606
+    assert print_ == section_fingerprint("A" * 300 + "other middle!"[:6] + "Z" * 300)
+    assert print_["head"] != section_fingerprint("B" + text[1:])["head"]
+    assert print_["tail"] != section_fingerprint(text[:-1] + "Y")["tail"]
+
+
+def test_every_difference_from_the_section_snapshot_is_listed() -> None:
+    from filingcheck.ingest.verify import compare_sections
+
+    same = {"chars": 10, "head": "aa", "tail": "bb"}
+    expected = {"AAPL FY2025 Item 7": same, "AAPL FY2025 Item 8": same, "WMT FY2024 Item 8": same}
+    current = {
+        "AAPL FY2025 Item 7": same,
+        "WMT FY2024 Item 8": {"chars": 90, "head": "aa", "tail": "cc"},
+        "C FY2025 Item 1-7A": same,
+    }
+    assert compare_sections(expected, current) == [
+        "AAPL FY2025 Item 8: in the snapshot, not saved now",
+        "C FY2025 Item 1-7A: saved now, not in the snapshot",
+        "WMT FY2024 Item 8: 10 to 90 characters; last 200 characters changed",
+    ]
+
+
+def test_every_difference_from_the_chunk_snapshot_is_listed() -> None:
+    from filingcheck.ingest.verify import compare_chunk_counts
+
+    expected = {"AAPL FY2025": 600, "WMT FY2024": 287}
+    current = {"AAPL FY2025": 600, "WMT FY2024": 397, "MCO FY2025": 300}
+    assert compare_chunk_counts(expected, current) == [
+        "MCO FY2025: 300 chunks now, not in the snapshot",
+        "WMT FY2024: 287 chunks in the snapshot, 397 now",
+    ]
