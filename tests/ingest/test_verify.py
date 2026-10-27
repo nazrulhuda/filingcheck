@@ -310,3 +310,18 @@ def test_a_heading_that_is_also_in_the_contents_list_is_located_in_the_body() ->
     source = f"Contents\n{heading} 25\nItem 8. Financial Statements 40\n{heading}\n{body}\nItem 7A."
     span = locate(f"{heading}\n\n{body}", source)
     assert span is not None and span[0] == source.index(f"{heading}\n{body}")
+
+
+def test_a_closing_sentence_repeated_earlier_does_not_shorten_the_match() -> None:
+    from filingcheck.ingest.verify import locate
+
+    # Nike: the last sentence of Item 7 also ends Item 3.
+    heading = "Item 7. Management's Discussion and Analysis of Financial Condition"
+    body = "Revenue rose because the company sold more shoes in Europe and in Asia. " * 5
+    closing = "Refer to Note 16 in the accompanying Notes to the Financial Statements."
+    source = (
+        f"{heading} 25\nItem 3. Legal Proceedings\n{closing}\nItem 4.\n"
+        f"{heading}\n{body}\n{closing}\nItem 7A."
+    )
+    span = locate(f"{heading}\n\n{body}\n\n{closing}", source)
+    assert span is not None and source[span[1] :].startswith("\nItem 7A.")
