@@ -300,3 +300,13 @@ def test_the_next_item_heading_skips_running_headers_and_cross_references() -> N
     )
     assert next_item_heading(source, source.index("\n")) == "Item 1A. Risk Factors"
     assert next_item_heading("the end.\nNo heading here.", 8) is None
+
+
+def test_a_heading_that_is_also_in_the_contents_list_is_located_in_the_body() -> None:
+    from filingcheck.ingest.verify import locate
+
+    heading = "Item 7. Management's Discussion and Analysis of Financial Condition"
+    body = "Revenue rose because the company sold more widgets in Europe and in Asia."
+    source = f"Contents\n{heading} 25\nItem 8. Financial Statements 40\n{heading}\n{body}\nItem 7A."
+    span = locate(f"{heading}\n\n{body}", source)
+    assert span is not None and span[0] == source.index(f"{heading}\n{body}")
