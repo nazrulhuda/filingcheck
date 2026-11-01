@@ -9,7 +9,7 @@ Written by `make ingest` from `data/manifest.json` and the files the ingest stag
 | Companies | 25 |
 | Filings | 75 |
 | Items saved | 372 |
-| Chunks | 44,382 |
+| Chunks | 42,602 |
 | us-gaap tags (all companies) | 16,077 |
 | Number tables set aside (table_chunks) | 7,794 |
 
@@ -205,9 +205,9 @@ Citigroup Inc. · CIK 0000831001 · fiscal year ends in December · 796 us-gaap 
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| 2023 | 0000831001-24-000033 | 2023-12-31 | in 1-7A | 100,297 (approx.) | 249,046 (approx.) | in 1-7A | 476,013 (relocated) | 139,575 (approx.) | 1,770 |
-| 2024 | 0000831001-25-000067 | 2024-12-31 | in 1-7A | 96,990 (approx.) | 258,263 (approx.) | in 1-7A | 467,980 (relocated) | 133,489 (approx.) | 1,787 |
-| 2025 | 0000831001-26-000011 | 2025-12-31 | in 1-7A | 88,529 (approx.) | 227,239 (approx.) | in 1-7A | 441,453 (relocated) | 150,506 (approx.) | 1,690 |
+| 2023 | 0000831001-24-000033 | 2023-12-31 | in 1-7A | 100,297 (approx.) | 249,046 (approx.) | in 1-7A | 476,013 (relocated) | 139,575 (approx.) | 1,338 |
+| 2024 | 0000831001-25-000067 | 2024-12-31 | in 1-7A | 96,990 (approx.) | 258,263 (approx.) | in 1-7A | 467,980 (relocated) | 133,489 (approx.) | 1,330 |
+| 2025 | 0000831001-26-000011 | 2025-12-31 | in 1-7A | 88,529 (approx.) | 227,239 (approx.) | in 1-7A | 441,453 (relocated) | 150,506 (approx.) | 1,245 |
 
 ## COF
 
@@ -275,9 +275,9 @@ JPMorgan Chase & Co. · CIK 0000019617 · fiscal year ends in December · 918 us
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| 2023 | 0000019617-24-000225 | 2023-12-31 | 42,431 (approx.) | 132,015 (approx.) | in 1-7A | 250 (approx.) | 416,028 (relocated) | 425,642 (approx.) | 1,395 |
-| 2024 | 0000019617-25-000270 | 2024-12-31 | 40,154 (approx.) | 136,203 (approx.) | in 1-7A | 250 (approx.) | 412,354 (relocated) | 323,990 (approx.) | 1,478 |
-| 2025 | 0001628280-26-008131 | 2025-12-31 | 38,811 (approx.) | 112,539 (approx.) | in 1-7A | 250 (approx.) | 405,849 (relocated) | 320,754 (approx.) | 1,432 |
+| 2023 | 0000019617-24-000225 | 2023-12-31 | 42,431 (approx.) | 132,015 (approx.) | in 1-7A | 250 (approx.) | 416,028 (relocated) | 425,642 (approx.) | 1,394 |
+| 2024 | 0000019617-25-000270 | 2024-12-31 | 40,154 (approx.) | 136,203 (approx.) | in 1-7A | 250 (approx.) | 412,354 (relocated) | 323,990 (approx.) | 1,256 |
+| 2025 | 0001628280-26-008131 | 2025-12-31 | 38,811 (approx.) | 112,539 (approx.) | in 1-7A | 250 (approx.) | 405,849 (relocated) | 320,754 (approx.) | 1,209 |
 
 ## KO
 

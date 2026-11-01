@@ -783,6 +783,12 @@ def _section_filing(
         summaries[item] = ItemSummary(
             chars=len(deduped[item]), method=items[item].method, boundary=boundaries[item]
         )
+    for item in [i for i in ALL_ITEMS if i not in deduped]:
+        # An Item saved by an earlier run but not by this one (merged into MERGED_ITEM, say).
+        stale = root / section_path(filing, item)
+        for path in (stale, stale.with_name(stale.stem + SHARED_SUFFIX)):
+            if path.exists():
+                path.unlink()
     missing = [item for item in ITEMS if item not in items and item not in merged]
     if missing:
         gaps.append(f"not found: Item {', Item '.join(missing)}")
@@ -849,11 +855,11 @@ def iter_chunks(manifest: Manifest, root: Path) -> Iterator[tuple[list[Chunk], d
         kept: list[Chunk] = []
         first_with_text: dict[str, int] = {}
         dropped: Counter[str] = Counter()
-        for item in ALL_ITEMS:
+        # Only the Items this run saved: a file left on disk by an earlier run is ignored.
+        saved = summary.items if summary else {}
+        for item in [i for i in ALL_ITEMS if i in saved]:
             path = root / section_path(filing, item)
-            if not path.exists():
-                continue
-            found = summary.items.get(item) if summary else None
+            found = saved[item]
             chunks, item_dropped = chunk_item(
                 path.read_text(encoding="utf-8"),
                 ticker=filing.ticker,
@@ -862,7 +868,7 @@ def iter_chunks(manifest: Manifest, root: Path) -> Iterator[tuple[list[Chunk], d
                 accession=filing.accession,
                 item=item,
                 shared=_read_shared(path),
-                boundary=found.boundary if found else "exact",
+                boundary=found.boundary,
             )
             dropped.update(item_dropped)
             for chunk in chunks:

@@ -4,7 +4,15 @@ A fixed random sample (seed 2028) of the chunks and section starts, to read agai
 
 ## Chunks
 
-### Chunk 1: AMZN FY2023, Item 7, chunk 31
+### Chunk 1: AAPL FY2023, Item 1A, chunk 13
+
+Source: https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm
+
+```text
+environments and operations, an industrial accident could occur and could result in serious injuries or loss of life, disruption to the Company’s business, and harm to the Company’s reputation. Major public health issues, including pandemics such as the COVID-19 pandemic, have adversely affected, an
+```
+
+### Chunk 2: AMZN FY2023, Item 7, chunk 31
 
 Source: https://www.sec.gov/Archives/edgar/data/1018724/000101872424000008/amzn-20231231.htm
 
@@ -12,7 +20,7 @@ Source: https://www.sec.gov/Archives/edgar/data/1018724/000101872424000008/amzn-
 to isolate and quantify. In addition, changes in fuel, utility, and food costs, interest rates, and economic outlook may impact customer demand and our ability to forecast consumer spending patterns. We also expect the current macroeconomic environment and enterprise customer cost optimization effor
 ```
 
-### Chunk 2: AXP FY2023, Item 7, chunk 31
+### Chunk 3: AXP FY2023, Item 7, chunk 31
 
 Source: https://www.sec.gov/Archives/edgar/data/4962/000000496224000013/axp-20231231.htm
 
@@ -20,164 +28,140 @@ Source: https://www.sec.gov/Archives/edgar/data/4962/000000496224000013/axp-2023
 levels of revenue and Card Member loans and receivables. As a proportion of Salaries and employee benefits and other expenses, allocated costs remain relatively consistent from period to period. Increases in expenses year-over-year driven by allocated costs primarily reflect the changes in salaries
 ```
 
-### Chunk 3: COF FY2025, Item 1A, chunk 4
+### Chunk 4: COST FY2026, Item 1A, chunk 20
 
-Source: https://www.sec.gov/Archives/edgar/data/927628/000092762826000024/cof-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/909832/000090983226000093/cost-20260830.htm
 
 ```text
-credit ratings could significantly impact our liquidity, funding costs and access to the capital markets.
-
-•We face risks related to our operational, technological and organizational infrastructure.
-
-•A cyber-attack or other security incident on us or third parties (including their supply chains) wi
+with third parties may be inadequate to cover claims, costs, and liabilities relating to cybersecurity incidents. In addition, data we collect, store, and process is subject to a variety of U.S. and international laws and regulations (such as the European Union General Data Protection Regulation, Ca
 ```
 
-### Chunk 4: COST FY2025, Item 1, chunk 6
+### Chunk 5: GOOGL FY2025, Item 1A, chunk 95
 
-Source: https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm
+Source: https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm
 
 ```text
-credit cards, including Costco co-branded cards, debit cards, cash and checks, Executive member 2% reward certificates, co-brand cardholder rebates, and our proprietary stored-value card (shop card).
+EU or the UK, respectively, or related to products and services that we offer to EU or the UK users or customers, respectively, or the monitoring of their behavior in the EU or the UK, respectively.
 
-Our strategy is to provide our members with a broad range of high-quality merchandise at prices we
+•Various US federal, US state, and foreign privacy laws related to the processing and security of pe
 ```
 
-### Chunk 5: GOOGL FY2023, Item 1A, chunk 86
+### Chunk 6: GS FY2023, Item 1A, chunk 136
 
-Source: https://www.sec.gov/Archives/edgar/data/1652044/000165204424000022/goog-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/886982/000088698224000006/gs-20231231.htm
 
 ```text
-investments, and our goals, with all of their contingencies, dependencies, and in certain cases, reliance on third-party verification and/or performance, are complex and ambitious, and may change. We cannot guarantee that our goals and initiatives will be fully realized on the timelines we expect or
+Bankruptcy Code, including the right of the FDIC under OLA to disregard the strict priority of creditor claims in some circumstances, which could have a material adverse effect on our debtholders.
+
+The FDIC has announced that a single point of entry strategy may be a desirable strategy under OLA to
 ```
 
-### Chunk 6: IBM FY2023, Item 7, chunk 8
+### Chunk 7: IBM FY2025, Item 8, chunk 33
 
-Source: https://www.sec.gov/Archives/edgar/data/51143/000005114324000012/ibm-20231231_d2.htm
+Source: https://www.sec.gov/Archives/edgar/data/51143/000005114326000010/ibm-20251231_d2.htm
 
 ```text
-current period activity in local currency using the comparable prior-year period’s currency conversion rate. This approach is used for countries where the functional currency is the local currency. Generally, when the dollar either strengthens or weakens against other currencies, the growth at const
+and allocates variable consideration to the distinct periods of service based on usage. As a result, revenue is generally recognized over the period the services are provided on a usage basis. This results in revenue recognition that corresponds with the value to the client of the services transferr
 ```
 
-### Chunk 7: JPM FY2023, Item 1A, chunk 112
+### Chunk 8: JPM FY2024, Item 1A, chunk 58
 
-Source: https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/jpm-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm
 
 ```text
-to clients and customers
-
-•demand significant oversight by JPMorgan Chase’s management, and
-
-•require JPMorgan Chase to structure its businesses, operations and systems in less efficient ways.
-
-Not all of JPMorgan Chase’s clients, customers, vendors, counterparties and other external parties may hav
+financial instruments, the price that JPMorganChase ultimately realizes will depend on the demand and liquidity in the market at that time and may be materially lower than their current fair value. Any of these factors could cause a decline in the value of financial instruments that JPMorganChase ow
 ```
 
-### Chunk 8: JPM FY2025, Item 7, chunk 139
+### Chunk 9: KO FY2024, Item 1, chunk 68
 
-Source: https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/jpm-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-and 2024, respectively, which are adjustments to the initial $2.9 billion estimate recorded in the fourth quarter of 2023.
+agreements typically have terms of three to five years. We currently anticipate that we will continue to successfully negotiate such agreements with representatives of our bargained-for employees.
 
-(c)Predominantly relates to the Firm's international consumer initiatives.
-
-(d)Included a $774 million income tax benefit recorded in the second quarter of 2025, driven by the
+Our diverse, high-performing global employee base helps drive a culture of inclusion, innovation and g
 ```
 
-### Chunk 9: JPM FY2025, Item 7, chunk 171
+### Chunk 10: KO FY2024, Item 1A, chunk 22
 
-Source: https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/jpm-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-to earnings, capital, liquidity or reputation associated with poorly-designed or failed business plans or an inadequate response to changes in the operating environment.
+bottling plants and distribution facilities. Increases in energy demand have in the past resulted, and could in the future result, in higher energy prices, impacting us and our independent bottlers.
 
-Management and oversight
-
-The Operating Committee, together with the senior leadership of each LOB and Corporate, are responsible
+The raw materials and other supplies, including ingredients, agricultural commodities, energy, fuel,
 ```
 
-### Chunk 10: JPM FY2025, Item 8, chunk 86
+### Chunk 11: KO FY2024, Item 8, chunk 176
 
-Source: https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/jpm-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-(e.g., the volatility of a particular equity security may be significantly different from that of a particular commodity index), the tenor of the derivative as well as the strike price of the option.
-
-Bermudan switch value – The switch value is the difference between the overall value of a Bermudan
+Inc.’s former North America business and that were generated from 1990 through 2010 are subject to adjustments until the year in which they are utilized is no longer subject to examination. Although the outcome of tax audits is always uncertain, the Company believes that adequate amounts of tax, inc
 ```
 
-### Chunk 11: KO FY2023, Item 1, chunk 38
+### Chunk 12: KO FY2025, Item 8, chunk 209
 
-Source: https://www.sec.gov/Archives/edgar/data/21344/000002134424000009/ko-20231231.htm
+Source: https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm
 
 ```text
-products are sold to consumers in both ready-to-drink and non-ready-to-drink form. The Company has directly entered the alcohol beverage category in numerous markets outside the United States. In the United States, the Company has established a wholly owned, indirect, firewalled subsidiary, which au
+changes in equity securities using the measurement alternative.
+
+The gains and losses on assets measured at fair value on a nonrecurring basis are summarized in the following table (in millions):
+
+1The Company is required to record assets and liabilities that are held for sale at the lower of carryi
 ```
 
-### Chunk 12: NFLX FY2025, Item 1A, chunk 70
+### Chunk 13: NVDA FY2024, Item 8, chunk 82
 
-Source: https://www.sec.gov/Archives/edgar/data/1065280/000106528026000034/nflx-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/1045810/000104581024000029/nvda-20240128.htm
 
 ```text
-tied to member usage or the size of our membership base (“fixed cost”) but may be determined by costs of production or tied to such factors as titles licensed and/or theatrical exhibition receipts.  Such commitments, to the extent estimable under accounting standards, are included in the Contractual
+mining on GPU demand between May 10, 2017 and November 14, 2018. Plaintiffs also alleged that the NVIDIA executives who they named as defendants violated Section 20(a) of the Exchange Act. Plaintiffs sought class certification, an award of unspecified compensatory damages, an award of reasonable cos
 ```
 
-### Chunk 13: SPGI FY2024, Item 8, chunk 80
+### Chunk 14: VZ FY2023, Item 7, chunk 22
 
-Source: https://www.sec.gov/Archives/edgar/data/64040/000006404025000052/spgi-20241231.htm
+Source: https://www.sec.gov/Archives/edgar/data/732712/000073271224000010/vz-20231231.htm
 
 ```text
-goodwill and indefinite-lived intangibles, are being amortized over their anticipated useful lives of  7 years.
+costs.
 
-2023
+(2)The effective interest rate is the rate of actual interest incurred on debt. It is calculated by dividing the total interest costs on debt balances by the average debt outstanding.
 
-Acquisitions completed during the year ended December 31, 2023 included:
-
-•On February 16, 2023, we completed the acquisition of Market Scan Information Systems, Inc. (“Market Scan”
+(3)We believe that this measure is useful to management, investors and other users of our financial informa
 ```
 
-### Chunk 14: UNH FY2023, Item 1, chunk 36
+### Chunk 15: VZ FY2024, Item 8, chunk 108
 
-Source: https://www.sec.gov/Archives/edgar/data/731766/000073176624000081/unh-20231231.htm
-
-```text
-cases, imposes criminal penalties for individuals, including employees. In the conduct of our business, depending on the circumstances, we may act as either a covered entity or a business associate.
-
-The use and disclosure of individually identifiable health data by our businesses are also regulated
-```
-
-### Chunk 15: VZ FY2025, Item 8, chunk 60
-
-Source: https://www.sec.gov/Archives/edgar/data/732712/000073271226000007/vz-20251231.htm
+Source: https://www.sec.gov/Archives/edgar/data/732712/000073271225000006/vz-20241231.htm
 
 ```text
-for identical assets or liabilities
+at current market rates in 2015, with options to renew. We continue to include the towers in Property, plant and equipment, net in our consolidated balance sheets and depreciate them accordingly.
 
-Level 2 — Observable inputs other than quoted prices in active markets for identical assets and liabilities
-
-Level 3 — Unobservable pricing inputs in the market
-
-Financial assets and financial liabilities are classified in their entirety based on the lowest level
+In addition to the rights to lease and operate the towers, Vertical Bridge and American Tower assumed t
 ```
 
 ## Section starts
 
-### Section 1: AAPL FY2023, Item 1 (edgartools)
+### Section 1: AMZN FY2025, Item 8 (edgartools)
 
-Source: https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm
+Source: https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm
 
 ```text
-Item 1.    Business
+Table of Contents
 
-Company Background
+Item 8.  Financial Statements and Supplementary Data
 
-The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. The Company’s fiscal year is the 52- or 53-week period that ends on the last Saturday of September.
+INDEX TO CONSOLIDATED FINANCIAL STATEMENTS
 
-Products
-
-iPhone
-
-iPhone® is the Company’s line of smartphones based on its iOS operating system. The
+Page
+Report of Ernst & Young LLP, Independent Registered Public Accounting Firm (PCAOB ID: 42)  34
+Consolidated Statements of Cash Flows  36
+Consolidated Statements of Operations  37
+Consolidated Statements of Comprehensive Income  38
+Consolidated Balance Sheets  39
+Consolidated Sta
 ```
 
 ### Section 2: NFLX FY2025, Item 8 (relocated)
