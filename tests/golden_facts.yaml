@@ -53,3 +53,18 @@ facts:
     value: null
     unit: USD
     verified_by_hand: false
+
+  - id: axp-fy2023-total-revenues-net-of-interest-expense
+    ticker: AXP
+    fiscal_year: 2023
+    period_end: 2023-12-31
+    metric: revenue
+    xbrl_tag: us-gaap:RevenuesNetOfInterestExpense
+    where_to_look: Consolidated statements of income, line "Total revenues net of interest expense"
+    source_url: https://www.sec.gov/Archives/edgar/data/4962/000000496224000013/axp-20231231.htm
+    expected_around: null
+    value_as_printed: null
+    printed_units: null
+    value: null
+    unit: USD
+    verified_by_hand: false

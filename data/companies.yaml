@@ -86,7 +86,7 @@ companies:
   sector: technology
   fiscal_year_end: 9
   revenue_rule: standard
-  financebench: true
+  financebench: false
   aliases: [Apple, AAPL]
 - ticker: MSFT
   name: Microsoft Corporation
