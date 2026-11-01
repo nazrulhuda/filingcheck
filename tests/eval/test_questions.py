@@ -127,3 +127,31 @@ def test_the_command_line_fails_on_a_bad_file(
     write(tmp_path, [dict(BASE, metric="ebitda")])
     assert main(["validate", "--dir", str(tmp_path)]) == 1
     assert "q.jsonl:1" in capsys.readouterr().out
+
+
+CONTROL = dict(BASE, id="control-001", set="control", category="control", trap_note=None)
+
+
+def test_financebench_is_no_longer_a_question_set() -> None:
+    with pytest.raises(ValidationError):
+        Question.model_validate(dict(BASE, set="financebench"))
+
+
+@pytest.mark.parametrize("style", ["metrics-generated", "domain-relevant", "novel-generated"])
+def test_a_control_question_names_its_financebench_style(style: str) -> None:
+    assert Question.model_validate(dict(CONTROL, style=style)).style == style
+
+
+def test_a_control_question_without_a_style_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="style"):
+        Question.model_validate(CONTROL)
+
+
+def test_a_trap_question_with_a_style_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="style"):
+        Question.model_validate(dict(BASE, style="metrics-generated"))
+
+
+def test_an_unknown_style_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Question.model_validate(dict(CONTROL, style="free-form"))
