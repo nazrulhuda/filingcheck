@@ -34,6 +34,7 @@ TABLES = {
     "facts",
     "embeddings_meta",
     "embedding_cache",
+    "section_sources",
     "eval_questions",
     "eval_runs",
     "eval_answers",
