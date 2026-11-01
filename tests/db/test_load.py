@@ -73,7 +73,13 @@ def test_loading_100_chunks_round_trips(db: psycopg.Connection, tmp_path: Path) 
     migrate(db)
     path = write_jsonl(tmp_path / "chunks.jsonl", chunks())
     counts = load_all(db, [APPLE], Manifest(filings=[FILING]), path)
-    assert counts == {"companies": 1, "filings": 1, "chunks": 100, "table_chunks": 0}
+    assert counts == {
+        "companies": 1,
+        "filings": 1,
+        "chunks": 100,
+        "table_chunks": 0,
+        "embeddings_restored": 0,
+    }
     rows = db.execute(
         "SELECT c.item, c.chunk_index, c.char_start, c.char_end, c.text, f.accession "
         "FROM chunks c JOIN filings f ON f.id = c.filing_id ORDER BY c.id"
@@ -178,7 +184,13 @@ def test_number_tables_load_into_their_own_table_not_chunks(
         write_jsonl(tmp_path / "c.jsonl", chunks(2)),
         write_tables(tmp_path / "t.jsonl", [SEGMENTS, outside]),
     )
-    assert counts == {"companies": 1, "filings": 1, "chunks": 2, "table_chunks": 2}
+    assert counts == {
+        "companies": 1,
+        "filings": 1,
+        "chunks": 2,
+        "table_chunks": 2,
+        "embeddings_restored": 0,
+    }
     rows = db.execute(
         "SELECT f.ticker, f.fiscal_year, t.item, t.table_index, t.source_url, t.position, t.text "
         "FROM table_chunks t JOIN filings f ON f.id = t.filing_id ORDER BY t.table_index"
