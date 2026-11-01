@@ -1,6 +1,7 @@
 """The pinned filings must not change without a deliberate update of the expected list.
 
-All 75 filings in `tests/expected_manifest.json` were checked one by one on sec.gov. The one
+All 75 filings in `tests/expected_manifest.json` (company CIK, fiscal year, accession, period
+and filing date) were checked one by one on sec.gov. The one
 planned change is re-pinning Apple for its FY2026 10-K; that PR updates the expected file too.
 """
 
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from filingcheck.paths import REPO_ROOT
 
-FIELDS = ("ticker", "fiscal_year", "accession", "period_of_report", "filing_date")
+FIELDS = ("ticker", "cik", "fiscal_year", "accession", "period_of_report", "filing_date")
 EXPECTED = Path(__file__).parent / "expected_manifest.json"
 
 
