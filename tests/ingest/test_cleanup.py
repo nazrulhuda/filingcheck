@@ -2,7 +2,11 @@
 
 from filingcheck.ingest.chunking import clean_item_text
 
-FIRST = "Deferred income taxes reflect the effect of"
+# A real first half is a whole paragraph cut off mid-sentence, not a short line.
+FIRST = (
+    "The Company accounts for income taxes under the asset and liability method, so deferred "
+    "income taxes reflect the effect of"
+)
 SECOND = "temporary differences between the book and tax bases of assets and liabilities."
 SENTENCE = f"{FIRST} {SECOND}"
 
@@ -39,11 +43,19 @@ def test_a_page_number_between_the_halves_goes_before_the_join() -> None:
 
 def test_a_sentence_split_over_three_paragraphs_is_joined_once() -> None:
     text = (
-        "Revenue in the year rose because the\n\ncompany sold more widgets in\n\nEurope and Asia."
+        "Revenue rose, as it has in most recent years, because the\n\n"
+        "company sold more widgets in\n\nboth Europe and Asia."
     )
     assert clean_item_text(text) == (
-        "Revenue in the year rose because the company sold more widgets in Europe and Asia."
+        "Revenue rose, as it has in most recent years, because the company sold more widgets "
+        "in both Europe and Asia."
     )
+
+
+def test_a_short_capitalised_line_counts_as_a_heading_even_before_lowercase() -> None:
+    # The heading guard: a short single line with no punctuation is never joined.
+    text = "Deferred income taxes reflect the effect of\n\ntemporary differences."
+    assert clean_item_text(text) == text
 
 
 # ---------------------------------------------------------------- the spec's negative cases
@@ -124,7 +136,8 @@ def test_a_short_footnote_is_not_joined_to_the_next_one() -> None:
 
 def test_a_long_footnote_split_by_a_page_break_is_still_joined() -> None:
     text = (
-        "(1) Reflects the divestitures of its Asia Consumer businesses and (ii) the\n\n"
+        "(1) Legacy Franchises reflects (i) Citi's divestitures of its Asia Consumer businesses "
+        "and (ii) the\n\n"
         "planned divestiture of Mexico consumer banking."
     )
     assert clean_item_text(text) == text.replace("\n\n", " ")
