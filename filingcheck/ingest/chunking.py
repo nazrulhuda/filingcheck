@@ -32,6 +32,18 @@ TOC_LINE_RE = re.compile(
 )
 EDGE_NUMBERS_RE = re.compile(r"^[\s\d|.\-]+|[\s\d|.\-]+$")
 BLANK_RUN_RE = re.compile(r"\n{3,}")
+# Page furniture between paragraphs, removed before split sentences are rejoined.
+PAGE_NUMBER_RE = re.compile(r"\d{1,3}")
+TABLE_OF_CONTENTS_RE = re.compile(r"table of contents[:.]?", re.IGNORECASE)
+# A sentence ends with . ? ! : or ;, possibly followed by a closing quote or bracket.
+CLOSERS = "\"')]" + chr(0x201D) + chr(0x2019)
+SENTENCE_END_RE = re.compile(r"[.?!:;][" + re.escape(CLOSERS) + r"]*$")
+SENTENCE_MARK_RE = re.compile(r"[.,;:]")
+SHORT_LINE = 80  # a single line this short with no punctuation may be a heading or label
+LABEL_MAX_WORDS = 3  # "iPhone", "Total net sales": a label, not half a sentence
+PAGE_FOOTER_RE = re.compile(r"\s\d{1,3}$")  # "2023 Annual Report  13"
+FOOTNOTE_START_RE = re.compile(r"\(\d+\)|\*")  # "(3) As of end of period"
+LETTER_RE = re.compile(r"[A-Za-z]")
 ITEM_ORDER = ("1", "1A", "7", "7A", "8", "1-7A")  # "1-7A": Items not separable
 
 Boundary = Literal["exact", "approximate"]
@@ -98,11 +110,61 @@ def strip_repeated_lines(
     return "\n".join(line for line in lines if not repeated(line))
 
 
+def _is_page_furniture(paragraph: str) -> bool:
+    """A page number or a "Table of Contents" link left on its own between paragraphs."""
+    return bool(PAGE_NUMBER_RE.fullmatch(paragraph) or TABLE_OF_CONTENTS_RE.fullmatch(paragraph))
+
+
+def _ends_unfinished(paragraph: str) -> bool:
+    """Whether a paragraph stops mid-sentence and is not a heading, label, footer or footnote.
+
+    Headings ("Interest Rate Risk"), product labels ("iPhone"), page footers ("2023 Annual
+    Report  13") and short footnotes ("(3) As of end of period") also lack a full stop, but
+    the paragraph after them is not their continuation.
+    """
+    if SENTENCE_END_RE.search(paragraph):
+        return False
+    if "\n" in paragraph or SENTENCE_MARK_RE.search(paragraph) or len(paragraph) > SHORT_LINE:
+        return True  # a long or punctuated paragraph: the end of a sentence's first half
+    return not (
+        paragraph[:1].isupper()  # a heading
+        or len(paragraph.split()) <= LABEL_MAX_WORDS  # a product or table label
+        or PAGE_FOOTER_RE.search(paragraph)
+        or FOOTNOTE_START_RE.match(paragraph)
+        or not LETTER_RE.search(paragraph)  # a rule line such as "________"
+    )
+
+
+def tidy_paragraphs(text: str) -> str:
+    """Drop page numbers and "Table of Contents" lines, then rejoin sentences a page split.
+
+    The furniture goes first, so the two halves of a sentence it separated can join. Two
+    paragraphs join when the first stops mid-sentence and the second starts in lowercase.
+    """
+    paragraphs = [p for p in text.split("\n\n") if not _is_page_furniture(p.strip())]
+    if paragraphs:
+        first, _, rest = paragraphs[0].partition("\n")
+        if TABLE_OF_CONTENTS_RE.fullmatch(first.strip()) and rest.strip():
+            paragraphs[0] = rest  # a leading "Table of Contents" line above the heading
+    joined: list[str] = []
+    for paragraph in paragraphs:
+        if joined and paragraph[:1].islower() and _ends_unfinished(joined[-1]):
+            joined[-1] = f"{joined[-1]} {paragraph}"
+        else:
+            joined.append(paragraph)
+    return "\n\n".join(joined)
+
+
 def clean_item_text(text: str) -> str:
-    """Use plain spaces; remove page headers and footers, trailing spaces and blank runs."""
+    """Clean an Item's text before it is saved and chunked.
+
+    Plain spaces only; page headers, footers, page numbers, "Table of Contents" lines and
+    blank runs removed; sentences split by a page break rejoined.
+    """
     text = strip_repeated_lines(text.translate(SPACE_CHARS))
     text = "\n".join(line.rstrip() for line in text.split("\n"))
-    return BLANK_RUN_RE.sub("\n\n", text).strip()
+    text = BLANK_RUN_RE.sub("\n\n", text).strip()
+    return tidy_paragraphs(text).strip()
 
 
 def split_spans(text: str, size: int, overlap: int) -> list[tuple[int, int]]:
