@@ -33,7 +33,7 @@ def facts() -> list[dict[str, Any]]:
 
 def test_every_fact_has_the_same_fields_and_a_unique_id() -> None:
     rows = facts()
-    assert len(rows) == 3
+    assert len(rows) == 4
     assert all(set(row) == FIELDS for row in rows)
     assert len({row["id"] for row in rows}) == len(rows)
 
