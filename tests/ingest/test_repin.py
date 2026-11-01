@@ -91,3 +91,49 @@ def test_refresh_in_cache_only_mode_is_a_cache_miss(tmp_path: Path) -> None:
     client = SecClient(cache_dir=tmp_path, cache_only=True, contact_email="test@example.com")
     with client, pytest.raises(CacheMissError):
         client.get_json("https://data.sec.gov/submissions/CIK0000320193.json", refresh=True)
+
+
+class RecordingClient:
+    """Answers every URL with the same JSON and records whether each call asked to refresh."""
+
+    def __init__(self, body: dict[str, object]) -> None:
+        self.body = body
+        self.refreshed: list[bool] = []
+
+    def get_json(self, url: str, refresh: bool = False) -> object:
+        self.refreshed.append(refresh)
+        return self.body
+
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
+        self.refreshed.append(refresh)
+        return json.dumps(self.body).encode()
+
+
+def test_companyfacts_refresh_downloads_the_file_again(tmp_path: Path) -> None:
+    from filingcheck.ingest.companyfacts import fetch_companyfacts
+
+    client = RecordingClient({"facts": {"us-gaap": {"Revenues": {}}}})
+    fetch_companyfacts(company(), client, tmp_path)
+    fetch_companyfacts(company(), client, tmp_path, refresh=True)
+    assert client.refreshed == [False, True]
+
+
+def test_companies_refresh_downloads_the_ticker_list_again(tmp_path: Path) -> None:
+    from filingcheck.ingest.companies import update_companies_file
+
+    path = tmp_path / "companies.yaml"
+    save_companies(path, [company()])
+    client = RecordingClient({"0": {"ticker": "AAPL", "cik_str": 320193, "title": "Apple"}})
+    update_companies_file(path, client, refresh=True)
+    assert client.refreshed == [True]
+
+
+@pytest.mark.parametrize("stage", ["companies", "companyfacts"])
+def test_the_refresh_flag_reaches_the_stage(stage: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        cli, f"run_{stage}", lambda *args, refresh=False: calls.append(refresh) or 0
+    )
+    assert cli.main([stage, "--refresh"]) == 0
+    assert cli.main([stage]) == 0
+    assert calls == [True, False]
