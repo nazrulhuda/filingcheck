@@ -9,6 +9,7 @@ from filingcheck.db import connect
 from filingcheck.db.migrate import migrate
 from filingcheck.embeddings.openai_client import OpenAIEmbeddings
 from filingcheck.embeddings.runner import describe, mirror_path, plan, run
+from filingcheck.llm.pricing import cost_usd
 from filingcheck.paths import REPO_ROOT
 
 
@@ -37,7 +38,16 @@ def main(argv: list[str] | None = None) -> int:
             if answer.strip().lower() not in ("y", "yes"):
                 print("stopped; nothing embedded")
                 return 1
-        result = run(conn, client, mirror)
+        try:
+            result = run(conn, client, mirror)
+        except Exception:
+            # Everything that came back is saved; say what this run was billed before stopping.
+            print(
+                f"stopped with an error after {client.tokens_used:,} tokens billed "
+                f"(${cost_usd(client.model_name, client.tokens_used):.4f}); "
+                "run again to resume"
+            )
+            raise
     print(
         f"restored {result.restored:,} chunks from the cache; embedded {result.embedded:,} "
         f"texts; {result.tokens:,} tokens billed; cost ${result.cost_usd:.4f}"

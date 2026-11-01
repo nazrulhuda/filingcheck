@@ -1,6 +1,7 @@
 """OpenAI embeddings over plain HTTP: batched, retried, with at most 4 requests in flight."""
 
 import os
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -15,7 +16,10 @@ from filingcheck.embeddings import MODEL, make_batches
 API_URL = "https://api.openai.com/v1/embeddings"
 MAX_IN_FLIGHT = 4
 MAX_RETRIES = 5
-BACKOFF_SECONDS = 1.0  # waits 1, 2, 4, 8 and 16 seconds between tries
+BACKOFF_SECONDS = 1.0  # waits 1, 2, 4, 8 and 16 seconds, or longer if the API asks
+MAX_WAIT_SECONDS = 60.0  # never wait longer than this, whatever the API asks
+DURATION_RE = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)")
+DURATION_UNITS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
 
 class MissingAPIKeyError(RuntimeError):
@@ -82,17 +86,23 @@ class OpenAIEmbeddings:
     def _request(self, batch: list[str]) -> list[list[float]]:
         http = self._client()
         problem = ""
+        asked_wait = 0.0  # how long the API said to wait before trying again
         for attempt in range(MAX_RETRIES + 1):
             if attempt:
-                self._sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
+                backoff = BACKOFF_SECONDS * 2 ** (attempt - 1)
+                self._sleep(min(max(backoff, asked_wait), MAX_WAIT_SECONDS))
             with self._slots:
                 try:
                     response = http.post(API_URL, json={"model": self.model_name, "input": batch})
                 except httpx.TransportError as exc:
                     problem = f"{type(exc).__name__}: {exc}"
+                    asked_wait = 0.0
                     continue
+            if response.status_code == 429 and _error_code(response) == "insufficient_quota":
+                raise EmbeddingAPIError(f"HTTP 429, quota exhausted: {_message(response)}")
             if response.status_code == 429 or response.status_code >= 500:
-                problem = f"HTTP {response.status_code}"
+                problem = f"HTTP {response.status_code}: {_message(response)}"
+                asked_wait = _asked_wait(response)
                 continue
             if response.status_code >= 400:
                 raise EmbeddingAPIError(
@@ -121,3 +131,28 @@ def _message(response: httpx.Response) -> str:
         return str(response.json()["error"]["message"])
     except (ValueError, KeyError, TypeError):
         return response.text[:300]
+
+
+def _error_code(response: httpx.Response) -> str | None:
+    try:
+        code = response.json()["error"].get("code")
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return None
+    return str(code) if code else None
+
+
+def _asked_wait(response: httpx.Response) -> float:
+    """The longest wait the response asks for, in seconds (0 if it asks for none).
+
+    `retry-after` is in seconds; the x-ratelimit-reset headers read like "35.147s" or
+    "1m2s" or "6ms".
+    """
+    waits = []
+    retry_after = response.headers.get("retry-after", "")
+    if retry_after.replace(".", "", 1).isdigit():
+        waits.append(float(retry_after))
+    for header in ("x-ratelimit-reset-tokens", "x-ratelimit-reset-requests"):
+        parts = DURATION_RE.findall(response.headers.get(header, ""))
+        if parts:
+            waits.append(sum(float(n) * DURATION_UNITS[unit] for n, unit in parts))
+    return max(waits, default=0.0)
