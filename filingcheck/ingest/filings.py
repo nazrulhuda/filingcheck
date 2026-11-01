@@ -9,6 +9,7 @@ import json
 import re
 from collections.abc import Iterable, Iterator
 from datetime import date
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -33,6 +34,10 @@ TAG_RE = re.compile(r"<[^>]+>")
 
 class FiscalYearEndMismatchError(ValueError):
     """A filing's period of report does not match the company's fiscal-year-end month."""
+
+
+class FiscalYearGapError(LookupError):
+    """The latest fiscal years with a 10-K are not consecutive: a year is missing."""
 
 
 class NotEnoughFilingsError(LookupError):
@@ -162,7 +167,8 @@ def select_annual_filings(
     """Choose the filing for each of the latest `years` fiscal years, newest first.
 
     The original 10-K wins; a 10-K/A is used only when the original is missing. Rows come
-    newest first, so reading stops as soon as the latest years all have an original.
+    newest first, so reading stops as soon as the latest years all have an original. The
+    years must be consecutive: a missing year fails loudly instead of being skipped.
     """
     chosen: dict[int, FilingRow] = {}
     for row in rows:
@@ -179,6 +185,11 @@ def select_annual_filings(
     if len(latest) < years:
         raise NotEnoughFilingsError(
             f"{company.ticker}: found 10-Ks for {len(latest)} fiscal years, need {years}"
+        )
+    if any(newer - older != 1 for newer, older in pairwise(latest)):
+        raise FiscalYearGapError(
+            f"{company.ticker}: the latest fiscal years with a 10-K are "
+            f"{', '.join(str(fy) for fy in latest)}, which are not consecutive"
         )
     return [(chosen[fy], fy) for fy in latest]
 
