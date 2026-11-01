@@ -2,7 +2,7 @@
 
 ## What was built
 
-A data pipeline. `make setup && make db-up && make ingest` downloads the latest three 10-K filings and the XBRL facts for 25 companies through one rate-limited, cached SEC client. It splits each 10-K into Items 1, 1A, 7, 7A and 8, sets number tables aside, cuts the text into chunks, loads Postgres with pgvector, and writes `docs/data_report.md`. CI runs 205 unit tests and 11 database tests on every pull request.
+A data pipeline. `make setup && make db-up && make ingest` downloads the latest three 10-K filings and the XBRL facts for 25 companies through one rate-limited, cached SEC client. It splits each 10-K into Items 1, 1A, 7, 7A and 8, sets number tables aside, cuts the text into chunks, loads Postgres with pgvector, and writes `docs/data_report.md`. CI runs about 200 unit tests and 11 database tests on every pull request.
 
 ## The data
 
@@ -35,5 +35,5 @@ Every pinned filing was checked against its EDGAR filing index page: form, compa
 - Re-pin the manifest once in November to add Apple's FY2026 10-K.
 - Write the first 40 trap questions.
 - The XBRL companyfacts files are not yet pinned. A hash manifest comes with the metric map in week 3.
-- Citigroup's FY2025 10-K restated a prior-year figure: 2023 revenue of 78,462 became 78,066 (millions). Number checks will compare a number against the filing it came from.
-- Capital One's revenue tag is to be confirmed in the metric map.
+- Citigroup's FY2025 10-K reclassified a prior-year figure: 2023 revenue of 78,462 became 78,066 (millions). Number checks will compare a number against the filing it came from.
+- Bank revenue tags are confirmed for all six banks (see decisions.md); the metric map in week 3 applies the rule.
