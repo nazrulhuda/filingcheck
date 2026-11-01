@@ -38,7 +38,9 @@ Category = Literal[
     "prompt_injection",  # the question tries to change the agent's rules
     "control",  # a normal, clean question
 ]
-QuestionSet = Literal["trap", "control", "financebench"]
+QuestionSet = Literal["trap", "control"]
+# FinanceBench's three question styles; control questions are written in one of them.
+Style = Literal["metrics-generated", "domain-relevant", "novel-generated"]
 Behavior = Literal["answer", "clarify", "refuse"]
 
 METRICS: tuple[str, ...] = get_args(Metric)
@@ -64,6 +66,7 @@ class Question(BaseModel):
     tolerance_pct: float = Field(default=1.0, ge=0)
     gold_text: str | None = None
     trap_note: str | None = None
+    style: Style | None = None  # control questions only
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -71,6 +74,8 @@ class Question(BaseModel):
             raise ValueError("gold_unit is required when gold_value is set")
         if (self.category == "control") != (self.set == "control"):
             raise ValueError("a control question has set 'control' and category 'control'")
+        if (self.style is not None) != (self.set == "control"):
+            raise ValueError("style is required for control questions and not allowed otherwise")
         return self
 
 

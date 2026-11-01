@@ -6,8 +6,8 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 
 | Field | What it holds |
 |---|---|
-| `id` | Lowercase prefix and a number: `trap-001`, `control-001`, `fb-001` |
-| `set` | `trap`, `control` or `financebench` |
+| `id` | Lowercase prefix and a number: `trap-001`, `control-001` |
+| `set` | `trap` (questions built to mislead) or `control` (normal questions about the pinned filings) |
 | `category` | One of the categories below |
 | `question` | The question exactly as a user would type it |
 | `company` | The ticker the question should resolve to, or `null` when it is ambiguous on purpose |
@@ -19,6 +19,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `tolerance_pct` | How far a number may be from `gold_value` and still count as right; default 1.0 |
 | `gold_text` | For text answers: what a correct answer must say |
 | `trap_note` | Why the question is tricky and what a good answer does |
+| `style` | Control questions only, and required for them: the FinanceBench question style it follows, `metrics-generated`, `domain-relevant` or `novel-generated`; must be absent or `null` for trap questions |
 
 ## Categories
 
