@@ -36,7 +36,8 @@ EMBEDDING_FAILURES = (EmbeddingAPIError, MissingAPIKeyError, httpx.HTTPError, OS
 def _filters(
     ticker: str | None, fiscal_year: int | None, items: list[str] | None
 ) -> tuple[str, dict[str, Any]]:
-    clauses, params = ["TRUE"], {}
+    clauses: list[str] = ["TRUE"]
+    params: dict[str, Any] = {}
     if ticker is not None:
         clauses.append("f.ticker = %(ticker)s")
         params["ticker"] = ticker
