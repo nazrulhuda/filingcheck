@@ -10,7 +10,7 @@ def test_companies_stage_updates_the_companies_file(
 ) -> None:
     calls: list[Path] = []
 
-    def fake_run(path: Path) -> int:
+    def fake_run(path: Path, refresh: bool = False) -> int:
         calls.append(path)
         print("25 companies")
         return 0
@@ -28,7 +28,7 @@ class FakeSecClient:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def get_json(self, url: str) -> dict[str, dict[str, object]]:
+    def get_json(self, url: str, refresh: bool = False) -> dict[str, dict[str, object]]:
         return {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
 
 
@@ -72,10 +72,10 @@ class FakeFilingsClient:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def get_json(self, url: str) -> object:
+    def get_json(self, url: str, refresh: bool = False) -> object:
         return self.inner.get_json(url)
 
-    def get_bytes(self, url: str) -> bytes:
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
         self.downloads += 1
         return self.inner.get_bytes(url)
 
@@ -130,7 +130,7 @@ class FakeSectionsClient:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def get_bytes(self, url: str) -> bytes:
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
         fixtures = Path(__file__).resolve().parents[1] / "fixtures"
         index = (fixtures / "filing_index_sample.html").read_text(encoding="utf-8")
         return index.replace("EX-13", "EX-99").encode()
@@ -193,7 +193,7 @@ class FakeFactsClient:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def get_bytes(self, url: str) -> bytes:
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
         return b'{"facts": {"us-gaap": {"Assets": {}, "Revenues": {}}}}'
 
 
@@ -241,7 +241,7 @@ def test_companyfacts_and_report_stages_write_their_files(
 def test_the_companyfacts_and_report_stages_are_wired(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
-    def fake_facts(companies: Path, root: Path) -> int:
+    def fake_facts(companies: Path, root: Path, refresh: bool = False) -> int:
         calls.append("f")
         return 0
 

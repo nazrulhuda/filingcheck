@@ -42,12 +42,12 @@ class NotEnoughFilingsError(LookupError):
 class SecFetcher(Protocol):
     """The parts of `SecClient` this module uses."""
 
-    def get_json(self, url: str) -> Any:
-        """Return the body of `url` parsed as JSON."""
+    def get_json(self, url: str, refresh: bool = False) -> Any:
+        """Return the body of `url` parsed as JSON; `refresh` skips the cache."""
         ...
 
-    def get_bytes(self, url: str) -> bytes:
-        """Return the body of `url`."""
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
+        """Return the body of `url`; `refresh` skips the cache."""
         ...
 
 
@@ -143,12 +143,17 @@ def _rows(columns: dict[str, list[Any]]) -> Iterator[FilingRow]:
         )
 
 
-def submission_rows(client: SecFetcher, cik: str) -> Iterator[FilingRow]:
-    """Yield a company's filings, newest first, fetching older pages only when needed."""
-    data = client.get_json(SUBMISSIONS_URL.format(cik=cik))
+def submission_rows(client: SecFetcher, cik: str, refresh: bool = False) -> Iterator[FilingRow]:
+    """Yield a company's filings, newest first, fetching older pages only when needed.
+
+    With `refresh=True` the list and its pages are downloaded again rather than read from
+    the cache, so a newly filed 10-K is seen.
+    """
+    data = client.get_json(SUBMISSIONS_URL.format(cik=cik), refresh=refresh)
     yield from _rows(data["filings"]["recent"])
     for page in data["filings"].get("files", []):
-        yield from _rows(client.get_json(SUBMISSIONS_PAGE_URL.format(name=page["name"])))
+        url = SUBMISSIONS_PAGE_URL.format(name=page["name"])
+        yield from _rows(client.get_json(url, refresh=refresh))
 
 
 def select_annual_filings(
@@ -196,13 +201,20 @@ def write_atomic(path: Path, body: bytes) -> None:
     tmp.replace(path)
 
 
-def build_manifest(companies: list[Company], client: SecFetcher, root: Path) -> Manifest:
-    """Choose, check and download the latest three 10-Ks for every company."""
+def build_manifest(
+    companies: list[Company], client: SecFetcher, root: Path, refresh: bool = False
+) -> Manifest:
+    """Choose, check and download the latest three 10-Ks for every company.
+
+    `refresh=True` downloads the filing lists again (the re-pin); filing documents always
+    come from the cache when present.
+    """
     filings: list[Filing] = []
     for company in companies:
         if company.cik is None:
             raise ValueError(f"{company.ticker} has no CIK; run the companies stage first")
-        for row, derived in select_annual_filings(company, submission_rows(client, company.cik)):
+        rows = submission_rows(client, company.cik, refresh=refresh)
+        for row, derived in select_annual_filings(company, rows):
             assert row.report_date is not None  # select_annual_filings skips rows without one
             check_fiscal_year_end(company, row.report_date)
             url = primary_document_url(company.cik, row.accession, row.primary_document)

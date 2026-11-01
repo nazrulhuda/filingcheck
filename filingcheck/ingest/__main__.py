@@ -15,13 +15,16 @@ TABLE_CHUNKS_FILE = "data/table_chunks.jsonl"
 DATA_REPORT = "docs/data_report.md"
 
 
-def run_companies(path: Path) -> int:
-    """Resolve every company's CIK and print the result for checking."""
+def run_companies(path: Path, refresh: bool = False) -> int:
+    """Resolve every company's CIK and print the result for checking.
+
+    `refresh=True` downloads the SEC ticker list again instead of using the cached copy.
+    """
     from filingcheck.ingest.companies import TICKERS_URL, update_companies_file
     from filingcheck.ingest.sec_client import SecClient
 
     with SecClient() as client:
-        companies = update_companies_file(path, client)
+        companies = update_companies_file(path, client, refresh=refresh)
         titles = {
             str(row["ticker"]).upper(): row["title"]
             for row in client.get_json(TICKERS_URL).values()
@@ -55,7 +58,10 @@ def run_filings(
             saved = ensure_documents(manifest, client, root)
             print(f"using the filings pinned in {manifest_path.name}; {saved} documents saved")
         else:
-            manifest = build_manifest(load_companies(companies_path), client, root)
+            # A re-pin must see filings made since the lists were cached.
+            manifest = build_manifest(
+                load_companies(companies_path), client, root, refresh=reselect
+            )
             write_manifest(manifest_path, manifest)
             print(f"chose {len(manifest.filings)} filings and wrote {manifest_path.name}")
         downloads = client.downloads
@@ -171,15 +177,19 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
     return 0
 
 
-def run_companyfacts(companies_path: Path, root: Path) -> int:
-    """Download and check every company's XBRL companyfacts file."""
+def run_companyfacts(companies_path: Path, root: Path, refresh: bool = False) -> int:
+    """Download and check every company's XBRL companyfacts file.
+
+    `refresh=True` downloads them again instead of using the cached copies (the re-pin).
+    """
     from filingcheck.ingest.companies import load_companies
     from filingcheck.ingest.companyfacts import fetch_companyfacts
     from filingcheck.ingest.sec_client import SecClient
 
     with SecClient() as client:
         tags = {
-            c.ticker: fetch_companyfacts(c, client, root) for c in load_companies(companies_path)
+            c.ticker: fetch_companyfacts(c, client, root, refresh=refresh)
+            for c in load_companies(companies_path)
         }
         downloads = client.downloads
     for ticker, count in tags.items():
@@ -224,19 +234,29 @@ def main(argv: list[str] | None = None) -> int:
     """Run one ingest stage."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.ingest")
     stages = parser.add_subparsers(dest="stage", required=True)
-    stages.add_parser("companies", help="resolve tickers to SEC CIKs in data/companies.yaml")
+    companies = stages.add_parser(
+        "companies", help="resolve tickers to SEC CIKs in data/companies.yaml"
+    )
+    companies.add_argument(
+        "--refresh", action="store_true", help="download the SEC ticker list again"
+    )
     filings = stages.add_parser("filings", help="pin and download the latest three 10-Ks")
     filings.add_argument(
         "--reselect", action="store_true", help="choose the filings again instead of reusing"
     )
-    stages.add_parser("companyfacts", help="download each company's XBRL companyfacts file")
+    companyfacts = stages.add_parser(
+        "companyfacts", help="download each company's XBRL companyfacts file"
+    )
+    companyfacts.add_argument(
+        "--refresh", action="store_true", help="download the files again instead of reusing"
+    )
     stages.add_parser("sections", help="split each filing into Items 1, 1A, 7, 7A and 8")
     stages.add_parser("chunks", help="chunk the saved Items into data/chunks.jsonl")
     stages.add_parser("load", help="load companies, filings and chunks into Postgres")
     stages.add_parser("report", help="write docs/data_report.md")
     args = parser.parse_args(argv)
     if args.stage == "companies":
-        return run_companies(COMPANIES_FILE)
+        return run_companies(COMPANIES_FILE, refresh=args.refresh)
     if args.stage == "filings":
         return run_filings(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT, reselect=args.reselect)
     if args.stage == "sections":
@@ -244,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.stage == "chunks":
         return run_chunks(MANIFEST_FILE, REPO_ROOT)
     if args.stage == "companyfacts":
-        return run_companyfacts(COMPANIES_FILE, REPO_ROOT)
+        return run_companyfacts(COMPANIES_FILE, REPO_ROOT, refresh=args.refresh)
     if args.stage == "load":
         return run_load(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
     if args.stage == "report":
