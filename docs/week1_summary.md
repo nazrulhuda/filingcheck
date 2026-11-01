@@ -2,7 +2,7 @@
 
 ## What was built
 
-A data pipeline. `make setup && make db-up && make ingest` downloads the latest three 10-K filings and the XBRL facts for 25 companies through one rate-limited, cached SEC client. It splits each 10-K into Items 1, 1A, 7, 7A and 8, cuts them into chunks, loads Postgres with pgvector, and writes `docs/data_report.md`. A fresh clone with an empty cache rebuilds the same files, byte for byte, in about four minutes. CI runs 118 unit tests and 8 database tests on every pull request.
+A data pipeline. `make setup && make db-up && make ingest` downloads the latest three 10-K filings and the XBRL facts for 25 companies through one rate-limited, cached SEC client. It splits each 10-K into Items 1, 1A, 7, 7A and 8, sets number tables aside, cuts the text into chunks, loads Postgres with pgvector, and writes `docs/data_report.md`. CI runs 205 unit tests and 11 database tests on every pull request.
 
 ## The data
 
@@ -10,26 +10,30 @@ A data pipeline. `make setup && make db-up && make ingest` downloads the latest 
 |---|---:|
 | Companies | 25 |
 | Filings (latest three 10-Ks each) | 75 |
-| Items saved | 375 |
-| Chunks | 51,906 |
+| Sections saved | 372 |
+| Chunks | 44,382 |
+| Number tables set aside | 7,794 |
 | us-gaap tags | 16,077 |
 
-No filing is missing an Item.
+372, not 375: Citigroup's Items 1 and 7A do not start at their own headings, so each year they are kept together as one section.
 
-## Three surprises
+## How the data was checked
 
-1. **BlackRock's history is split across two SEC IDs.** It re-registered in 2024, so its last three 10-Ks sit under two CIKs. It was replaced with Moody's.
-2. **IBM keeps its MD&A and financial statements in an exhibit.** Its 10-K points to an Exhibit 13 annual report for them. A general rule now finds and splits such exhibits.
-3. **Netflix and Nvidia keep their statements further down the same 10-K.** Their Item 8 only points to them, and Netflix also has an earlier auditor's report on internal control. Item 8 now starts at the auditor's report that gives an opinion on the financial statements.
+`make verify-data` is an independent checker: it reads the saved files with its own patterns and imports none of the pipeline code. On its first run it found 54 problems while every unit test passed.
+
+It led to four data bugs, each fixed by a general rule with a test:
+
+1. Citigroup and JPMorgan map Items to page ranges through their own index, not headings.
+2. IBM keeps its MD&A and financial statements in an Exhibit 13.
+3. Netflix and Nvidia keep their financial statements further down the same 10-K.
+4. Walmart's FY2024 Item 8, as parsed, stopped before the notes.
+
+Every pinned filing was checked against its EDGAR filing index page: form, company, period and filing date. A test in CI now fails if any pinned filing changes. Committed snapshots of each section (size and both ends) and of each filing's chunk count fail `make verify-data` on any difference.
 
 ## Still open
 
-- Re-pin the manifest once in early November to add Apple's FY2026 10-K, then freeze it.
+- Re-pin the manifest once in November to add Apple's FY2026 10-K.
 - Write the first 40 trap questions.
-
-## Week 2
-
-- **Embeddings,** with a content hash per chunk and a cache keyed by model and hash, so re-running ingest never re-embeds unchanged text.
-- **Hybrid search:** vector search and keyword search, merged with Reciprocal Rank Fusion.
-- **The first FastAPI endpoint.**
-- **The first deploy.**
+- The XBRL companyfacts files are not yet pinned. A hash manifest comes with the metric map in week 3.
+- Citigroup's FY2025 10-K restated a prior-year figure: 2023 revenue of 78,462 became 78,066 (millions). Number checks will compare a number against the filing it came from.
+- Capital One's revenue tag is to be confirmed in the metric map.
