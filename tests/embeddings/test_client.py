@@ -222,3 +222,61 @@ def test_embedding_cost_comes_from_the_pricing_file() -> None:
 def test_an_unknown_model_has_no_price() -> None:
     with pytest.raises(KeyError, match="no-such-model"):
         cost_usd("no-such-model", input_tokens=10)
+
+
+# ---------------------------------------------------------------- rate limits seen on the real run
+
+
+def test_a_429_waits_as_long_as_the_api_says_before_retrying() -> None:
+    calls = []
+    waits: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(
+                429,
+                headers={"x-ratelimit-reset-tokens": "35.147s"},
+                json={"error": {"message": "Rate limit reached for tokens per min"}},
+            )
+        return vectors_response(request)
+
+    embedder = OpenAIEmbeddings(
+        api_key="k", transport=httpx.MockTransport(handler), sleep=waits.append
+    )
+    embedder.embed(["a"])
+    assert waits == [pytest.approx(35.147)]
+
+
+def test_the_wait_the_api_asks_for_is_capped() -> None:
+    waits: list[float] = []
+    responses = iter([httpx.Response(429, headers={"retry-after": "600"}, json={})])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return next(responses, None) or vectors_response(request)
+
+    OpenAIEmbeddings(api_key="k", transport=httpx.MockTransport(handler), sleep=waits.append).embed(
+        ["a"]
+    )
+    assert waits == [60.0]
+
+
+def test_an_exhausted_quota_fails_at_once_with_the_api_message() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        error = {"code": "insufficient_quota", "message": "You exceeded your current quota"}
+        return httpx.Response(429, json={"error": error})
+
+    with pytest.raises(EmbeddingAPIError, match="exceeded your current quota"):
+        client(handler).embed(["a"])
+    assert len(calls) == 1
+
+
+def test_giving_up_reports_the_last_api_message() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"error": {"message": "Rate limit reached"}})
+
+    with pytest.raises(EmbeddingAPIError, match="Rate limit reached"):
+        client(handler).embed(["a"])
