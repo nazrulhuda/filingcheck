@@ -210,6 +210,38 @@ def _sections(root: Path) -> dict[tuple[str, int, str], dict[str, Any]]:
     }
 
 
+def stray_section_files(root: Path) -> list[str]:
+    """Item files on disk that the section summary does not list for their filing.
+
+    Such a file is left from an earlier run; nothing should read it.
+    """
+    listed = {
+        (row["ticker"], str(row["fiscal_year"]), item)
+        for row in _read_json(root / "data" / "sections" / "summary.json")
+        for item in row["items"]
+    }
+    problems = []
+    for path in sorted((root / "data" / "sections").glob("*/*/item_*.txt")):
+        ticker, year, item = path.parent.parent.name, path.parent.name, path.stem[len("item_") :]
+        if (ticker, year, item) not in listed:
+            problems.append(f"{ticker} FY{year}: {path.relative_to(root).as_posix()}")
+    return problems
+
+
+def chunks_outside_summary(rows: list[dict[str, Any]], summary: list[dict[str, Any]]) -> list[str]:
+    """Chunks whose Item is not among their filing's Items in the section summary."""
+    items = {(row["ticker"], row["fiscal_year"]): set(row["items"]) for row in summary}
+    outside = Counter(
+        (row["ticker"], row["fiscal_year"], row["item"])
+        for row in rows
+        if row["item"] not in items.get((row["ticker"], row["fiscal_year"]), set())
+    )
+    return [
+        f"{ticker} FY{year}: {count} chunks under Item {item}"
+        for (ticker, year, item), count in sorted(outside.items())
+    ]
+
+
 def _methods(root: Path) -> dict[tuple[str, int, str], str]:
     return {key: found["method"] for key, found in _sections(root).items()}
 
@@ -673,6 +705,12 @@ def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
     rows = _read_chunks(root)
     duplicates = check_duplicates(rows)
     failures["Chunk texts repeated inside one filing"] = duplicates.failures
+    failures["Item files on disk that the section summary does not list"] = stray_section_files(
+        root
+    )
+    failures["Chunks under an Item that the section summary does not list"] = (
+        chunks_outside_summary(rows, _read_json(root / "data" / "sections" / "summary.json"))
+    )
     item_8_problems = []
     for ticker, year, _ in sorted(k for k in documents if k[2] == "primary"):
         path = root / "data" / "sections" / ticker / str(year) / "item_8.txt"

@@ -11,7 +11,7 @@ A data pipeline. `make setup && make db-up && make ingest` downloads the latest 
 | Companies | 25 |
 | Filings (latest three 10-Ks each) | 75 |
 | Sections saved | 372 |
-| Chunks | 44,382 |
+| Chunks | 42,602 |
 | Number tables set aside | 7,794 |
 | us-gaap tags | 16,077 |
 
