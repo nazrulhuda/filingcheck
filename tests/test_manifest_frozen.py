@@ -1,8 +1,8 @@
 """The pinned filings must not change without a deliberate update of the expected list.
 
-All 75 filings in `tests/expected_manifest.json` (company CIK, fiscal year, accession, period
-and filing date) were checked one by one on sec.gov. The one
-planned change is re-pinning Apple for its FY2026 10-K; that PR updates the expected file too.
+All 75 filings in `tests/expected_manifest.json` (CIK, fiscal year, accession number, period
+of report and filing date) were checked one by one on sec.gov. The one planned change is
+re-pinning Apple for its FY2026 10-K; that PR updates the expected file too.
 """
 
 import json

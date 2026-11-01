@@ -143,10 +143,15 @@ class SecClient:
             transport=transport,
         )
 
-    def get_bytes(self, url: str) -> bytes:
-        """Return the body of `url`, from the disk cache when present."""
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
+        """Return the body of `url`, from the disk cache when present.
+
+        With `refresh=True` the cached copy is ignored and replaced by a new download: for
+        lists that change, such as a company's filing list. A filing never changes, so its
+        documents are never refreshed.
+        """
         path = self._cache_path(url)
-        if path.exists():
+        if path.exists() and not refresh:
             return path.read_bytes()
         if self._cache_only:
             raise CacheMissError(f"not cached: {url}")
@@ -155,13 +160,13 @@ class SecClient:
         self._write_cache(path, body)
         return body
 
-    def get_text(self, url: str) -> str:
+    def get_text(self, url: str, refresh: bool = False) -> str:
         """Return the body of `url` as text; see `decode_document` for the encoding rules."""
-        return decode_document(self.get_bytes(url))
+        return decode_document(self.get_bytes(url, refresh=refresh))
 
-    def get_json(self, url: str) -> Any:
+    def get_json(self, url: str, refresh: bool = False) -> Any:
         """Return the body of `url` parsed as JSON."""
-        return json.loads(self.get_bytes(url))
+        return json.loads(self.get_bytes(url, refresh=refresh))
 
     def close(self) -> None:
         """Close the underlying connection pool."""

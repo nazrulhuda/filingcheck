@@ -59,11 +59,11 @@ class FakeClient:
         self.responses = responses
         self.urls: list[str] = []
 
-    def get_json(self, url: str) -> Any:
+    def get_json(self, url: str, refresh: bool = False) -> Any:
         self.urls.append(url)
         return self.responses[url]
 
-    def get_bytes(self, url: str) -> bytes:
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
         self.urls.append(url)
         if url not in self.responses:
             raise CacheMissError(url)

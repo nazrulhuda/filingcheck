@@ -37,10 +37,10 @@ class FakeClient:
         self.body = body
         self.urls: list[str] = []
 
-    def get_json(self, url: str) -> Any:
+    def get_json(self, url: str, refresh: bool = False) -> Any:
         raise AssertionError("use get_bytes, so the file is saved exactly as downloaded")
 
-    def get_bytes(self, url: str) -> bytes:
+    def get_bytes(self, url: str, refresh: bool = False) -> bytes:
         self.urls.append(url)
         return self.body
 

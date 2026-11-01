@@ -33,11 +33,16 @@ def count_us_gaap_tags(body: bytes) -> int:
     return len(facts.get("us-gaap", {}))
 
 
-def fetch_companyfacts(company: Company, client: SecFetcher, root: Path) -> int:
-    """Save the company's companyfacts file exactly as downloaded; return its us-gaap tag count."""
+def fetch_companyfacts(
+    company: Company, client: SecFetcher, root: Path, refresh: bool = False
+) -> int:
+    """Save the company's companyfacts file exactly as downloaded; return its us-gaap tag count.
+
+    The file grows with every new filing, so `refresh=True` downloads it again (the re-pin).
+    """
     if company.cik is None:
         raise ValueError(f"{company.ticker} has no CIK; run the companies stage first")
-    body = client.get_bytes(companyfacts_url(company.cik))
+    body = client.get_bytes(companyfacts_url(company.cik), refresh=refresh)
     tags = count_us_gaap_tags(body)
     if tags == 0:
         raise CompanyFactsError(f"{company.ticker}: the companyfacts file has no us-gaap facts")

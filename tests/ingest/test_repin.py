@@ -131,9 +131,12 @@ def test_companies_refresh_downloads_the_ticker_list_again(tmp_path: Path) -> No
 @pytest.mark.parametrize("stage", ["companies", "companyfacts"])
 def test_the_refresh_flag_reaches_the_stage(stage: str, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[bool] = []
-    monkeypatch.setattr(
-        cli, f"run_{stage}", lambda *args, refresh=False: calls.append(refresh) or 0
-    )
+
+    def fake_stage(*args: object, refresh: bool = False) -> int:
+        calls.append(refresh)
+        return 0
+
+    monkeypatch.setattr(cli, f"run_{stage}", fake_stage)
     assert cli.main([stage, "--refresh"]) == 0
     assert cli.main([stage]) == 0
     assert calls == [True, False]

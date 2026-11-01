@@ -45,8 +45,8 @@ class CompanyResolutionError(LookupError):
 class JsonGetter(Protocol):
     """Anything that can fetch a URL as JSON, such as `SecClient`."""
 
-    def get_json(self, url: str) -> Any:
-        """Return the body of `url` parsed as JSON."""
+    def get_json(self, url: str, refresh: bool = False) -> Any:
+        """Return the body of `url` parsed as JSON; `refresh` skips the cache."""
         ...
 
 
@@ -98,8 +98,11 @@ def resolve_ciks(companies: list[Company], tickers: dict[str, Any]) -> list[Comp
     return [c.model_copy(update={"cik": pad_cik(by_ticker[c.ticker.upper()])}) for c in companies]
 
 
-def update_companies_file(path: Path, client: JsonGetter) -> list[Company]:
-    """Resolve every ticker in the file to its CIK and write the result back."""
-    companies = resolve_ciks(load_companies(path), client.get_json(TICKERS_URL))
+def update_companies_file(path: Path, client: JsonGetter, refresh: bool = False) -> list[Company]:
+    """Resolve every ticker in the file to its CIK and write the result back.
+
+    `refresh=True` downloads the SEC ticker list again instead of reading the cached copy.
+    """
+    companies = resolve_ciks(load_companies(path), client.get_json(TICKERS_URL, refresh=refresh))
     save_companies(path, companies)
     return companies
