@@ -6,15 +6,16 @@ from pathlib import Path
 import psycopg
 from psycopg.types.json import Jsonb
 
+from filingcheck.embeddings import content_hash
 from filingcheck.ingest.chunking import Chunk, TableChunk
 from filingcheck.ingest.companies import Company
 from filingcheck.ingest.filings import Manifest
 
 COPY_CHUNKS = (
-    "COPY chunks (filing_id, item, chunk_index, char_start, char_end, text, boundary, also_in) "
-    "FROM STDIN"
+    "COPY chunks (filing_id, item, chunk_index, char_start, char_end, text, boundary, also_in, "
+    "content_hash) FROM STDIN"
 )
-COPY_TYPES = ["bigint", "text", "integer", "integer", "integer", "text", "text", "text[]"]
+COPY_TYPES = ["bigint", "text", "integer", "integer", "integer", "text", "text", "text[]", "text"]
 COPY_TABLES = (
     "COPY table_chunks (filing_id, item, table_index, source_url, position, text) FROM STDIN"
 )
@@ -46,8 +47,10 @@ def load_all(
 ) -> dict[str, int]:
     """Replace the companies, filings, chunks and number tables in one transaction.
 
-    Returns the row counts. Chunks and tables are bulk-loaded with COPY. A row whose filing
-    is not in the manifest stops the load, and nothing is changed.
+    Returns the row counts and how many chunk embeddings were restored from the cache.
+    Chunks and tables are bulk-loaded with COPY. A row whose filing is not in the manifest
+    stops the load, and nothing is changed. Embeddings already paid for are put back by
+    content hash, so reloading never loses them.
     """
     with conn.transaction():
         conn.execute("TRUNCATE companies, filings, chunks, table_chunks RESTART IDENTITY CASCADE")
@@ -102,6 +105,7 @@ def load_all(
                         chunk.text,
                         chunk.boundary,
                         chunk.also_in,
+                        content_hash(chunk.text),
                     )
                 )
         if table_chunks_path is not None:
@@ -120,9 +124,28 @@ def load_all(
                             table.text,
                         )
                     )
+        model = current_model(conn)
+        restored = restore_embeddings(conn, model) if model else 0
     counts = {}
     for table_name in ("companies", "filings", "chunks", "table_chunks"):
         row = conn.execute(f"SELECT count(*) FROM {table_name}").fetchone()  # fixed names
         counts[table_name] = int(row[0]) if row else 0
+    counts["embeddings_restored"] = restored
     conn.commit()
     return counts
+
+
+def current_model(conn: psycopg.Connection) -> str | None:
+    """The embedding model recorded in embeddings_meta, or None before the first embed."""
+    row = conn.execute("SELECT model FROM embeddings_meta ORDER BY id DESC LIMIT 1").fetchone()
+    return str(row[0]) if row else None
+
+
+def restore_embeddings(conn: psycopg.Connection, model: str) -> int:
+    """Copy cached vectors into chunks that have none, matched by content hash."""
+    cursor = conn.execute(
+        "UPDATE chunks c SET embedding = e.embedding FROM embedding_cache e "
+        "WHERE e.model = %s AND e.content_hash = c.content_hash AND c.embedding IS NULL",
+        (model,),
+    )
+    return cursor.rowcount

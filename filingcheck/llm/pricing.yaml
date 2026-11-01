@@ -1,0 +1,9 @@
+# US dollars per million tokens, as published by each provider. Every cost the project
+# reports is computed from this file. Re-check the prices before relying on a total.
+checked_on: 2026-11-02
+models:
+  text-embedding-3-small:
+    input_per_million: 0.02
+    source: https://developers.openai.com/api/docs/models/text-embedding-3-small
+  fake-embeddings:  # tests only
+    input_per_million: 0.0

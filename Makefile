@@ -1,7 +1,7 @@
 # FilingCheck developer commands. Run these from Git Bash on Windows or any shell on Linux/macOS.
 # Tools run as `python -m <tool>`: Windows can block the small .exe launchers that uv creates.
 
-.PHONY: setup lint format test test-integration verify-data verify-facts snapshot db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -53,6 +53,13 @@ ingest:
 
 verify-data:  # independent check of the ingest outputs; writes docs/spot_check.md, section_bounds.md, table_sample.md
 	uv run python -m filingcheck.ingest.verify
+
+embed:  # embed every chunk without a vector (prints the plan and asks first; costs money)
+	uv run python -m filingcheck.embeddings
+
+# `make embed --dry-run` would be make's own dry run (print, don't run), so the plan has its own target.
+embed-dry-run:  # print what `make embed` would restore, embed and cost; no API call, no writes
+	uv run python -m filingcheck.embeddings --dry-run
 
 snapshot:  # rewrite data/section_snapshot.json and data/chunk_snapshot.json after an intended change
 	uv run python -m filingcheck.ingest.verify --write-snapshots

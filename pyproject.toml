@@ -25,6 +25,7 @@ dev = [
 ]
 ingest = [
     "edgartools==5.62.1",
+    "pyarrow>=26.0.0",
 ]
 
 [tool.uv]
@@ -67,7 +68,7 @@ warn_unreachable = true
 files = ["filingcheck", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["edgar", "edgar.*"]
+module = ["edgar", "edgar.*", "pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

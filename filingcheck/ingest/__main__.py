@@ -171,6 +171,7 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
         f"loaded {counts['table_chunks']:,} number tables "
         f"({tables_in_file:,} in {TABLE_CHUNKS_FILE})"
     )
+    print(f"restored {counts['embeddings_restored']:,} chunk embeddings from the cache")
     if counts["chunks"] != in_file or counts["table_chunks"] != tables_in_file:
         print("ERROR: the database and the chunk files disagree")
         return 1

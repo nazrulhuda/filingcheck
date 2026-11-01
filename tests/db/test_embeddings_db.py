@@ -153,10 +153,10 @@ def test_a_crashed_run_resumes_without_re_embedding_what_was_saved(
 
 def test_mixing_models_is_refused(db: psycopg.Connection, tmp_path: Path) -> None:
     loaded(db, tmp_path)
-    run(db, FakeEmbeddings(model_name="model-a"), tmp_path / "a.parquet", log=lambda m: None)
-    other = FakeEmbeddings(model_name="model-b")
-    with pytest.raises(ModelMismatchError, match="model-a"):
+    run(db, FakeEmbeddings(), tmp_path / "a.parquet", log=lambda m: None)
+    other = FakeEmbeddings(model_name="another-model")
+    with pytest.raises(ModelMismatchError, match="fake-embeddings"):
         plan(db, other, tmp_path / "b.parquet")
-    with pytest.raises(ModelMismatchError, match="model-a"):
+    with pytest.raises(ModelMismatchError, match="fake-embeddings"):
         run(db, other, tmp_path / "b.parquet", log=lambda m: None)
     assert other.calls == 0
