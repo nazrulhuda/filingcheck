@@ -9,6 +9,7 @@ from filingcheck.ingest.companies import Company
 from filingcheck.ingest.filings import (
     Filing,
     FiscalYearEndMismatchError,
+    FiscalYearGapError,
     Manifest,
     NotEnoughFilingsError,
     build_manifest,
@@ -188,6 +189,30 @@ def test_fewer_than_three_years_fails_loudly() -> None:
     )
     with pytest.raises(NotEnoughFilingsError, match="AAPL"):
         select_annual_filings(company(), submission_rows(FakeClient(data), "0000320193"))
+
+
+def test_a_missing_middle_year_fails_loudly_and_names_the_years_found() -> None:
+    rows = submission_rows(
+        FakeClient(
+            {
+                SUBMISSIONS: {
+                    "filings": {
+                        "recent": columns(
+                            [
+                                ("10-K", "a-25", "2025-10-31", "2025-09-27", "k25.htm"),
+                                ("10-K", "a-23", "2023-11-03", "2023-09-30", "k23.htm"),
+                                ("10-K", "a-22", "2022-10-28", "2022-09-24", "k22.htm"),
+                            ]
+                        ),
+                        "files": [],
+                    }
+                }
+            }
+        ),
+        "0000320193",
+    )
+    with pytest.raises(FiscalYearGapError, match=r"AAPL.*2025, 2023, 2022"):
+        select_annual_filings(company(), rows)
 
 
 def test_the_primary_document_url_uses_the_archive_layout() -> None:
