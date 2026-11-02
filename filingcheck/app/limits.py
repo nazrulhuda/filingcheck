@@ -7,6 +7,11 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 
+from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from filingcheck.app.settings import MAX_BODY_BYTES
 from filingcheck.app.store import ExampleAnswer
 
 NEAREST_MIN_SHARE = 0.6  # share of the longer question's words the two must have in common
@@ -124,3 +129,41 @@ def nearest_example(question: str, examples: list[ExampleAnswer]) -> ExampleAnsw
         if share >= NEAREST_MIN_SHARE and (best is None or share > best[0]):
             best = (share, example)
     return best[1] if best else None
+
+
+TOO_LARGE = f"The request is too large; the limit is {MAX_BODY_BYTES // 1024} KB."
+
+
+class BodySizeLimit:
+    """Refuse request bodies over `limit` bytes (HTTP 413) before they are read in full.
+
+    A larger Content-Length is refused before any of the body is read; a body sent without one
+    is counted as it arrives. Either way a stream of oversized posts cannot fill the memory.
+    """
+
+    def __init__(self, app: ASGIApp, limit: int = MAX_BODY_BYTES) -> None:
+        self.app = app
+        self.limit = limit
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Pass the request on, or answer 413 if its body is or becomes too large."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        length = dict(scope["headers"]).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > self.limit):
+            await JSONResponse({"detail": TOO_LARGE}, status_code=413)(scope, receive, send)
+            return
+        received = 0
+
+        async def counted() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.limit:
+                    # FastAPI re-raises an HTTPException met while reading the body.
+                    raise HTTPException(413, TOO_LARGE)
+            return message
+
+        await self.app(scope, counted, send)

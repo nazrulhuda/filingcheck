@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.answer.baseline import Answer, answer_question, stream_answer
-from filingcheck.app.limits import TokenBucket, client_ip, hash_ip, nearest_example
+from filingcheck.app.limits import BodySizeLimit, TokenBucket, client_ip, hash_ip, nearest_example
 from filingcheck.app.settings import MAX_QUESTION_CHARS, Settings
 from filingcheck.app.stats import compute_stats
 from filingcheck.app.store import (
@@ -102,6 +102,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     store = services.store
     bucket = TokenBucket(settings.per_ip_per_hour, 3600)
     app = FastAPI(title="FilingCheck API")
+    app.add_middleware(BodySizeLimit)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
