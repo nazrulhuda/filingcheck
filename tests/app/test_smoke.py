@@ -30,7 +30,7 @@ def api(**overrides: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
         "GET /examples": lambda r: httpx.Response(200, json=[{"question": "Q?"}] * 5),
         "POST /ask": lambda r: httpx.Response(200, json=ANSWER),
     }
-    routes.update({k.replace("_", " ", 1): v for k, v in overrides.items()})
+    routes.update({k.replace("_", " /", 1): v for k, v in overrides.items()})  # POST_ask: POST /ask
     seen: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:

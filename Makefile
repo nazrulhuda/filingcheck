@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -99,6 +99,9 @@ eval:
 
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload
+
+smoke-live:  # check a deployed API: make smoke-live URL=https://... (makes one model call)
+	uv run python -m filingcheck.app.smoke "$(URL)"
 
 docker-build:
 	docker build -t filingcheck-api .
