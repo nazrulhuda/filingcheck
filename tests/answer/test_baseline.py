@@ -410,3 +410,30 @@ def test_the_baseline_examples_ignore_the_question_files_company_and_year(tmp_pa
         out=lambda _: None,
     )
     assert (retriever.calls[0]["ticker"], retriever.calls[0]["fiscal_year"]) == (None, None)
+
+
+# ---------------------------------------------------------------- lenticular brackets
+
+OPEN, CLOSE = chr(0x3010), chr(0x3011)  # the citation brackets gpt-oss sometimes writes
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (f"Peso swings are a risk {OPEN}1{CLOSE}", [101]),
+        (f"Two risks {OPEN}1{CLOSE}{OPEN}3{CLOSE}.", [101, 103]),
+        (f"Two risks {OPEN}1, 3{CLOSE}.", [101, 103]),
+    ],
+)
+def test_lenticular_bracket_citations_are_read_like_square_ones(
+    text: str, expected: list[int]
+) -> None:
+    assert [c.chunk_id for c in parse_citations(text, HITS)] == expected
+
+
+def test_a_figure_cited_with_lenticular_brackets_is_not_flagged_and_the_text_is_kept() -> None:
+    text = f"Amortization will be $235 million in fiscal 2026{OPEN}1{CLOSE}"
+    assert not has_uncited_claims(text)
+    answer = ask(text)
+    assert answer.text == text and [c.chunk_id for c in answer.citations] == [101]
+    assert not answer.has_uncited_claims
