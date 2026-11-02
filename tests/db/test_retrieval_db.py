@@ -243,3 +243,40 @@ def test_an_embedding_failure_falls_back_to_keyword_search(searchable: psycopg.C
 def test_a_query_model_other_than_the_stored_one_is_refused(searchable: psycopg.Connection) -> None:
     with pytest.raises(ModelMismatchError, match="fake-embeddings"):
         vector(searchable, FakeEmbeddings(model_name="another-model")).search("revenue")
+
+
+def test_a_sentence_length_question_with_words_spread_over_chunks_returns_hits(
+    searchable: psycopg.Connection,
+) -> None:
+    question = "Which products drove the gains in gross margin, iPhone sales and services revenue?"
+    hits = KeywordRetriever(searchable).search(question, k=5).hits
+    assert len(hits) == 5
+    assert all(h.keyword_rank is not None for h in hits)
+
+
+def test_a_chunk_with_both_words_ranks_above_one_repeating_a_single_word(
+    searchable: psycopg.Connection,
+) -> None:
+    from filingcheck.embeddings import content_hash
+
+    filing_id = searchable.execute(
+        "SELECT id FROM filings WHERE accession = %s", (FILING.accession,)
+    ).fetchone()
+    assert filing_id is not None
+    texts = {
+        90: "Zebra zebra zebra zebra zebra zebra stripes appear in the zebra herd again.",
+        91: "A quokka was seen near one zebra at the reserve.",
+    }
+    for index, text in texts.items():
+        searchable.execute(
+            "INSERT INTO chunks (filing_id, item, chunk_index, char_start, char_end, text, "
+            "content_hash) VALUES (%s, '7', %s, 0, %s, %s, %s)",
+            (filing_id[0], index, len(text), text, content_hash(text)),
+        )
+    searchable.commit()
+    hits = KeywordRetriever(searchable).search("zebra quokka", k=5).hits
+    assert [h.text for h in hits[:2]] == [texts[91], texts[90]]
+
+
+def test_a_question_of_only_stop_words_has_no_keyword_hits(searchable: psycopg.Connection) -> None:
+    assert KeywordRetriever(searchable).search("what is the", k=5).hits == []
