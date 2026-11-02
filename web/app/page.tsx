@@ -161,9 +161,10 @@ export default function Home() {
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none"
         />
         <p className="text-xs text-slate-500">
-          Each question stands alone (no chat history). Questions are logged to improve the demo
-          and are sent through OpenRouter to Groq, or to Google if that is busy, to write the
-          answer; please don&apos;t enter personal information.
+          Each question stands alone (no chat history). Questions are logged to improve the demo.
+          Each question is sent to OpenAI to search the filings, and through OpenRouter to Groq, or
+          to Google if that is busy, to write the answer; please don&apos;t enter personal
+          information.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
