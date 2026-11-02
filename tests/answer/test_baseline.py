@@ -14,9 +14,9 @@ from filingcheck.answer.baseline import (
     passage_header,
 )
 from filingcheck.answer.citations import has_uncited_claims, parse_citations
-from filingcheck.answer.examples import HEADER, render_examples
+from filingcheck.answer.examples import HEADER, render_examples, run_examples
 from filingcheck.answer.run import format_answer, settings_line
-from filingcheck.llm import Completion, FakeChat, describe_settings
+from filingcheck.llm import Completion, FakeChat, IncompleteAnswer, describe_settings
 from filingcheck.retrieval import Hit, SearchResult
 
 
@@ -261,7 +261,7 @@ def test_the_settings_line_names_every_model_setting() -> None:
     )
     assert describe_settings("gemini:gemini-3.5-flash-lite", 700) == (
         "model gemini:gemini-3.5-flash-lite, temperature provider default, "
-        "reasoning effort provider default, no token limit sent"
+        "reasoning effort provider default, max_tokens 700"
     )
 
 
@@ -281,3 +281,55 @@ def test_the_printout_shows_cost_degraded_and_the_rate_limit_headers() -> None:
     assert "cost: unknown" in text and "degraded: false" in text
     assert "x-ratelimit-limit-tokens: 8000" in text
     assert "WMT FY2025 Item 1A (chunk 101): https://www.sec.gov/doc1.htm" in text
+
+
+# ---------------------------------------------------------------- the examples run
+
+EXAMPLES = [
+    {"id": "trap-001", "question": "How much net revenue did Morgan report last year?"},
+    {"id": "trap-002", "question": "What was Walmart's revenue for 2025?"},
+]
+
+
+def run(tmp_path: Any, retriever: FakeRetriever, model: FakeChat) -> tuple[int, str, Any]:
+    printed: list[str] = []
+    output = tmp_path / "baseline_examples.md"
+    code = run_examples(
+        EXAMPLES,
+        retriever=retriever,
+        model=model,
+        settings="model fake:chat",
+        output=output,
+        run_date=date(2026, 11, 2),
+        out=printed.append,
+    )
+    return code, "\n".join(printed), output
+
+
+def test_the_examples_run_writes_the_file_when_every_answer_is_normal(tmp_path: Any) -> None:
+    code, _, output = run(tmp_path, FakeRetriever(), FakeChat(["A [1].", "B [2]."]))
+    assert code == 0 and output.read_text(encoding="utf-8").startswith(HEADER)
+
+
+def test_a_degraded_answer_stops_the_examples_run_without_writing(tmp_path: Any) -> None:
+    code, printed, output = run(tmp_path, FakeRetriever(degraded=True), FakeChat(["A [1]."]))
+    assert code == 1 and not output.exists()
+    assert "trap-001" in printed and "degraded" in printed
+
+
+def test_an_incomplete_answer_stops_the_examples_run_and_is_printed(tmp_path: Any) -> None:
+    reply = Completion(
+        text="Walmart's rev",
+        prompt_tokens=1500,
+        completion_tokens=700,
+        model="groq:openai/gpt-oss-20b",
+        latency_ms=900.0,
+        cost_usd=0.000323,
+        finish_reason="length",
+    )
+    model = FakeChat(["A [1].", IncompleteAnswer("incomplete answer", reply)])
+    code, printed, output = run(tmp_path, FakeRetriever(), model)
+    assert code == 1 and not output.exists()
+    assert "trap-002" in printed and "finish_reason: length" in printed
+    assert "completion 700" in printed and "$0.000323" in printed
+    assert "Walmart's rev" in printed

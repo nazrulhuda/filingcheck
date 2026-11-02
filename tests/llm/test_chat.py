@@ -108,14 +108,18 @@ def test_groq_gets_its_documented_parameters_and_max_completion_tokens() -> None
     }
 
 
-def test_gemini_gets_no_temperature_no_reasoning_and_no_groq_parameters() -> None:
+def test_gemini_gets_max_tokens_but_no_temperature_reasoning_or_groq_parameters() -> None:
     script = Script(ok(usage=USAGE))
     chat(GEMINI, script).complete(MESSAGES, max_tokens=700, temperature=0.2)
     request = script.requests[0]
     assert str(request.url) == (
         "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     )
-    assert script.body() == {"model": "gemini-3.5-flash-lite", "messages": MESSAGES}
+    assert script.body() == {
+        "model": "gemini-3.5-flash-lite",
+        "messages": MESSAGES,
+        "max_tokens": 700,
+    }
 
 
 def test_an_explicit_temperature_replaces_the_registry_one_where_one_is_set() -> None:
@@ -407,3 +411,51 @@ def test_fake_chat_replays_its_script_and_records_each_call() -> None:
     assert fake.complete(MESSAGES, max_tokens=6, temperature=0.1).text == "second"
     assert [c["max_tokens"] for c in fake.calls] == [5, 6]
     assert fake.calls[1]["temperature"] == 0.1 and fake.calls[0]["messages"] == MESSAGES
+
+
+def cut_off(name: str = "a") -> IncompleteAnswer:
+    reply = Completion(
+        text="",
+        prompt_tokens=10,
+        completion_tokens=30,
+        model=name,
+        latency_ms=1.0,
+        cost_usd=0.0,
+        finish_reason="length",
+    )
+    return IncompleteAnswer(f"{name}: incomplete answer", reply)
+
+
+def test_live_the_router_falls_back_on_a_cut_off_reply() -> None:
+    backup = fallback()
+    script = Script(ok("Peso swings", finish="length", usage=USAGE))
+    router = ModelRouter(chat(GROQ, script, mode="live"), [backup], mode="live")
+    result = router.complete(MESSAGES, max_tokens=700)
+    assert result.model == "fake:chat" and router.fallbacks_used == 1
+
+
+def test_live_the_router_falls_back_on_an_empty_reply() -> None:
+    backup = fallback()
+    empty = Script(ok("", usage=USAGE))
+    router = ModelRouter(chat(GROQ, empty, mode="live"), [backup], mode="live")
+    assert router.complete(MESSAGES, max_tokens=700).model == "fake:chat"
+
+
+def test_live_when_the_last_model_is_cut_off_the_incomplete_answer_is_raised() -> None:
+    router = ModelRouter(
+        FakeChat([ProviderUnavailable("groq: wrong key")], name="a"),
+        [FakeChat([cut_off("b")], name="b")],
+        mode="live",
+    )
+    with pytest.raises(IncompleteAnswer) as caught:
+        router.complete(MESSAGES, max_tokens=30)
+    assert caught.value.completion.finish_reason == "length"
+
+
+def test_batch_a_cut_off_reply_stops_the_run_and_never_falls_back() -> None:
+    backup = fallback()
+    script = Script(ok("Peso swings", finish="length", usage=USAGE))
+    router = ModelRouter(chat(GROQ, script), [backup], mode="batch")
+    with pytest.raises(IncompleteAnswer):
+        router.complete(MESSAGES, max_tokens=700)
+    assert backup.calls == []
