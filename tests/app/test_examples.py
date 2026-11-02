@@ -60,7 +60,7 @@ def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
     assert (saved.ticker, saved.fiscal_year) == ("WMT", 2026)
 
 
-def test_the_page_examples_file_holds_six_questions_with_a_pinned_filing_each() -> None:
+def test_the_page_examples_file_holds_five_questions_with_a_pinned_filing_each() -> None:
     repo = Path(__file__).resolve().parents[2]
     pinned = {
         (f["ticker"], f["fiscal_year"])
@@ -75,7 +75,6 @@ def test_the_page_examples_file_holds_six_questions_with_a_pinned_filing_each() 
     assert [q["id"] for q in page] == [
         "ret-008",
         "ret-024",
-        "ret-025",
         "ret-040",
         "ret-016",
         "ret-010",
