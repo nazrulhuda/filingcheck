@@ -227,7 +227,8 @@ export default function Home() {
         {shown.kind === "answer" && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
             <p className="mb-3 text-sm font-medium text-slate-600">{shown.question}</p>
-            <AnswerText answer={shown.answer} />
+            {/* A new answer starts with every citation closed. */}
+            <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
             <CostLine answer={shown.answer} saved={shown.saved} />
           </div>
         )}
