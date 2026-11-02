@@ -13,6 +13,7 @@ import {
   getCompanies,
   type Health,
 } from "@/lib/api";
+import { cachedNotice } from "@/lib/display";
 
 type Example = { question: string; ticker: string | null; fiscal_year: number | null; answer: Answer };
 
@@ -27,7 +28,7 @@ type Backend = "checking" | "waking" | Health;
 type Shown =
   | { kind: "none" }
   | { kind: "streaming"; text: string }
-  | { kind: "answer"; question: string; answer: Answer; saved: boolean }
+  | { kind: "answer"; question: string; answer: Answer; saved: boolean; notice: string | null }
   | { kind: "error"; message: string };
 
 export default function Home() {
@@ -73,7 +74,7 @@ export default function Home() {
     setBusy(true);
     setShown({ kind: "streaming", text: "" });
     try {
-      const answer = await askStreaming(
+      const result = await askStreaming(
         {
           question: text,
           ...(ticker ? { ticker } : {}),
@@ -81,7 +82,15 @@ export default function Home() {
         },
         (soFar) => setShown({ kind: "streaming", text: soFar }),
       );
-      setShown({ kind: "answer", question: text, answer, saved: false });
+      // After the daily limit the API sends a saved example's answer: it belongs to that
+      // example's question, not to the visitor's, and the page says so.
+      setShown({
+        kind: "answer",
+        question: result.example?.question ?? text,
+        answer: result.answer,
+        saved: result.cached,
+        notice: cachedNotice(result),
+      });
     } catch (error) {
       const message =
         error instanceof ApiError
@@ -97,7 +106,13 @@ export default function Home() {
     setQuestion(example.question);
     setTicker(example.ticker ?? "");
     setYear(example.fiscal_year ? String(example.fiscal_year) : "");
-    setShown({ kind: "answer", question: example.question, answer: example.answer, saved: true });
+    setShown({
+      kind: "answer",
+      question: example.question,
+      answer: example.answer,
+      saved: true,
+      notice: null,
+    });
   }
 
   return (
@@ -226,7 +241,13 @@ export default function Home() {
         )}
         {shown.kind === "answer" && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
-            <p className="mb-3 text-sm font-medium text-slate-600">{shown.question}</p>
+            {shown.notice ? (
+              <p role="status" className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {shown.notice}
+              </p>
+            ) : (
+              <p className="mb-3 text-sm font-medium text-slate-600">{shown.question}</p>
+            )}
             {/* A new answer starts with every citation closed. */}
             <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
             <CostLine answer={shown.answer} saved={shown.saved} />

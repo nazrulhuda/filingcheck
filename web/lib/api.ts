@@ -24,6 +24,12 @@ export type Answer = {
 
 export type Company = { ticker: string; name: string; fiscal_years: number[] };
 
+/** The example question a cached answer belongs to (not the visitor's question). */
+export type ExampleRef = { question: string; ticker: string | null; fiscal_year: number | null };
+
+/** An answer, and whether it is a saved example's answer served after the daily limit. */
+export type AskResult = { answer: Answer; cached: boolean; example: ExampleRef | null };
+
 export type Question = { question: string; ticker?: string; fiscal_year?: number };
 
 /** An HTTP error with the message the API sent, safe to show. */
@@ -50,13 +56,22 @@ async function apiError(response: Response): Promise<ApiError> {
 
 export type Health = "ok" | "no-model" | "unreachable";
 
-/** Whether the API answers /health within `timeoutMs`. */
+/**
+ * The API's state from /health within `timeoutMs`: "ok" only on 200, "no-model" only on
+ * the API's own 503 saying no model key is set. Anything else (no answer, or a
+ * platform's 502 or 503 page while the app restarts) counts as not reachable yet.
+ */
 export async function checkHealth(timeoutMs: number): Promise<Health> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_URL}/health`, { signal: controller.signal });
-    return response.ok ? "ok" : "no-model";
+    if (response.status === 200) return "ok";
+    if (response.status === 503) {
+      const body = (await response.json().catch(() => null)) as { status?: unknown } | null;
+      if (body?.status === "no model key") return "no-model";
+    }
+    return "unreachable";
   } catch {
     return "unreachable";
   } finally {
@@ -71,14 +86,20 @@ export async function getCompanies(): Promise<Company[]> {
 }
 
 /** One answer from POST /ask, without streaming. */
-export async function ask(question: Question): Promise<Answer> {
+export async function ask(question: Question): Promise<AskResult> {
   const response = await fetch(`${API_URL}/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(question),
   });
   if (!response.ok) throw await apiError(response);
-  return (await response.json()) as Answer;
+  const body = (await response.json()) as Answer & {
+    request_id?: string;
+    cached?: boolean;
+    example?: ExampleRef | null;
+  };
+  const { cached, example, ...answer } = body;
+  return { answer, cached: cached === true, example: example ?? null };
 }
 
 /**
@@ -90,7 +111,7 @@ export async function ask(question: Question): Promise<Answer> {
 export async function askStreaming(
   question: Question,
   onText: (textSoFar: string) => void,
-): Promise<Answer> {
+): Promise<AskResult> {
   let received = "";
   let response: Response;
   try {
@@ -114,13 +135,15 @@ export async function askStreaming(
         const data = JSON.parse(event.data) as {
           text?: string;
           answer?: Answer;
+          cached?: boolean;
+          example?: ExampleRef | null;
           detail?: string;
         };
         if (event.event === "token" && data.text) {
           received += data.text;
           onText(received);
         } else if (event.event === "final" && data.answer) {
-          return data.answer;
+          return { answer: data.answer, cached: data.cached === true, example: data.example ?? null };
         } else if (event.event === "error") {
           throw new ApiError(503, data.detail ?? "The answer could not be finished.");
         }
