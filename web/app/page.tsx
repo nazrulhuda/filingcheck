@@ -13,7 +13,7 @@ import {
   getCompanies,
   type Health,
 } from "@/lib/api";
-import { cachedNotice } from "@/lib/display";
+import { type AnswerSource, cachedNotice } from "@/lib/display";
 
 type Example = { question: string; ticker: string | null; fiscal_year: number | null; answer: Answer };
 
@@ -28,7 +28,13 @@ type Backend = "checking" | "waking" | Health;
 type Shown =
   | { kind: "none" }
   | { kind: "streaming"; text: string }
-  | { kind: "answer"; question: string; answer: Answer; saved: boolean; notice: string | null }
+  | {
+      kind: "answer";
+      question: string;
+      answer: Answer;
+      source: AnswerSource;
+      notice: string | null;
+    }
   | { kind: "error"; message: string };
 
 export default function Home() {
@@ -88,7 +94,7 @@ export default function Home() {
         kind: "answer",
         question: result.example?.question ?? text,
         answer: result.answer,
-        saved: result.cached,
+        source: result.cached ? "after-limit" : "new",
         notice: cachedNotice(result),
       });
     } catch (error) {
@@ -110,7 +116,7 @@ export default function Home() {
       kind: "answer",
       question: example.question,
       answer: example.answer,
-      saved: true,
+      source: "example",
       notice: null,
     });
   }
@@ -251,7 +257,7 @@ export default function Home() {
             )}
             {/* A new answer starts with every citation closed. */}
             <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
-            <CostLine answer={shown.answer} saved={shown.saved} />
+            <CostLine answer={shown.answer} source={shown.source} />
           </div>
         )}
         {shown.kind === "error" && (

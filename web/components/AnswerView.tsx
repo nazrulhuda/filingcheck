@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 
 import type { Answer } from "@/lib/api";
 import { type Citation, segments } from "@/lib/citations";
+import { type AnswerSource, costLine } from "@/lib/display";
 
 /** **bold** inside a run of answer text; everything else is shown as written. */
 function Emphasis({ text }: { text: string }) {
@@ -79,19 +80,7 @@ export function AnswerText({ answer }: { answer: Answer }) {
   );
 }
 
-function seconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)} s`;
-}
-
 /** Who answered, how long it took and what it cost. */
-export function CostLine({ answer, saved }: { answer: Answer; saved: boolean }) {
-  const cost = answer.cost_usd === null ? "cost unknown" : `$${answer.cost_usd.toFixed(5)}`;
-  const tokens = `${answer.usage.prompt_tokens ?? "?"} + ${answer.usage.completion_tokens ?? "?"} tokens`;
-  return (
-    <p className="mt-4 text-xs text-slate-500">
-      {saved ? "Saved example answer. " : ""}
-      {answer.model_used} · {seconds(answer.latency_ms)} · {tokens} · {cost}
-      {answer.degraded ? " · keyword search only (the embedding service was unavailable)" : ""}
-    </p>
-  );
+export function CostLine({ answer, source }: { answer: Answer; source: AnswerSource }) {
+  return <p className="mt-4 text-xs text-slate-500">{costLine(answer, source)}</p>;
 }
