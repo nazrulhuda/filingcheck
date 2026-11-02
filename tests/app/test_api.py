@@ -1,6 +1,7 @@
 """The API with a fake model, a fake retriever and an in-memory request log."""
 
 import json
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -355,3 +356,47 @@ def test_settings_come_from_the_environment() -> None:
     assert s.cors_origins == ["http://localhost:3000", "https://demo.example.app"]
     defaults = Settings.from_env({})
     assert defaults.daily_cap == 65 and defaults.per_ip_per_hour == 20 and defaults.ip_hash_salt
+
+
+# ---------------------------------------------------------------- review fixes
+
+
+def test_an_abandoned_stream_is_logged_and_counts_toward_the_daily_cap() -> None:
+    long_answer = " ".join(["Peso swings are a risk [1]."] * 20)
+    client, store = make(FakeChat([long_answer]), daily_cap=1)
+    with client.stream("POST", "/ask/stream", json={"question": QUESTION}) as response:
+        lines = response.iter_lines()
+        assert next(lines).startswith("event: token")
+    for _ in range(50):  # the server notices the closed stream on its own thread
+        if store.rows:
+            break
+        time.sleep(0.02)
+    (logged,) = store.rows
+    assert logged.error == "client_disconnected" and logged.latency_ms is not None
+    assert store.count_model_requests(datetime.now(UTC) - timedelta(hours=1)) == 1
+    refused = client.post("/ask", json={"question": "Who audits Nvidia?"})
+    assert refused.status_code == 429
+
+
+def test_a_stream_read_to_the_end_is_logged_once() -> None:
+    client, store = make(FakeChat(["Peso swings are a risk [1]."]))
+    client.post("/ask/stream", json={"question": QUESTION})
+    assert len(store.rows) == 1 and store.rows[0].error is None
+
+
+def test_companies_and_examples_are_read_from_the_store_once() -> None:
+    client, store = make(FakeChat([]))
+    for _ in range(3):
+        client.get("/companies")
+        client.get("/examples")
+        client.get("/stats")
+    assert store.calls.count("companies") == 1 and store.calls.count("examples") == 1
+    assert store.calls.count("requests_since") == 3
+
+
+def test_examples_carry_the_ticker_and_fiscal_year_they_were_asked_with() -> None:
+    cached = ask("Cached [1].").model_dump()
+    example = ExampleAnswer(question=QUESTION, ticker="WMT", fiscal_year=2026, answer=cached)
+    client, _ = make(FakeChat([]), store=MemoryStore(examples=[example]))
+    (served,) = client.get("/examples").json()
+    assert (served["ticker"], served["fiscal_year"]) == ("WMT", 2026)

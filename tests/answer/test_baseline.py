@@ -395,3 +395,18 @@ def test_a_streamed_answer_yields_text_then_the_full_answer() -> None:
     assert isinstance(final, Answer) and all(isinstance(t, str) for t in texts)
     assert "".join(str(t) for t in texts) == final.text == "Peso swings [1]."
     assert [c.chunk_id for c in final.citations] == [101] and final.degraded
+
+
+def test_the_baseline_examples_ignore_the_question_files_company_and_year(tmp_path: Any) -> None:
+    retriever = FakeRetriever()
+    trap = [{"id": "trap-002", "question": "Walmart 2025?", "company": "WMT", "fiscal_year": 2025}]
+    run_examples(
+        trap,
+        retriever=retriever,
+        model=FakeChat(["A [1]."]),
+        settings="s",
+        output=tmp_path / "out.md",
+        run_date=date(2026, 11, 2),
+        out=lambda _: None,
+    )
+    assert (retriever.calls[0]["ticker"], retriever.calls[0]["fiscal_year"]) == (None, None)

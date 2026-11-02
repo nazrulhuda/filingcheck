@@ -47,3 +47,14 @@ def test_the_question_file_is_read_from_any_path(tmp_path: Path) -> None:
     path = tmp_path / "demo.jsonl"
     path.write_text("".join(json.dumps(q) + "\n\n" for q in QUESTIONS), encoding="utf-8")
     assert load_example_questions(path) == QUESTIONS
+
+
+def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
+    retriever = FakeRetriever()
+    store = MemoryStore()
+    page = {"id": "page-001", "question": "Risks in Mexico?", "ticker": "WMT", "fiscal_year": 2026}
+    model = FakeChat(["Peso [1]."])
+    refresh_examples([page], retriever=retriever, model=model, store=store, out=print)
+    assert (retriever.calls[0]["ticker"], retriever.calls[0]["fiscal_year"]) == ("WMT", 2026)
+    (saved,) = store.examples()
+    assert (saved.ticker, saved.fiscal_year) == ("WMT", 2026)

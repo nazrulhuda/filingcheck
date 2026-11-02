@@ -61,13 +61,13 @@ def test_companies_list_their_fiscal_years_in_order(store: PostgresStore) -> Non
 def test_examples_are_replaced_as_a_whole(store: PostgresStore) -> None:
     store.replace_examples([ExampleAnswer(question="Old?", answer={"text": "old"})])
     new = [
-        ExampleAnswer(question="First?", answer={"text": "one", "citations": []}),
+        ExampleAnswer(
+            question="First?", ticker="WMT", fiscal_year=2026, answer={"text": "1", "citations": []}
+        ),
         ExampleAnswer(question="Second?", answer={"text": "two", "citations": []}),
     ]
     store.replace_examples(new)
-    assert [(e.question, e.answer) for e in store.examples()] == [
-        (e.question, e.answer) for e in new
-    ]
+    assert store.examples() == new
 
 
 def test_deep_health_needs_embeddings_meta(store: PostgresStore, db: psycopg.Connection) -> None:
