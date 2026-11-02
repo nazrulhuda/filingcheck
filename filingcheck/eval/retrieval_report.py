@@ -46,6 +46,7 @@ class QuestionRun:
     r5_year: float
     r10_text: float
     r10_year: float
+    returned: int = K  # how many hits the search returned
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ class Row:
     mrr_year: float
     median_latency_ms: float
     collapsed: int
+    empty: int = 0  # questions for which the search returned no hit at all
 
 
 def aggregate(runs: list[QuestionRun]) -> list[Row]:
@@ -87,6 +89,7 @@ def aggregate(runs: list[QuestionRun]) -> list[Row]:
             mrr_year=mean([r.rr_year for r in g]),
             median_latency_ms=statistics.median(r.latency_ms for r in g),
             collapsed=sum(r.collapsed for r in g),
+            empty=sum(1 for r in g if r.returned == 0),
         )
         for (retriever, filtered), g in groups.items()
     ]
@@ -170,6 +173,7 @@ def evaluate(
                         r5_year=recall_at(hits, q, eid, 5, right_year=True),
                         r10_text=recall_at(hits, q, eid, 10, right_year=False),
                         r10_year=recall_at(hits, q, eid, 10, right_year=True),
+                        returned=len(hits),
                     )
                 )
     return runs
@@ -209,20 +213,20 @@ def _prime_or_embed(
         if all(q.id in saved for q in questions):
             for q in questions:
                 embedder.prime(q.question, [float(x) for x in saved[q.id]])
-            return 0, True
+            # The tokens billed when the vectors were made are stored with them.
+            return int((table.schema.metadata or {}).get(b"tokens", b"0")), True
     before = embedder.tokens_used
     vectors = [embedder.embed(q.question) for q in questions]
+    tokens = embedder.tokens_used - before
     path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(
-        pa.table(
-            {
-                "id": pa.array([q.id for q in questions], pa.string()),
-                "vector": pa.array(vectors, pa.list_(pa.float32())),
-            }
-        ),
-        path,
+    table = pa.table(
+        {
+            "id": pa.array([q.id for q in questions], pa.string()),
+            "vector": pa.array(vectors, pa.list_(pa.float32())),
+        }
     )
-    return embedder.tokens_used - before, False
+    pq.write_table(table.replace_schema_metadata({"tokens": str(tokens)}), path)
+    return tokens, False
 
 
 def main(root: Path = Path(".")) -> int:
@@ -260,21 +264,32 @@ def main(root: Path = Path(".")) -> int:
         if name in unfiltered
     )
     cost = cost_usd(embedder.model_name, tokens)
+    empty = {(r.retriever, r.filtered): r.empty for r in rows}
     notes = [
+        "Searches that returned no hit at all: "
+        + ", ".join(
+            f"{name} {empty.get((name, False), 0)} unfiltered and {empty.get((name, True), 0)} "
+            "filtered"
+            for name in ("vector", "keyword", "hybrid")
+        )
+        + f" (of {len(questions)} questions). Keyword search uses websearch_to_tsquery, which "
+        "requires every word of the question to appear in a chunk; questions in a user's own "
+        "words rarely meet that, so its rows can score zero and hybrid then equals vector.",
         "Unfiltered rows: the gap between recall@10 text found and right year "
         f"({gaps}) is how often search alone cannot pick the fiscal year. About a quarter of "
         "the chunks have an identical copy in another year's filing, and identical texts tie "
         "in an unfiltered search (same vector, same keyword score). This is the measured "
         "reason for the fiscal-year check in week 4.",
         "Latency is the search alone: the question vectors were embedded beforehand "
-        f"({'loaded from' if reused else 'and saved to'} {QUERIES_FILE}).",
-        f"Query embeddings this run: {len(questions)} questions, {tokens:,} tokens, ${cost:.6f}"
-        + (" (vectors reused, no API call)" if reused else "")
+        f"({'loaded from' if reused else 'and saved to'} {QUERIES_FILE.as_posix()}).",
+        f"Query embeddings: {len(questions)} questions, {tokens:,} tokens, ${cost:.6f}, paid "
+        "once when the vectors were made"
+        + ("; this run reused them and made no API call" if reused else "")
         + ".",
     ]
     settings = {
         "date": date.today().isoformat(),
-        "questions": f"{len(questions)} ({QUESTIONS_FILE})",
+        "questions": f"{len(questions)} ({QUESTIONS_FILE.as_posix()})",
         "embedding model": model,
         "hits scored per search (k)": str(K),
         "RRF": f"score = sum of 1 / ({RRF_K} + rank) over the vector and keyword rankings; "
