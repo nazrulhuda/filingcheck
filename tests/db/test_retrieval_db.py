@@ -280,3 +280,15 @@ def test_a_chunk_with_both_words_ranks_above_one_repeating_a_single_word(
 
 def test_a_question_of_only_stop_words_has_no_keyword_hits(searchable: psycopg.Connection) -> None:
     assert KeywordRetriever(searchable).search("what is the", k=5).hits == []
+
+
+def test_every_hit_carries_the_date_its_fiscal_year_ended(searchable: psycopg.Connection) -> None:
+    ends = {(f.ticker, f.fiscal_year): f.period_of_report for f in FILINGS}
+    for retriever in (
+        vector(searchable),
+        KeywordRetriever(searchable),
+        HybridRetriever(vector(searchable), KeywordRetriever(searchable)),
+    ):
+        hits = retriever.search("revenue sales risk", k=10).hits
+        assert hits and all(h.period_end == ends[(h.ticker, h.fiscal_year)] for h in hits)
+    assert ends[("AAPL", 2024)] == date(2024, 9, 28)

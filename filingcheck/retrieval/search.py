@@ -23,7 +23,7 @@ EF_SEARCH = 100  # HNSW candidates examined per query
 OVERFETCH = 3  # fetch k * 3 + 10 rows so k remain after duplicates are dropped
 COLUMNS = (
     "c.id, f.ticker, f.fiscal_year, c.item, c.text, c.also_in, c.boundary, "
-    "COALESCE(s.source_url, f.primary_url) AS source_url"
+    "COALESCE(s.source_url, f.primary_url) AS source_url, f.period_of_report"
 )
 FROM = (
     "FROM chunks c JOIN filings f ON f.id = c.filing_id "
@@ -62,11 +62,12 @@ def _filters(
 
 
 def _hit(row: tuple[Any, ...], score: float) -> Hit:
-    chunk_id, ticker, year, item, text, also_in, boundary, url = row[:8]
+    chunk_id, ticker, year, item, text, also_in, boundary, url, period_end = row[:9]
     return Hit(
         chunk_id=chunk_id,
         ticker=ticker,
         fiscal_year=year,
+        period_end=period_end,
         item=item,
         text=text,
         score=score,
@@ -125,8 +126,8 @@ class VectorRetriever:
                 f"WHERE {where} ORDER BY c.embedding <=> %(q)s::halfvec LIMIT %(n)s"
             )
         rows = self.conn.execute(sql, params).fetchall()
-        rows.sort(key=lambda r: (r[8], r[0]))  # relaxed order: put the nearest first again
-        hits, collapsed = _ranked([_hit(r, 1.0 - float(r[8])) for r in rows], k, "vector_rank")
+        rows.sort(key=lambda r: (r[9], r[0]))  # relaxed order: put the nearest first again
+        hits, collapsed = _ranked([_hit(r, 1.0 - float(r[9])) for r in rows], k, "vector_rank")
         return SearchResult(hits=hits, retriever=self.name, duplicates_collapsed=collapsed)
 
     def _check_model(self) -> None:
@@ -176,7 +177,7 @@ class KeywordRetriever:
             "ORDER BY (c.tsv @@ q.query_all) DESC, rank DESC, c.id LIMIT %(n)s",
             params,
         ).fetchall()
-        hits, collapsed = _ranked([_hit(r, float(r[8])) for r in rows], k, "keyword_rank")
+        hits, collapsed = _ranked([_hit(r, float(r[9])) for r in rows], k, "keyword_rank")
         return SearchResult(hits=hits, retriever=self.name, duplicates_collapsed=collapsed)
 
 
