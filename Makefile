@@ -66,8 +66,8 @@ retrieval-eval:  # score vector, keyword and hybrid search; writes docs/retrieva
 
 # Calls the chat model (costs money). Batch mode: waits out rate limits and never falls back.
 # LIVE=1 uses live mode: short waits, then the fallback models answer.
-ask:  # answer one question with the plain-RAG baseline: make ask Q="..." [TICKER=WMT YEAR=2025] [LIVE=1]
-	uv run python -m filingcheck.answer "$(Q)" $(if $(TICKER),--ticker $(TICKER)) $(if $(YEAR),--year $(YEAR)) $(if $(LIVE),--live)
+ask:  # answer one question with the plain-RAG baseline: make ask Q="..." [TICKER=WMT YEAR=2025] [LIVE=1] [MAX_TOKENS=700]
+	uv run python -m filingcheck.answer "$(Q)" $(if $(TICKER),--ticker $(TICKER)) $(if $(YEAR),--year $(YEAR)) $(if $(LIVE),--live) $(if $(MAX_TOKENS),--max-tokens $(MAX_TOKENS))
 
 baseline-examples:  # the 6 example questions, batch mode, no filters; writes docs/baseline_examples.md (costs money)
 	uv run python -m filingcheck.answer.examples

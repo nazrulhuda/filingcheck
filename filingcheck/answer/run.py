@@ -4,7 +4,7 @@ import psycopg
 
 from filingcheck.answer.baseline import MAX_TOKENS, Answer, K
 from filingcheck.embeddings.openai_client import OpenAIEmbeddings
-from filingcheck.llm import Completion, describe_settings
+from filingcheck.llm import Completion, IncompleteAnswer, describe_settings
 from filingcheck.retrieval import HybridRetriever, KeywordRetriever, VectorRetriever
 from filingcheck.retrieval.query import QueryEmbedder
 
@@ -15,14 +15,29 @@ def hybrid_retriever(conn: psycopg.Connection) -> HybridRetriever:
     return HybridRetriever(vector, KeywordRetriever(conn))
 
 
-def settings_line(model: str, *, filters: str) -> str:
+def settings_line(model: str, *, filters: str, max_tokens: int = MAX_TOKENS) -> str:
     """The model and retrieval settings to write next to a saved result."""
-    return f"{describe_settings(model, MAX_TOKENS)}; retriever hybrid, k {K}, {filters}"
+    return f"{describe_settings(model, max_tokens)}; retriever hybrid, k {K}, {filters}"
 
 
 def format_cost(cost: float | None) -> str:
     """Dollars to six places, or "unknown" when the provider sent no usage."""
     return "unknown" if cost is None else f"${cost:.6f}"
+
+
+def format_incomplete(error: IncompleteAnswer) -> str:
+    """An empty or cut-off reply, with the numbers needed to see why."""
+    c = error.completion
+    return "\n".join(
+        [
+            f"error: {error}",
+            f"model: {c.model}",
+            f"finish_reason: {c.finish_reason}",
+            f"text so far: {c.text!r}",
+            f"tokens: prompt {c.prompt_tokens}, completion {c.completion_tokens}",
+            f"cost: {format_cost(c.cost_usd)}; usage as sent: {c.usage}",
+        ]
+    )
 
 
 def format_answer(answer: Answer, completion: Completion | None) -> str:

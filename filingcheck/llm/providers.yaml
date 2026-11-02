@@ -13,8 +13,9 @@ providers:
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY
-    # Google's OpenAI-compatibility page documents no token limit parameter, so none is sent.
-    token_limit_param: null
+    # Not documented on Google's OpenAI-compatibility page; sent anyway so that one cap holds
+    # for every model the API uses. Confirmed live (a tiny limit must end with "length").
+    token_limit_param: max_tokens
     source: https://ai.google.dev/gemini-api/docs/openai
 models:
   groq:openai/gpt-oss-20b:

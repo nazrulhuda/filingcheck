@@ -7,15 +7,24 @@ resolver), so every answer comes from the primary model. Writes docs/baseline_ex
 import json
 import logging
 import sys
+from collections.abc import Callable
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
 from filingcheck.answer.baseline import Answer, answer_question
-from filingcheck.answer.run import format_cost, hybrid_retriever, settings_line
+from filingcheck.answer.run import (
+    format_cost,
+    format_incomplete,
+    hybrid_retriever,
+    settings_line,
+)
 from filingcheck.db import connect
-from filingcheck.llm import router_from_env
+from filingcheck.llm import ChatModel, IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
+from filingcheck.retrieval import Retriever
 
 EXAMPLES_FILE = REPO_ROOT / "eval" / "questions" / "examples.jsonl"
 OUTPUT = REPO_ROOT / "docs" / "baseline_examples.md"
@@ -59,6 +68,46 @@ def _yes(flag: bool) -> str:
     return "yes" if flag else "no"
 
 
+def run_examples(
+    examples: list[dict[str, Any]],
+    *,
+    retriever: Retriever,
+    model: ChatModel,
+    settings: str,
+    output: Path,
+    run_date: date,
+    out: Callable[[str], None] = print,
+) -> int:
+    """Answer every example and write the file; stop without writing on a degraded answer.
+
+    A degraded answer came from keyword search alone (the question could not be embedded),
+    and an incomplete one is not an answer, so neither may stand in the baseline file.
+    """
+    rows: list[tuple[str, str, Answer]] = []
+    for example in examples:
+        try:
+            answer = answer_question(example["question"], retriever=retriever, model=model)
+        except IncompleteAnswer as exc:
+            out(f"{example['id']}: stopped, nothing written")
+            out(format_incomplete(exc))
+            return 1
+        if answer.degraded:
+            out(
+                f"{example['id']}: degraded (keyword search answered alone because the question "
+                f"could not be embedded); stopped, {output.name} not written"
+            )
+            return 1
+        out(f"{example['id']}: {answer.model_used}, cost {format_cost(answer.cost_usd)}")
+        rows.append((example["id"], example["question"], answer))
+    output.write_text(
+        render_examples(rows, settings=settings, run_date=run_date),
+        encoding="utf-8",
+        newline="\n",
+    )
+    out(f"wrote {output}")
+    return 0
+
+
 def main() -> int:
     """Answer the 6 example questions in batch mode and write the examples file."""
     load_dotenv(REPO_ROOT / ".env")
@@ -69,21 +118,15 @@ def main() -> int:
         for line in EXAMPLES_FILE.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    rows: list[tuple[str, str, Answer]] = []
     with connect() as conn:
-        retriever = hybrid_retriever(conn)
-        for example in examples:
-            answer = answer_question(example["question"], retriever=retriever, model=router)
-            print(f"{example['id']}: {answer.model_used}, cost {format_cost(answer.cost_usd)}")
-            rows.append((example["id"], example["question"], answer))
-    settings = settings_line(router.primary.name, filters="no filters (question text only)")
-    OUTPUT.write_text(
-        render_examples(rows, settings=settings, run_date=date.today()),
-        encoding="utf-8",
-        newline="\n",
-    )
-    print(f"wrote {OUTPUT.relative_to(REPO_ROOT)}")
-    return 0
+        return run_examples(
+            examples,
+            retriever=hybrid_retriever(conn),
+            model=router,
+            settings=settings_line(router.primary.name, filters="no filters (question text only)"),
+            output=OUTPUT,
+            run_date=date.today(),
+        )
 
 
 if __name__ == "__main__":

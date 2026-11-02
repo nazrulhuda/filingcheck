@@ -1,4 +1,4 @@
-"""`python -m filingcheck.answer "question" [--ticker WMT] [--year 2025] [--live]`."""
+"""`python -m filingcheck.answer "question" [--ticker T] [--year Y] [--live] [--max-tokens N]`."""
 
 import argparse
 import logging
@@ -6,8 +6,13 @@ import sys
 
 from dotenv import load_dotenv
 
-from filingcheck.answer.baseline import answer_question
-from filingcheck.answer.run import format_answer, format_cost, hybrid_retriever, settings_line
+from filingcheck.answer.baseline import MAX_TOKENS, answer_question
+from filingcheck.answer.run import (
+    format_answer,
+    format_incomplete,
+    hybrid_retriever,
+    settings_line,
+)
 from filingcheck.db import connect
 from filingcheck.llm import IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
@@ -22,6 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--live", action="store_true", help="live mode: short waits, fall back to other models"
     )
+    parser.add_argument(
+        "--max-tokens", type=int, default=MAX_TOKENS, help="token limit sent to the model"
+    )
     args = parser.parse_args(argv)
     if not args.question.strip():
         parser.error('give a question: make ask Q="..."')
@@ -34,7 +42,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.ticker or args.year
         else "no filters"
     )
-    print(f"mode: {router.mode}; {settings_line(router.primary.name, filters=filters)}\n")
+    settings = settings_line(router.primary.name, filters=filters, max_tokens=args.max_tokens)
+    print(f"mode: {router.mode}; {settings}\n")
     with connect() as conn:
         try:
             answer = answer_question(
@@ -43,13 +52,10 @@ def main(argv: list[str] | None = None) -> int:
                 model=router,
                 ticker=args.ticker,
                 fiscal_year=args.year,
+                max_tokens=args.max_tokens,
             )
         except IncompleteAnswer as exc:
-            c = exc.completion
-            print(f"error: {exc}")
-            print(f"text so far: {c.text!r}")
-            print(f"tokens: prompt {c.prompt_tokens}, completion {c.completion_tokens}")
-            print(f"cost: {format_cost(c.cost_usd)}; usage as sent: {c.usage}")
+            print(format_incomplete(exc))
             return 1
     print(format_answer(answer, router.last_completion))
     return 0

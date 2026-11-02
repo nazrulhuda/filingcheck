@@ -4,16 +4,25 @@ import logging
 from collections.abc import Sequence
 from typing import Any
 
-from filingcheck.llm.chat import ChatModel, Completion, Message, Mode, ProviderUnavailable
+from filingcheck.llm.chat import (
+    ChatModel,
+    Completion,
+    IncompleteAnswer,
+    Message,
+    Mode,
+    ProviderUnavailable,
+)
 
 log = logging.getLogger(__name__)
 
 
 class ModelRouter:
-    """Tries the primary, then each fallback on `ProviderUnavailable`; records who answered.
+    """Tries the primary, then each fallback; records who answered.
 
-    In batch mode only the primary is ever called: a baseline file or an eval row answered by
-    two different models would measure nothing, so a failure stops the run instead.
+    In live mode a model that is unavailable or whose reply is empty or cut off is skipped,
+    and if every model fails the last error is raised. In batch mode only the primary is ever
+    called: a baseline file or an eval row answered by two different models would measure
+    nothing, so a failure stops the run instead.
     """
 
     def __init__(
@@ -37,7 +46,7 @@ class ModelRouter:
     ) -> Completion:
         """The first reply from the primary or, in live mode, a fallback."""
         models = [self.primary] if self.mode == "batch" else [self.primary, *self.fallbacks]
-        failure: ProviderUnavailable | None = None
+        failure: ProviderUnavailable | IncompleteAnswer | None = None
         for i, model in enumerate(models):
             try:
                 completion = model.complete(
@@ -46,10 +55,10 @@ class ModelRouter:
                     temperature=temperature,
                     json_schema=json_schema,
                 )
-            except ProviderUnavailable as exc:
+            except (ProviderUnavailable, IncompleteAnswer) as exc:
                 if self.mode == "batch":
                     raise
-                log.warning("%s unavailable (%s); trying the next model", model.name, exc)
+                log.warning("%s failed (%s); trying the next model", model.name, exc)
                 failure = exc
                 continue
             self.last_model = completion.model
