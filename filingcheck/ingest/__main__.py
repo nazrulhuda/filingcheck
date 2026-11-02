@@ -146,6 +146,7 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
 
     chunks_path = root / CHUNKS_FILE
     tables_path = root / TABLE_CHUNKS_FILE
+    summary = root / SECTIONS_SUMMARY
     with connect() as conn:
         applied = migrate(conn)
         counts = load_all(
@@ -154,6 +155,7 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
             load_manifest(manifest_path),
             chunks_path,
             tables_path if tables_path.exists() else None,
+            summary if summary.exists() else None,
         )
     with chunks_path.open(encoding="utf-8") as handle:
         in_file = sum(1 for line in handle if line.strip())

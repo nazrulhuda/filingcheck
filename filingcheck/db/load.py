@@ -10,6 +10,7 @@ from filingcheck.embeddings import content_hash
 from filingcheck.ingest.chunking import Chunk, TableChunk
 from filingcheck.ingest.companies import Company
 from filingcheck.ingest.filings import Manifest
+from filingcheck.ingest.sections import load_summary
 
 COPY_CHUNKS = (
     "COPY chunks (filing_id, item, chunk_index, char_start, char_end, text, boundary, also_in, "
@@ -44,6 +45,7 @@ def load_all(
     manifest: Manifest,
     chunks_path: Path,
     table_chunks_path: Path | None = None,
+    summary_path: Path | None = None,
 ) -> dict[str, int]:
     """Replace the companies, filings, chunks and number tables in one transaction.
 
@@ -53,7 +55,10 @@ def load_all(
     content hash, so reloading never loses them.
     """
     with conn.transaction():
-        conn.execute("TRUNCATE companies, filings, chunks, table_chunks RESTART IDENTITY CASCADE")
+        conn.execute(
+            "TRUNCATE companies, filings, chunks, table_chunks, section_sources "
+            "RESTART IDENTITY CASCADE"
+        )
         with conn.cursor() as cur:
             cur.executemany(
                 "INSERT INTO companies (ticker, cik, name, sector, fiscal_year_end, "
@@ -124,15 +129,43 @@ def load_all(
                             table.text,
                         )
                     )
+        if summary_path is not None:
+            _load_section_sources(conn, manifest, summary_path, filing_ids)
         model = current_model(conn)
         restored = restore_embeddings(conn, model) if model else 0
     counts = {}
-    for table_name in ("companies", "filings", "chunks", "table_chunks"):
+    for table_name in ("companies", "filings", "chunks", "table_chunks", "section_sources"):
         row = conn.execute(f"SELECT count(*) FROM {table_name}").fetchone()  # fixed names
         counts[table_name] = int(row[0]) if row else 0
     counts["embeddings_restored"] = restored
     conn.commit()
     return counts
+
+
+def _load_section_sources(
+    conn: psycopg.Connection, manifest: Manifest, summary_path: Path, filing_ids: dict[str, int]
+) -> None:
+    """Record each saved section's source document: the Exhibit 13 for exhibit sections."""
+    filings = {f.accession: f for f in manifest.filings}
+    rows = []
+    for summary in load_summary(summary_path):
+        filing = filings.get(summary.accession)
+        if filing is None:
+            raise KeyError(f"section summary for a filing not in the manifest: {summary.accession}")
+        exhibits = [doc.url for doc in filing.extra_documents if doc.type == "EX-13"]
+        for item, found in summary.items.items():
+            url = (
+                exhibits[0]
+                if found.method == "exhibit" and exhibits
+                else filing.primary_document_url
+            )
+            rows.append((filing_ids[summary.accession], item, found.method, url))
+    with conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO section_sources (filing_id, item, method, source_url) "
+            "VALUES (%s, %s, %s, %s)",
+            rows,
+        )
 
 
 def current_model(conn: psycopg.Connection) -> str | None:
