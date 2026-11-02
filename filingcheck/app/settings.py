@@ -27,10 +27,16 @@ class Settings(BaseModel):
     ip_hash_salt: str = Field(default_factory=lambda: secrets.token_hex(16))
     # Proxies in front of the app that append to X-Forwarded-For; 0 trusts no header.
     forwarded_hops: int = Field(default=0, ge=0)
+    # A header the platform overwrites with the caller's address (lower case); None: not used.
+    client_ip_header: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
-        """FC_DAILY_CAP, FC_CORS_ORIGINS (comma-separated), FC_IP_HASH_SALT, FC_FORWARDED_HOPS."""
+        """The settings from the environment's FC_ variables.
+
+        FC_DAILY_CAP, FC_CORS_ORIGINS (comma-separated), FC_IP_HASH_SALT, FC_FORWARDED_HOPS and
+        FC_CLIENT_IP_HEADER.
+        """
         env = os.environ if env is None else env
         values: dict[str, object] = {}
         if env.get("FC_DAILY_CAP"):
@@ -41,6 +47,8 @@ class Settings(BaseModel):
             ]
         if env.get("FC_FORWARDED_HOPS"):
             values["forwarded_hops"] = int(env["FC_FORWARDED_HOPS"])
+        if env.get("FC_CLIENT_IP_HEADER", "").strip():
+            values["client_ip_header"] = env["FC_CLIENT_IP_HEADER"].strip().lower()
         if env.get("FC_IP_HASH_SALT"):
             values["ip_hash_salt"] = env["FC_IP_HASH_SALT"]
         else:

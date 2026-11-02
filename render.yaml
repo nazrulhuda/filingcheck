@@ -33,3 +33,9 @@ services:
         value: gemini:gemini-3.5-flash-lite
       - key: FC_DAILY_CAP
         value: "65"
+      # Cloudflare, in front of every public Render web service, overwrites this header with
+      # the visitor's address; X-Forwarded-For is only appended to, so it is not trusted.
+      - key: FC_CLIENT_IP_HEADER
+        value: cf-connecting-ip
+      - key: FC_FORWARDED_HOPS
+        value: "0"

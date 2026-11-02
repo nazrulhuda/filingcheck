@@ -95,12 +95,18 @@ class TokenBucket:
             return True
 
 
-def client_ip(peer: str | None, headers: Mapping[str, str], hops: int) -> str:
+def client_ip(
+    peer: str | None, headers: Mapping[str, str], hops: int, header: str | None = None
+) -> str:
     """The caller's address: the peer, or with `hops` trusted proxies the entry they added.
 
     Each proxy appends the address it saw to X-Forwarded-For, so the entry `hops` from the
-    end was written by the outermost trusted proxy; entries before it can be forged.
+    end was written by the outermost trusted proxy; entries before it can be forged. With
+    `header` set (a header the platform overwrites, such as Cloudflare's CF-Connecting-IP on
+    Render), that header alone is trusted, and the peer is used when it is missing.
     """
+    if header is not None:
+        return headers.get(header, "").strip() or peer or "unknown"
     forwarded = [p.strip() for p in headers.get("x-forwarded-for", "").split(",") if p.strip()]
     if hops and len(forwarded) >= hops:
         return forwarded[-hops]
