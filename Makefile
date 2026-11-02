@@ -1,5 +1,7 @@
 # FilingCheck developer commands. Run these from Git Bash on Windows or any shell on Linux/macOS.
 # Tools run as `python -m <tool>`: Windows can block the small .exe launchers that uv creates.
+# Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
+export PYTHONUTF8 = 1
 
 .PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples db-up db-down db-reset ingest validate-questions eval-smoke eval run
 

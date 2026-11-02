@@ -7,9 +7,17 @@ from pydantic import BaseModel
 from filingcheck.retrieval import Hit
 
 QUOTE_CHARS = 200
-# [1], [1, 3], [1-3] and the same with an en dash; [1][3] is two matches.
-CITATION_RE = re.compile(r"\[\s*(\d+(?:\s*[,\-\u2013]\s*\d+)*)\s*\]")
-RANGE_RE = re.compile(r"\s*[\-\u2013]\s*")
+# Parsing reads a copy of the answer with these mapped; the answer itself is kept as returned.
+# Hyphen, non-breaking hyphen, figure dash, en dash and minus sign become "-". The em dash
+# separates words, so it becomes a space: as "-" it would glue "grew" to "12%" and hide
+# the figure. No-break, figure, thin and narrow no-break spaces become a plain space.
+NORMALIZE = str.maketrans(
+    dict.fromkeys((8208, 8209, 8210, 8211, 8722), "-")
+    | dict.fromkeys((8212, 160, 8199, 8201, 8239), " ")
+)
+# [1], [1, 3], [1-3]; [1][3] is two matches.
+CITATION_RE = re.compile(r"\[\s*(\d+(?:\s*[,-]\s*\d+)*)\s*\]")
+RANGE_RE = re.compile(r"\s*-\s*")
 
 # Abbreviations whose period never ends a sentence.
 ABBREVIATIONS = (
@@ -45,7 +53,7 @@ NOT_FIGURES = [
     re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"),  # 1/31/2025
     re.compile(r"\b(?:10-K|10-Q|8-K)(?:/A)?\b"),  # SEC form names
     re.compile(  # Item 7, Items 1A and 7A, Note 8
-        r"\b(?:Items?|Notes?)\s+\d+[A-Z]?(?:\s*(?:,|and|or|&|-|\u2013|through|to)\s*\d+[A-Z]?)*\b",
+        r"\b(?:Items?|Notes?)\s+\d+[A-Z]?(?:\s*(?:,|and|or|&|-|through|to)\s*\d+[A-Z]?)*\b",
         re.IGNORECASE,
     ),
     re.compile(r"\b[A-Za-z]+-?\d[\w-]*"),  # digits glued to letters: Q3, FY2025, COVID-19
@@ -53,6 +61,11 @@ NOT_FIGURES = [
     re.compile(r"(?<![\d$.,])(?:199\d|20[0-3]\d)(?![\d%]|[.,]\d)"),  # a year standing alone
 ]
 DIGIT_RE = re.compile(r"\d")
+
+
+def normalize_text(text: str) -> str:
+    """A copy of the text with Unicode dashes and spaces mapped for parsing (see NORMALIZE)."""
+    return text.translate(NORMALIZE)
 
 
 class Citation(BaseModel):
@@ -69,7 +82,7 @@ class Citation(BaseModel):
 def cited_numbers(text: str, passages: int) -> list[int]:
     """The passage numbers cited in the text, in first-cited order, within 1..passages."""
     numbers: list[int] = []
-    for match in CITATION_RE.finditer(text):
+    for match in CITATION_RE.finditer(normalize_text(text)):
         for part in match.group(1).split(","):
             bounds = [int(n) for n in RANGE_RE.split(part.strip())]
             low, high = min(bounds), max(bounds)
@@ -113,4 +126,4 @@ def has_figure(sentence: str) -> bool:
 
 def has_uncited_claims(text: str) -> bool:
     """True if any sentence states a figure without a citation in that sentence."""
-    return any(has_figure(s) and not CITATION_RE.search(s) for s in sentences(text))
+    return any(has_figure(s) and not CITATION_RE.search(s) for s in sentences(normalize_text(text)))

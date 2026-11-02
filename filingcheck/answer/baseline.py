@@ -9,7 +9,12 @@ import time
 
 from pydantic import BaseModel
 
-from filingcheck.answer.citations import Citation, has_uncited_claims, parse_citations
+from filingcheck.answer.citations import (
+    Citation,
+    has_uncited_claims,
+    normalize_text,
+    parse_citations,
+)
 from filingcheck.llm import ChatModel, Message
 from filingcheck.retrieval import Hit, Retriever
 
@@ -60,7 +65,7 @@ def build_messages(question: str, hits: list[Hit]) -> list[Message]:
 
 
 def _normalize(text: str) -> str:
-    text = EMPHASIS_RE.sub("", text.translate(QUOTES))
+    text = EMPHASIS_RE.sub("", normalize_text(text).translate(QUOTES))
     return " ".join(text.split()).lower().rstrip(".!?").strip()
 
 

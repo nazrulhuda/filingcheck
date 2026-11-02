@@ -21,6 +21,7 @@ from filingcheck.answer.run import (
     hybrid_retriever,
     settings_line,
 )
+from filingcheck.console import use_utf8_output
 from filingcheck.db import connect
 from filingcheck.llm import ChatModel, IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
@@ -110,6 +111,7 @@ def run_examples(
 
 def main() -> int:
     """Answer the 6 example questions in batch mode and write the examples file."""
+    use_utf8_output()
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     router = router_from_env("batch")

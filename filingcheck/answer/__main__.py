@@ -13,6 +13,7 @@ from filingcheck.answer.run import (
     hybrid_retriever,
     settings_line,
 )
+from filingcheck.console import use_utf8_output
 from filingcheck.db import connect
 from filingcheck.llm import IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
@@ -20,6 +21,7 @@ from filingcheck.paths import REPO_ROOT
 
 def main(argv: list[str] | None = None) -> int:
     """Answer one question with the baseline and print the answer, citations and cost."""
+    use_utf8_output()
     parser = argparse.ArgumentParser(prog="python -m filingcheck.answer")
     parser.add_argument("question")
     parser.add_argument("--ticker")
