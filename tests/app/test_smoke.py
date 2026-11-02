@@ -68,6 +68,60 @@ def test_an_answer_with_no_citations_fails() -> None:
     assert failures(lines) == ["FAIL POST /ask: the answer has no citations"]
 
 
+def ask_returns(**fields: Any) -> httpx.Client:
+    return api(POST_ask=lambda r: httpx.Response(200, json={**ANSWER, **fields}))
+
+
+@pytest.mark.parametrize(
+    ("fields", "reason"),
+    [
+        # After the daily cap: a saved answer, so the model was not called at all.
+        ({"cached": True}, "the answer is a saved example (cached), not a new model call"),
+        # Keyword search only: the question could not be embedded (OpenAI key).
+        ({"degraded": True}, "degraded: keyword search only, so question embedding failed"),
+        # The fallback answered: the OpenRouter key or the Groq pin is not working.
+        (
+            {"model_used": "gemini:gemini-3.5-flash-lite"},
+            "answered by gemini:gemini-3.5-flash-lite, not the primary "
+            "openrouter:openai/gpt-oss-20b",
+        ),
+    ],
+)
+def test_a_cached_degraded_or_fallback_answer_fails_saying_which(
+    fields: dict[str, Any], reason: str
+) -> None:
+    assert failures(smoke.run_checks(BASE, ask_returns(**fields))) == [f"FAIL POST /ask: {reason}"]
+
+
+def test_every_problem_with_the_answer_is_named() -> None:
+    client = ask_returns(cached=True, degraded=True, citations=[])
+    (line,) = failures(smoke.run_checks(BASE, client))
+    assert line.startswith("FAIL POST /ask: ")
+    assert "no citations" in line and "cached" in line and "degraded" in line
+
+
+def test_health_naming_another_primary_model_fails() -> None:
+    client = api(
+        GET_health=lambda r: httpx.Response(
+            200, json={"status": "ok", "model": "groq:openai/gpt-oss-20b"}
+        )
+    )
+    assert failures(smoke.run_checks(BASE, client)) == [
+        "FAIL GET /health: the primary model is groq:openai/gpt-oss-20b, not "
+        "openrouter:openai/gpt-oss-20b"
+    ]
+
+
+def test_the_expected_primary_model_can_be_given() -> None:
+    client = ask_returns(model_used="gemini:gemini-3.5-flash-lite")
+    expected = "gemini:gemini-3.5-flash-lite"
+    lines = smoke.run_checks(BASE, client, model=expected)
+    assert failures(lines) == [
+        "FAIL GET /health: the primary model is "
+        "openrouter:openai/gpt-oss-20b, not gemini:gemini-3.5-flash-lite"
+    ]
+
+
 @pytest.mark.parametrize(
     ("route", "response", "expected"),
     [
