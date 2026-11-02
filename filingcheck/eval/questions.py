@@ -127,9 +127,14 @@ def main(argv: list[str] | None = None) -> int:
     validate.add_argument("--dir", type=Path, default=QUESTIONS_DIR)
     args = parser.parse_args(argv)
     tickers = {c.ticker for c in load_companies(DATA_DIR / "companies.yaml")}
+    from filingcheck.eval.retrieval import load_retrieval_questions
+
     paths = sorted(args.dir.glob("*.jsonl"))
+    retrieval = [p for p in paths if p.name.startswith("retrieval")]  # their own format
     try:
-        counts = validate_files(paths, tickers)
+        counts = validate_files([p for p in paths if p not in retrieval], tickers)
+        for path in retrieval:
+            counts[path.name] = len(load_retrieval_questions(path, tickers))
     except QuestionFileError as exc:
         print(f"invalid: {exc}")
         return 1
