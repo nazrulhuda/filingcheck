@@ -162,8 +162,8 @@ export default function Home() {
         />
         <p className="text-xs text-slate-500">
           Each question stands alone (no chat history). Questions are logged to improve the demo
-          and are sent to Groq, or to Google if Groq is busy, to write the answer; please don&apos;t
-          enter personal information.
+          and are sent through OpenRouter to Groq, or to Google if that is busy, to write the
+          answer; please don&apos;t enter personal information.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">

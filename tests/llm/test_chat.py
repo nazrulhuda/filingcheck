@@ -402,8 +402,9 @@ def test_the_router_is_built_from_the_environment() -> None:
 
 def test_the_default_models_never_need_the_retired_groq_key() -> None:
     defaults = router_from_env("live", {})
-    keys = {m.api_key_env for m in [defaults.primary, *defaults.fallbacks]}
-    assert keys == {"OPENROUTER_API_KEY", "GEMINI_API_KEY"}
+    models = [defaults.primary, *defaults.fallbacks]
+    keys = {m.api_key_env for m in models if isinstance(m, OpenAICompatibleChat)}
+    assert len(keys) == len(models) and keys == {"OPENROUTER_API_KEY", "GEMINI_API_KEY"}
 
 
 @pytest.mark.parametrize("spec", ["nowhere:some-model", "groq:not-in-the-registry", "no-colon"])
