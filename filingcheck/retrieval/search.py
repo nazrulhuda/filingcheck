@@ -29,6 +29,16 @@ FROM = (
     "FROM chunks c JOIN filings f ON f.id = c.filing_id "
     "LEFT JOIN section_sources s ON s.filing_id = c.filing_id AND s.item = c.item"
 )
+# The keyword queries for a question %(q)s. query_any quotes each lexeme so that one with a
+# hyphen ("drug-pric") stays a single term; it is NULL, matching nothing, when the question
+# has no lexemes at all.
+QUERIES_SQL = (
+    "SELECT websearch_to_tsquery('english', %(q)s) AS query_all, "
+    "NULLIF(array_to_string(ARRAY("
+    "SELECT '''' || replace(lexeme, '''', '''''') || '''' "
+    "FROM unnest(tsvector_to_array(to_tsvector('english', %(q)s))) AS lexeme"
+    "), ' | '), '')::tsquery AS query_any"
+)
 # Failures of the embeddings API that should not take search down: keyword search stands in.
 EMBEDDING_FAILURES = (EmbeddingAPIError, MissingAPIKeyError, httpx.HTTPError, OSError)
 
@@ -132,7 +142,15 @@ class VectorRetriever:
 
 
 class KeywordRetriever:
-    """Full-text search: Postgres `websearch_to_tsquery` on the chunk text, ranked by ts_rank_cd."""
+    """Full-text search on the chunk text: any word may match, all-word matches come first.
+
+    Two queries are built from the question: `query_all` (websearch_to_tsquery, every word
+    required) and `query_any` (the question's lexemes joined with OR; stop words are already
+    gone). Candidates match `query_any`; they are ordered by whether they match `query_all`,
+    then by ts_rank_cd. A question of stop words only has no lexemes and gets no hits.
+    Requiring every word alone matched no chunk for any of the 40 sentence-length eval
+    questions; short exact-term queries still put the chunks with every word first.
+    """
 
     name = "keyword"
 
@@ -152,9 +170,10 @@ class KeywordRetriever:
         where, params = _filters(ticker, fiscal_year, items)
         params |= {"q": query, "n": k * OVERFETCH + 10}
         rows = self.conn.execute(
-            f"SELECT {COLUMNS}, ts_rank_cd(c.tsv, query) AS rank {FROM}, "
-            "websearch_to_tsquery('english', %(q)s) AS query "
-            f"WHERE c.tsv @@ query AND {where} ORDER BY rank DESC, c.id LIMIT %(n)s",
+            f"WITH q AS ({QUERIES_SQL}) "
+            f"SELECT {COLUMNS}, ts_rank_cd(c.tsv, q.query_any) AS rank {FROM} CROSS JOIN q "
+            f"WHERE c.tsv @@ q.query_any AND {where} "
+            "ORDER BY (c.tsv @@ q.query_all) DESC, rank DESC, c.id LIMIT %(n)s",
             params,
         ).fetchall()
         hits, collapsed = _ranked([_hit(r, float(r[8])) for r in rows], k, "keyword_rank")

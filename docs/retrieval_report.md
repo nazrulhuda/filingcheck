@@ -10,7 +10,7 @@ Written by `make retrieval-eval`; do not edit by hand.
 - hits scored per search (k): 10
 - RRF: score = sum of 1 / (60 + rank) over the vector and keyword rankings; top 50 taken from each
 - vector search: cosine distance; HNSW (m = 16, ef_construction = 64) with ef_search = 100 and iterative scan (relaxed order) when unfiltered; an exact scan when filtered to one company and year
-- keyword search: Postgres websearch_to_tsquery('english') on the chunk text, ranked by ts_rank_cd
+- keyword search: Postgres full-text search on the chunk text: a chunk matches if it has any word of the question (the question's lexemes joined with OR); chunks with every word (websearch_to_tsquery('english')) come first, then by ts_rank_cd
 - near-duplicates: a hit whose first 300 characters equal an earlier hit's from the same filing is dropped before the cut to k
 
 ## Scores
@@ -20,16 +20,17 @@ Each question is searched once per row; the top 10 hits are scored two ways. **T
 | Retriever | Filter | Recall@5 text found | Recall@5 right year | Recall@10 text found | Recall@10 right year | MRR text found | MRR right year | Median latency (ms) | Near-duplicates collapsed |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | vector | none | 0.45 | 0.40 | 0.55 | 0.42 | 0.334 | 0.237 | 48 | 1 |
-| keyword | none | 0.00 | 0.00 | 0.00 | 0.00 | 0.000 | 0.000 | 1 | 0 |
-| hybrid | none | 0.45 | 0.40 | 0.55 | 0.42 | 0.334 | 0.237 | 51 | 0 |
-| vector | company + year | 0.72 | 0.72 | 0.80 | 0.80 | 0.511 | 0.511 | 46 | 2 |
-| keyword | company + year | 0.00 | 0.00 | 0.00 | 0.00 | 0.000 | 0.000 | 1 | 0 |
-| hybrid | company + year | 0.72 | 0.72 | 0.80 | 0.80 | 0.511 | 0.511 | 48 | 0 |
+| keyword | none | 0.12 | 0.07 | 0.20 | 0.15 | 0.106 | 0.057 | 128 | 0 |
+| hybrid | none | 0.40 | 0.33 | 0.47 | 0.42 | 0.271 | 0.188 | 245 | 0 |
+| vector | company + year | 0.72 | 0.72 | 0.80 | 0.80 | 0.511 | 0.511 | 47 | 2 |
+| keyword | company + year | 0.45 | 0.45 | 0.55 | 0.55 | 0.293 | 0.293 | 7 | 0 |
+| hybrid | company + year | 0.60 | 0.60 | 0.80 | 0.80 | 0.426 | 0.426 | 61 | 0 |
 
 ## Notes
 
-- Searches that returned no hit at all: vector 0 unfiltered and 0 filtered, keyword 40 unfiltered and 40 filtered, hybrid 0 unfiltered and 0 filtered (of 40 questions). Keyword search uses websearch_to_tsquery, which requires every word of the question to appear in a chunk; questions in a user's own words rarely meet that, so its rows can score zero and hybrid then equals vector.
-- Unfiltered rows: the gap between recall@10 text found and right year (vector +0.13, keyword +0.00, hybrid +0.13) is how often search alone cannot pick the fiscal year. About a quarter of the chunks have an identical copy in another year's filing, and identical texts tie in an unfiltered search (same vector, same keyword score). This is the measured reason for the fiscal-year check in week 4.
+- Searches that returned no hit at all: vector 0 unfiltered and 0 filtered, keyword 0 unfiltered and 0 filtered, hybrid 0 unfiltered and 0 filtered (of 40 questions).
+- On these 40 questions hybrid search did not beat vector search. With the company + year filter: recall@10 0.80 against 0.80 (equal), recall@5 0.60 against 0.72 (below), MRR 0.43 against 0.51 (below). Without it: recall@10 0.42 against 0.42 (equal), recall@5 0.33 against 0.40 (below), MRR 0.19 against 0.24 (below), recall@10 text found 0.47 against 0.55 (below) (right year unless marked). Keyword search is kept for exact-term queries and as the fallback when the embeddings API is down. The agent in week 3 searches with company and year, so the filtered rows describe the live app.
+- Unfiltered rows: the gap between recall@10 text found and right year (vector +0.13, keyword +0.05, hybrid +0.05) is how often search alone cannot pick the fiscal year. About a quarter of the chunks have an identical copy in another year's filing, and identical texts tie in an unfiltered search (same vector, same keyword score). This is the measured reason for the fiscal-year check in week 4.
 - Latency is the search alone: the question vectors were embedded beforehand (loaded from eval/results/retrieval_queries.parquet).
 - Query embeddings: 40 questions, 621 tokens, $0.000012, paid once when the vectors were made; this run reused them and made no API call.
 

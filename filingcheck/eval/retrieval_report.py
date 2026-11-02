@@ -95,6 +95,51 @@ def aggregate(runs: list[QuestionRun]) -> list[Row]:
     ]
 
 
+VERDICT_MEASURES = (
+    ("recall@10", "recall10_year"),
+    ("recall@5", "recall5_year"),
+    ("MRR", "mrr_year"),
+    ("recall@10 text found", "recall10_text"),
+)
+
+
+def hybrid_verdict(rows: list[Row], questions: int) -> str:
+    """Whether hybrid beat vector search on recall and rank, as a report note."""
+    by = {(r.retriever, r.filtered): r for r in rows}
+
+    def compare(hybrid: float, vector: float) -> str:
+        if abs(hybrid - vector) < 1e-9:
+            return "equal"
+        return "above" if hybrid > vector else "below"
+
+    parts: dict[bool, list[str]] = {True: [], False: []}
+    outcomes = []
+    for filtered in (True, False):
+        for label, field in VERDICT_MEASURES:
+            if filtered and field == "recall10_text":
+                continue  # with the filter, text found and right year coincide
+            h, v = (
+                getattr(by[("hybrid", filtered)], field),
+                getattr(by[("vector", filtered)], field),
+            )
+            outcome = compare(h, v)
+            outcomes.append(outcome)
+            parts[filtered].append(f"{label} {h:.2f} against {v:.2f} ({outcome})")
+    if "above" not in outcomes:
+        verb = "did not beat"
+    elif "below" not in outcomes and "equal" not in outcomes:
+        verb = "beat"
+    else:
+        verb = "had mixed results against"
+    return (
+        f"On these {questions} questions hybrid search {verb} vector search. With the company "
+        f"+ year filter: {', '.join(parts[True])}. Without it: {', '.join(parts[False])} "
+        "(right year unless marked). Keyword search is kept for exact-term queries and as the "
+        "fallback when the embeddings API is down. The agent in week 3 searches with company "
+        "and year, so the filtered rows describe the live app."
+    )
+
+
 def render_report(
     rows: list[Row],
     questions: list[tuple[str, str, int, str, int, str]],
@@ -272,9 +317,8 @@ def main(root: Path = Path(".")) -> int:
             "filtered"
             for name in ("vector", "keyword", "hybrid")
         )
-        + f" (of {len(questions)} questions). Keyword search uses websearch_to_tsquery, which "
-        "requires every word of the question to appear in a chunk; questions in a user's own "
-        "words rarely meet that, so its rows can score zero and hybrid then equals vector.",
+        + f" (of {len(questions)} questions).",
+        hybrid_verdict(rows, len(questions)),
         "Unfiltered rows: the gap between recall@10 text found and right year "
         f"({gaps}) is how often search alone cannot pick the fiscal year. About a quarter of "
         "the chunks have an identical copy in another year's filing, and identical texts tie "
@@ -297,8 +341,9 @@ def main(root: Path = Path(".")) -> int:
         "vector search": "cosine distance; HNSW (m = 16, ef_construction = 64) with "
         "ef_search = 100 and iterative scan (relaxed order) when unfiltered; an exact scan "
         "when filtered to one company and year",
-        "keyword search": "Postgres websearch_to_tsquery('english') on the chunk text, "
-        "ranked by ts_rank_cd",
+        "keyword search": "Postgres full-text search on the chunk text: a chunk matches if it "
+        "has any word of the question (the question's lexemes joined with OR); chunks with "
+        "every word (websearch_to_tsquery('english')) come first, then by ts_rank_cd",
         "near-duplicates": "a hit whose first 300 characters equal an earlier hit's from the "
         "same filing is dropped before the cut to k",
     }

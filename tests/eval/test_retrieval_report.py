@@ -49,3 +49,19 @@ def test_the_report_has_both_scores_settings_and_the_question_table() -> None:
     assert "text found" in text and "right year" in text
     assert "RRF constant" in text and "$0.000012" in text
     assert "| ret-001 | AAPL | 2025 | 7 | 2 |" in text
+
+
+def test_the_verdict_says_plainly_when_hybrid_did_not_beat_vector() -> None:
+    from filingcheck.eval.retrieval_report import hybrid_verdict
+
+    rows = aggregate(
+        [
+            run("vector", False, 1.0, 1.0, 1.0),
+            run("hybrid", False, 1.0, 0.0, 1.0),
+            run("vector", True, 1.0, 1.0, 1.0),
+            run("hybrid", True, 1.0, 1.0, 1.0),
+        ]
+    )
+    text = hybrid_verdict(rows, 1)
+    assert "hybrid search did not beat vector search" in text
+    assert "(equal)" in text and "(below)" in text
