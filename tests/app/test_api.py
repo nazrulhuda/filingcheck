@@ -400,3 +400,39 @@ def test_examples_carry_the_ticker_and_fiscal_year_they_were_asked_with() -> Non
     client, _ = make(FakeChat([]), store=MemoryStore(examples=[example]))
     (served,) = client.get("/examples").json()
     assert (served["ticker"], served["fiscal_year"]) == ("WMT", 2026)
+
+
+# ---------------------------------------------------------------- Day 12 review: cached answers
+
+
+def capped(daily_cap: int = 0) -> tuple[TestClient, MemoryStore]:
+    cached = ask("Cached: peso swings [1].").model_dump()
+    example = ExampleAnswer(question=QUESTION, ticker="WMT", fiscal_year=2026, answer=cached)
+    return make(FakeChat([]), store=MemoryStore(examples=[example]), daily_cap=daily_cap)
+
+
+EXAMPLE_REF = {"question": QUESTION, "ticker": "WMT", "fiscal_year": 2026}
+
+
+def test_a_cached_answer_names_the_example_question_it_answers() -> None:
+    client, _ = capped()
+    body = client.post("/ask", json={"question": "Main risks for Walmart in Mexico?"}).json()
+    assert body["cached"] is True and body["example"] == EXAMPLE_REF
+    assert body["text"] == "Cached: peso swings [1]."
+
+
+def test_a_cached_stream_names_the_example_question_it_answers() -> None:
+    client, _ = capped()
+    response = client.post("/ask/stream", json={"question": "Main risks for Walmart in Mexico?"})
+    sent = events(response.text)
+    name, final = sent[-1]
+    assert name == "final" and final["cached"] is True and final["example"] == EXAMPLE_REF
+    assert final["answer"]["text"] == "Cached: peso swings [1]."
+
+
+def test_a_normal_answer_is_not_cached_and_names_no_example() -> None:
+    client, _ = make(FakeChat(["Peso swings [1].", "Peso swings [1]."]))
+    body = client.post("/ask", json={"question": QUESTION}).json()
+    assert body["cached"] is False and body["example"] is None
+    final = events(client.post("/ask/stream", json={"question": QUESTION}).text)[-1][1]
+    assert final["cached"] is False and final["example"] is None
