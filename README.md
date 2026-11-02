@@ -2,21 +2,34 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-An LLM agent that answers questions about public companies' SEC 10-K filings. Before any tool runs, the server checks every argument the model sent it (the company, the fiscal year, the metric, the units) against SEC data, fixes what it can and rejects the rest. These are *skeptical tools*. Every number in an answer is then labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. Built and measured as a portfolio project by Nazrul Huda Shanto (New York). The project measures whether skeptical checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. Results come in week 6.
+FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), built and measured over seven weeks.
 
-**Status: work in progress, week 1 of 7 done** (the data pipeline; see [docs/week1_summary.md](docs/week1_summary.md) and [docs/data_report.md](docs/data_report.md)). No results yet.
+What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent and the checks arrive in weeks 3 to 5 and the results in week 6; none of them is in the code yet.
+
+**Status: work in progress, week 2 of 7.** Search, baseline answers, the API and the web page are built; the public deploy is next. No evaluation results yet.
+
+## What works today
+
+- **75 filings, pinned and checked:** the last three 10-Ks of 25 companies, pinned by accession number, split into sections and 42,581 passages, and checked by `make verify-data` ([data report](docs/data_report.md), [spot check](docs/spot_check.md), [week 1 summary](docs/week1_summary.md)).
+- **Hybrid search, measured:** vector, keyword and hybrid search over the passages, scored on 40 questions with and without a company and year filter. Hybrid search did not beat vector search on these questions, and the report says so ([retrieval report](docs/retrieval_report.md)).
+- **Baseline answers with citations:** plain retrieval-augmented answers from one model call, with each claim cited to its passage. They are not checked, and they fall for the trap questions ([baseline answers](docs/baseline_examples.md)).
+- **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
+- **The web page:** a Next.js page with a citation chip for each source and five saved example answers, each checked against the passages it cites ([web](web/)).
 
 ## How to run
 
-Needs [uv](https://docs.astral.sh/uv/), GNU make and Docker. On Windows, run the commands from Git Bash, and keep the clone outside the Temp folder: Windows can block programs there, including the pre-commit hook. Copy `.env.example` to `.env` and put your contact email in `SEC_CONTACT_EMAIL` (the SEC requires one on every request).
+Needs [uv](https://docs.astral.sh/uv/), GNU make and Docker, and Node 24 for the web page. On Windows, run the commands from Git Bash, and keep the clone outside the Temp folder: Windows can block programs there, including the pre-commit hook. Copy `.env.example` to `.env` and put your contact email in `SEC_CONTACT_EMAIL` (the SEC requires one on every request). Searching needs `OPENAI_API_KEY` and answering needs `GROQ_API_KEY`; `GEMINI_API_KEY` is the fallback model's.
 
 ```bash
 make setup    # install Python 3.12, the dependencies and the pre-commit hooks
 make db-up    # start the local Postgres + pgvector database
 make ingest   # download the filings, split and chunk them, and load the database
+make embed    # embed the passages (prints the plan and its cost, then asks)
+make run      # the API on http://localhost:8000
+cd web && npm ci && npm run dev   # the page on http://localhost:3000
 ```
 
-`make lint` and `make test` run the same checks as CI; `make test-integration` runs the database tests against the local database from `make db-up`.
+`make lint` and `make test` run the same checks as CI; `make test-integration` runs the database tests against the local database from `make db-up`. In `web/`, `npm run lint`, `npm run typecheck` and `npm test` do the same for the page.
 
 ## Related work
 
