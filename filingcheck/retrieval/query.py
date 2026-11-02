@@ -25,6 +25,12 @@ class QueryEmbedder:
         """Tokens billed for questions so far."""
         return self.client.tokens_used
 
+    def prime(self, text: str, vector: list[float]) -> None:
+        """Put a known vector in the cache (saved query vectors), so it is never re-embedded."""
+        self._cache[text] = vector
+        if len(self._cache) > self.maxsize:
+            self._cache.popitem(last=False)
+
     def embed(self, text: str) -> list[float]:
         """The question's vector, from the cache when it was asked recently."""
         if text in self._cache:
