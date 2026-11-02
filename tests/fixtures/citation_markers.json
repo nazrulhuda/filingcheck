@@ -1,0 +1,22 @@
+{
+  "about": "Citation markers and the passage numbers they cite, in first-cited order, for an answer with `passages` passages. The API's parser (filingcheck/answer/citations.py) and the page's (web/lib/citations.ts) are both tested against this file.",
+  "cases": [
+    {"text": "Peso swings are a risk [2].", "passages": 8, "numbers": [2]},
+    {"text": "Two risks [1, 3].", "passages": 8, "numbers": [1, 3]},
+    {"text": "Two risks [1][3].", "passages": 8, "numbers": [1, 3]},
+    {"text": "Three risks [1-3].", "passages": 8, "numbers": [1, 2, 3]},
+    {"text": "Three risks [1–3].", "passages": 8, "numbers": [1, 2, 3]},
+    {"text": "A range written backwards [3-1].", "passages": 8, "numbers": [1, 2, 3]},
+    {"text": "Risks [3] and more [1] and again [3].", "passages": 8, "numbers": [3, 1]},
+    {"text": "A passage that does not exist [9], and one that does [4].", "passages": 8, "numbers": [4]},
+    {"text": "A range past the end [7-12].", "passages": 8, "numbers": [7, 8]},
+    {"text": "Spaces inside [ 2 , 5 ].", "passages": 8, "numbers": [2, 5]},
+    {"text": "No citation at all.", "passages": 8, "numbers": []},
+    {"text": "Not a citation: [a] or [] or [1a].", "passages": 8, "numbers": []},
+    {"text": "Lenticular 【1】", "passages": 8, "numbers": [1]},
+    {"text": "Lenticular pair 【1】【3】.", "passages": 8, "numbers": [1, 3]},
+    {"text": "Lenticular list 【1, 3】.", "passages": 8, "numbers": [1, 3]},
+    {"text": "Non-breaking hyphen [1‑3].", "passages": 8, "numbers": [1, 2, 3]},
+    {"text": "Mixed [2] and 【5】 and [1, 2].", "passages": 8, "numbers": [2, 5, 1]}
+  ]
+}

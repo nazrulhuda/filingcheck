@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -78,6 +78,9 @@ baseline-examples:  # the 6 example questions, batch mode, no filters; writes do
 EXAMPLES ?= eval/questions/examples.jsonl
 examples:  # answer the example questions (batch mode) and replace the cached answers /examples serves (costs money)
 	uv run python -m filingcheck.app.examples --questions $(EXAMPLES)
+
+examples-export:  # write the stored example answers to web/data/examples.json for the page; no model call
+	uv run python -m filingcheck.app.examples --export web/data/examples.json
 
 snapshot:  # rewrite data/section_snapshot.json and data/chunk_snapshot.json after an intended change
 	uv run python -m filingcheck.ingest.verify --write-snapshots

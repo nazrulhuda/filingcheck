@@ -151,7 +151,7 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     def admit(
         request: Request, body: AskRequest, request_id: str
-    ) -> tuple[str, JSONResponse | dict[str, Any] | None]:
+    ) -> tuple[str, JSONResponse | ExampleAnswer | None]:
         """The hashed address, and a refusal or a cached answer if the question is not let in."""
         peer = request.client.host if request.client else None
         ip_hash = hash_ip(
@@ -175,14 +175,21 @@ def create_app(services: Services | None = None) -> FastAPI:
         example = nearest_example(body.question, cached_examples())
         if example is None:
             return ip_hash, JSONResponse({"detail": DAILY_CAP}, status_code=429)
-        return ip_hash, {"request_id": request_id, "cached": True, **example.answer}
+        return ip_hash, example
 
     @app.post("/ask", response_model=None)
     def ask(body: AskRequest, request: Request) -> JSONResponse | dict[str, Any]:
         request_id = str(uuid.uuid4())
         ip_hash, refused = admit(request, body, request_id)
-        if refused is not None:
+        if isinstance(refused, JSONResponse):
             return refused
+        if refused is not None:  # a saved example's answer after the daily cap
+            return {
+                "request_id": request_id,
+                "cached": True,
+                "example": example_ref(refused),
+                **refused.answer,
+            }
         start = datetime.now(UTC)
         try:
             with services.retriever() as retriever:
@@ -198,7 +205,12 @@ def create_app(services: Services | None = None) -> FastAPI:
             save(new_row(request_id, body, ip_hash, error=exc.log_code, latency_ms=latency))
             return JSONResponse({"detail": UNAVAILABLE, "request_id": request_id}, status_code=503)
         save(new_row(request_id, body, ip_hash, **answer_fields(answer)))
-        return {"request_id": request_id, "cached": False, **answer.model_dump()}
+        return {
+            "request_id": request_id,
+            "cached": False,
+            "example": None,
+            **answer.model_dump(),
+        }
 
     @app.post("/ask/stream", response_model=None)
     def ask_stream(body: AskRequest, request: Request) -> JSONResponse | StreamingResponse:
@@ -208,9 +220,17 @@ def create_app(services: Services | None = None) -> FastAPI:
             return refused
 
         def events() -> Iterator[str]:
-            if refused is not None:  # a cached answer after the daily cap
-                yield sse("token", {"text": refused.get("text", "")})
-                yield sse("final", {"request_id": request_id, "cached": True, "answer": refused})
+            if refused is not None:  # a saved example's answer after the daily cap
+                yield sse("token", {"text": refused.answer.get("text", "")})
+                yield sse(
+                    "final",
+                    {
+                        "request_id": request_id,
+                        "cached": True,
+                        "example": example_ref(refused),
+                        "answer": refused.answer,
+                    },
+                )
                 return
             start = datetime.now(UTC)
             answer: Answer | None = None
@@ -241,7 +261,12 @@ def create_app(services: Services | None = None) -> FastAPI:
                 save(new_row(request_id, body, ip_hash, **answer_fields(answer)))
                 yield sse(
                     "final",
-                    {"request_id": request_id, "cached": False, "answer": answer.model_dump()},
+                    {
+                        "request_id": request_id,
+                        "cached": False,
+                        "example": None,
+                        "answer": answer.model_dump(),
+                    },
                 )
             finally:
                 # The visitor left before the answer was logged: the model was still called,
@@ -283,6 +308,15 @@ def create_app(services: Services | None = None) -> FastAPI:
         return {"since": since.isoformat(), **summary}
 
     return app
+
+
+def example_ref(example: ExampleAnswer) -> dict[str, Any]:
+    """The example question a cached answer belongs to, which is not the visitor's question."""
+    return {
+        "question": example.question,
+        "ticker": example.ticker,
+        "fiscal_year": example.fiscal_year,
+    }
 
 
 def sse(event: str, data: dict[str, Any]) -> str:

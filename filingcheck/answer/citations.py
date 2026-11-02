@@ -71,8 +71,12 @@ def normalize_text(text: str) -> str:
 
 
 class Citation(BaseModel):
-    """A passage the answer cites, with where it came from."""
+    """A passage the answer cites, with where it came from.
 
+    `number` is the passage's number in the prompt, the n of the answer's [n] markers.
+    """
+
+    number: int
     chunk_id: int
     ticker: str
     fiscal_year: int
@@ -96,6 +100,7 @@ def parse_citations(text: str, hits: list[Hit]) -> list[Citation]:
     """Citations for the passages the text cites; numbers that point to no passage are dropped."""
     return [
         Citation(
+            number=n,
             chunk_id=hit.chunk_id,
             ticker=hit.ticker,
             fiscal_year=hit.fiscal_year,
@@ -103,7 +108,7 @@ def parse_citations(text: str, hits: list[Hit]) -> list[Citation]:
             source_url=hit.source_url,
             quote=hit.text[:QUOTE_CHARS],
         )
-        for hit in (hits[n - 1] for n in cited_numbers(text, len(hits)))
+        for n, hit in ((n, hits[n - 1]) for n in cited_numbers(text, len(hits)))
     ]
 
 
