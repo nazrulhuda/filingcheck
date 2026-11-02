@@ -13,7 +13,7 @@ from filingcheck.answer.baseline import (
     is_abstain,
     passage_header,
 )
-from filingcheck.answer.citations import has_uncited_claims, parse_citations
+from filingcheck.answer.citations import has_uncited_claims, normalize_text, parse_citations
 from filingcheck.answer.examples import HEADER, render_examples, run_examples
 from filingcheck.answer.run import format_answer, settings_line
 from filingcheck.llm import Completion, FakeChat, IncompleteAnswer, describe_settings
@@ -333,3 +333,49 @@ def test_an_incomplete_answer_stops_the_examples_run_and_is_printed(tmp_path: An
     assert "trap-002" in printed and "finish_reason: length" in printed
     assert "completion 700" in printed and "$0.000323" in printed
     assert "Walmart's rev" in printed
+
+
+# ---------------------------------------------------------------- dashes and spaces models write
+
+DASHES = (0x2010, 0x2011, 0x2012, 0x2013, 0x2212)
+HYPHEN, NB_HYPHEN, FIGURE_DASH, EN_DASH, MINUS = (chr(c) for c in DASHES)
+EM_DASH = chr(0x2014)
+NBSP, FIGURE_SPACE, THIN_SPACE, NARROW_NBSP = (chr(c) for c in (0x00A0, 0x2007, 0x2009, 0x202F))
+
+
+def test_unicode_dashes_and_spaces_are_normalized_for_parsing_only() -> None:
+    dashes = "".join([HYPHEN, NB_HYPHEN, FIGURE_DASH, EN_DASH, MINUS])
+    spaces = "".join([NBSP, FIGURE_SPACE, THIN_SPACE, NARROW_NBSP])
+    assert normalize_text(f"a{dashes}b{EM_DASH}c{spaces}d") == "a-----b c    d"
+    text = f"Walmart{NB_HYPHEN}Mexico grew{EM_DASH}12%{NARROW_NBSP}[1]."
+    answer = ask(text)
+    assert answer.text == text and [c.chunk_id for c in answer.citations] == [101]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"Walmart filed its 10{NB_HYPHEN}K.",
+        f"COVID{NB_HYPHEN}19 hurt sales.",
+        f"Sales grew{EM_DASH}12% in fiscal 2025 [2].",
+        f"Sales rose in fiscal 2023{EN_DASH}2025 [1].",
+    ],
+)
+def test_normalized_labels_and_cited_figures_are_not_flagged(text: str) -> None:
+    assert not has_uncited_claims(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"Sales grew{EM_DASH}12% in fiscal 2025.",
+        f"Sales in Mexico changed by {MINUS}3%.",
+        f"Mexico was 9.4{NARROW_NBSP}% of net sales.",
+    ],
+)
+def test_normalized_uncited_figures_are_flagged(text: str) -> None:
+    assert has_uncited_claims(text)
+
+
+def test_a_range_written_with_a_non_breaking_hyphen_cites_every_passage() -> None:
+    assert [c.chunk_id for c in parse_citations(f"Risks [1{NB_HYPHEN}3].", HITS)] == [101, 102, 103]
