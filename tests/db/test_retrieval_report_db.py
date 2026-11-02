@@ -12,9 +12,9 @@ import pytest
 from filingcheck.embeddings.fake import FakeEmbeddings
 from filingcheck.eval import retrieval_report
 from filingcheck.paths import REPO_ROOT
+from tests.db.test_load import FILING
 from tests.db.test_retrieval_db import (  # noqa: F401  (`searchable` is a fixture)
     AAPL_2024,
-    FILING,
     IBM_2025,
     TOPICS,
     searchable,
