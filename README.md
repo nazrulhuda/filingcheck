@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), built and measured over seven weeks.
+FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
 
 What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent and the checks arrive in weeks 3 to 5 and the results in week 6; none of them is in the code yet.
 
@@ -12,7 +12,7 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 
 - **75 filings, pinned and checked:** the last three 10-Ks of 25 companies, pinned by accession number, split into sections and 42,581 passages, and checked by `make verify-data` ([data report](docs/data_report.md), [spot check](docs/spot_check.md), [week 1 summary](docs/week1_summary.md)).
 - **Hybrid search, measured:** vector, keyword and hybrid search over the passages, scored on 40 questions with and without a company and year filter. Hybrid search did not beat vector search on these questions, and the report says so ([retrieval report](docs/retrieval_report.md)).
-- **Baseline answers with citations:** plain retrieval-augmented answers from one model call, with each claim cited to its passage. They are not checked, and they fall for the trap questions ([baseline answers](docs/baseline_examples.md)).
+- **Baseline answers with citations:** plain retrieval-augmented answers from one model call, asked to cite every claim to its passage; an answer with an uncited figure is flagged. They are not checked, and on the example trap questions they guess the company or the year, or decline to answer ([baseline answers](docs/baseline_examples.md)).
 - **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
 - **The web page:** a Next.js page with a citation chip for each source and five saved example answers, each checked against the passages it cites ([web](web/)).
 
