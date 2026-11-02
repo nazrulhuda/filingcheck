@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from filingcheck.answer.baseline import ABSTAIN
 from filingcheck.app.api import Services, create_app
 from filingcheck.app.limits import TokenBucket, client_ip, hash_ip, nearest_example
-from filingcheck.app.settings import Settings
+from filingcheck.app.settings import MAX_BODY_BYTES, Settings
 from filingcheck.app.stats import compute_stats, percentile
 from filingcheck.app.store import CompanyInfo, ExampleAnswer, MemoryStore, RequestRow
 from filingcheck.llm import ChatModel, FakeChat, IncompleteAnswer, ProviderUnavailable
@@ -109,6 +109,46 @@ def test_bad_requests_are_refused_before_any_model_call(payload: dict[str, Any])
     client, store = make(model)
     assert client.post("/ask", json=payload).status_code == 422
     assert model.calls == [] and store.rows == []
+
+
+# A question is at most 500 characters; a body over 16 KB is refused before it is read in full,
+# so a stream of oversized posts cannot fill the small server's memory.
+JSON = {"Content-Type": "application/json"}
+
+
+@pytest.mark.parametrize("path", ["/ask", "/ask/stream"])
+def test_a_body_over_16_kb_is_refused_by_its_length_header(path: str) -> None:
+    model = FakeChat([])
+    client, store = make(model)
+    body = json.dumps({"question": "x" * MAX_BODY_BYTES}).encode()
+    response = client.post(path, content=body, headers=JSON)
+    assert response.status_code == 413
+    assert "16 KB" in response.json()["detail"]
+    assert model.calls == [] and store.rows == []
+
+
+@pytest.mark.parametrize("path", ["/ask", "/ask/stream"])
+def test_a_body_with_no_length_header_is_refused_once_it_passes_16_kb(path: str) -> None:
+    model = FakeChat([])
+    client, store = make(model)
+
+    def chunks() -> Iterator[bytes]:
+        yield b'{"question": "'
+        for _ in range(32):
+            yield b"x" * 1024
+        yield b'"}'
+
+    response = client.post(path, content=chunks(), headers=JSON)
+    assert response.status_code == 413
+    assert model.calls == [] and store.rows == []
+
+
+def test_a_body_of_exactly_16_kb_is_read() -> None:
+    client, _ = make(FakeChat(["Peso swings are a risk [1]."]))
+    body = json.dumps({"question": QUESTION}).encode()
+    body += b" " * (MAX_BODY_BYTES - len(body))  # JSON allows trailing spaces
+    assert len(body) == 16 * 1024
+    assert client.post("/ask", content=body, headers=JSON).status_code == 200
 
 
 def test_the_model_gets_at_most_700_tokens() -> None:

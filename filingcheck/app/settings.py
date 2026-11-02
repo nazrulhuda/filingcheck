@@ -13,6 +13,8 @@ log = logging.getLogger(__name__)
 DEFAULT_DAILY_CAP = 65
 PER_IP_PER_HOUR = 20
 MAX_QUESTION_CHARS = 500
+# Far above any valid request (a question is at most 500 characters); see limits.BodySizeLimit.
+MAX_BODY_BYTES = 16 * 1024
 DEFAULT_CORS_ORIGINS = ("http://localhost:3000",)
 
 
