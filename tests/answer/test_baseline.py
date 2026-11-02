@@ -12,6 +12,7 @@ from filingcheck.answer.baseline import (
     answer_question,
     is_abstain,
     passage_header,
+    stream_answer,
 )
 from filingcheck.answer.citations import has_uncited_claims, normalize_text, parse_citations
 from filingcheck.answer.examples import HEADER, render_examples, run_examples
@@ -379,3 +380,60 @@ def test_normalized_uncited_figures_are_flagged(text: str) -> None:
 
 def test_a_range_written_with_a_non_breaking_hyphen_cites_every_passage() -> None:
     assert [c.chunk_id for c in parse_citations(f"Risks [1{NB_HYPHEN}3].", HITS)] == [101, 102, 103]
+
+
+# ---------------------------------------------------------------- streaming
+
+
+def test_a_streamed_answer_yields_text_then_the_full_answer() -> None:
+    items = list(
+        stream_answer(
+            "Q?", retriever=FakeRetriever(degraded=True), model=FakeChat(["Peso swings [1]."])
+        )
+    )
+    texts, final = items[:-1], items[-1]
+    assert isinstance(final, Answer) and all(isinstance(t, str) for t in texts)
+    assert "".join(str(t) for t in texts) == final.text == "Peso swings [1]."
+    assert [c.chunk_id for c in final.citations] == [101] and final.degraded
+
+
+def test_the_baseline_examples_ignore_the_question_files_company_and_year(tmp_path: Any) -> None:
+    retriever = FakeRetriever()
+    trap = [{"id": "trap-002", "question": "Walmart 2025?", "company": "WMT", "fiscal_year": 2025}]
+    run_examples(
+        trap,
+        retriever=retriever,
+        model=FakeChat(["A [1]."]),
+        settings="s",
+        output=tmp_path / "out.md",
+        run_date=date(2026, 11, 2),
+        out=lambda _: None,
+    )
+    assert (retriever.calls[0]["ticker"], retriever.calls[0]["fiscal_year"]) == (None, None)
+
+
+# ---------------------------------------------------------------- lenticular brackets
+
+OPEN, CLOSE = chr(0x3010), chr(0x3011)  # the citation brackets gpt-oss sometimes writes
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (f"Peso swings are a risk {OPEN}1{CLOSE}", [101]),
+        (f"Two risks {OPEN}1{CLOSE}{OPEN}3{CLOSE}.", [101, 103]),
+        (f"Two risks {OPEN}1, 3{CLOSE}.", [101, 103]),
+    ],
+)
+def test_lenticular_bracket_citations_are_read_like_square_ones(
+    text: str, expected: list[int]
+) -> None:
+    assert [c.chunk_id for c in parse_citations(text, HITS)] == expected
+
+
+def test_a_figure_cited_with_lenticular_brackets_is_not_flagged_and_the_text_is_kept() -> None:
+    text = f"Amortization will be $235 million in fiscal 2026{OPEN}1{CLOSE}"
+    assert not has_uncited_claims(text)
+    answer = ask(text)
+    assert answer.text == text and [c.chunk_id for c in answer.citations] == [101]
+    assert not answer.has_uncited_claims

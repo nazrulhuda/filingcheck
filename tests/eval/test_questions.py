@@ -98,10 +98,10 @@ def test_ids_must_be_unique_across_files(tmp_path: Path) -> None:
 
 
 def test_the_example_file_is_valid() -> None:
-    files = [  # the retrieval questions have their own format
+    files = [  # the retrieval questions and the page examples have their own formats
         f
         for f in sorted((REPO / "eval" / "questions").glob("*.jsonl"))
-        if not f.name.startswith("retrieval")
+        if not f.name.startswith(("retrieval", "page_"))
     ]
     assert files, "eval/questions has no .jsonl files"
     counts = validate_files(files, TICKERS | {"KO"})

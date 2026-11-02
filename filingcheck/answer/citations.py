@@ -10,10 +10,12 @@ QUOTE_CHARS = 200
 # Parsing reads a copy of the answer with these mapped; the answer itself is kept as returned.
 # Hyphen, non-breaking hyphen, figure dash, en dash and minus sign become "-". The em dash
 # separates words, so it becomes a space: as "-" it would glue "grew" to "12%" and hide
-# the figure. No-break, figure, thin and narrow no-break spaces become a plain space.
+# the figure. No-break, figure, thin and narrow no-break spaces become a plain space. The
+# lenticular brackets gpt-oss sometimes writes around citations become square brackets.
 NORMALIZE = str.maketrans(
-    dict.fromkeys((8208, 8209, 8210, 8211, 8722), "-")
-    | dict.fromkeys((8212, 160, 8199, 8201, 8239), " ")
+    dict.fromkeys((0x2010, 0x2011, 0x2012, 0x2013, 0x2212), "-")
+    | dict.fromkeys((0x2014, 0x00A0, 0x2007, 0x2009, 0x202F), " ")
+    | {0x3010: "[", 0x3011: "]"}
 )
 # [1], [1, 3], [1-3]; [1][3] is two matches.
 CITATION_RE = re.compile(r"\[\s*(\d+(?:\s*[,-]\s*\d+)*)\s*\]")

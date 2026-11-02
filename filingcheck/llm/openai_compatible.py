@@ -7,10 +7,11 @@ to 4 times; if the provider still fails the run stops. Wrong keys, missing model
 spend limit and an empty prepaid balance raise `ProviderUnavailable` in both modes.
 """
 
+import json
 import logging
 import os
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import httpx
@@ -79,6 +80,11 @@ class OpenAICompatibleChat:
         self._clock = clock
         self._http: httpx.Client | None = None
 
+    @property
+    def provider(self) -> str:
+        """The provider part of the name, for example "groq"."""
+        return self.name.partition(":")[0]
+
     def complete(
         self,
         messages: list[Message],
@@ -89,42 +95,110 @@ class OpenAICompatibleChat:
     ) -> Completion:
         """One reply, retried or failed over according to the mode."""
         body = self._body(messages, max_tokens, temperature, json_schema)
+        start = self._clock()
+        response = self._send(body, stream=False)
+        latency_ms = (self._clock() - start) * 1000
+        data = response.json()
+        choice = data["choices"][0]
+        return self._finish(
+            (choice.get("message") or {}).get("content") or "",
+            choice.get("finish_reason") or "",
+            data.get("usage") or {},
+            response.headers,
+            latency_ms,
+        )
+
+    def stream(
+        self,
+        messages: list[Message],
+        *,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> Iterator[str | Completion]:
+        """The reply's text in pieces as it arrives, then the whole `Completion`.
+
+        Starting the stream is retried like `complete`. Once text has been sent nothing is
+        retried: an empty or cut-off reply raises `IncompleteAnswer` at the end. Usage is
+        asked for with `stream_options`; Groq's reference does not say where streamed usage
+        appears, so both the standard `usage` and Groq's `x_groq.usage` are read.
+        """
+        body = self._body(messages, max_tokens, temperature, None)
+        body |= {"stream": True, "stream_options": {"include_usage": True}}
+        start = self._clock()
+        response = self._send(body, stream=True)
+        parts: list[str] = []
+        finish = ""
+        usage: dict[str, Any] = {}
+        try:
+            for line in response.iter_lines():
+                if not line.startswith("data:"):
+                    continue
+                payload = line[len("data:") :].strip()
+                if payload == "[DONE]":
+                    break
+                data = json.loads(payload)
+                usage = data.get("usage") or (data.get("x_groq") or {}).get("usage") or usage
+                for choice in data.get("choices") or []:
+                    text = (choice.get("delta") or {}).get("content")
+                    if text:
+                        parts.append(text)
+                        yield text
+                    finish = choice.get("finish_reason") or finish
+        except httpx.TransportError as exc:
+            raise ProviderError(
+                f"{self.name}: the stream broke ({type(exc).__name__})",
+                provider=self.provider,
+                code="stream_broken",
+            ) from exc
+        finally:
+            response.close()
+        latency_ms = (self._clock() - start) * 1000
+        yield self._finish("".join(parts), finish, usage, response.headers, latency_ms)
+
+    def _send(self, body: dict[str, Any], *, stream: bool) -> httpx.Response:
+        """A successful response, after the retries and waits the mode allows."""
         http = self._client()
         waited = 0.0
+        problem, status, code = "", None, None
         for attempt in range(MAX_RETRIES + 1):
             asked = 0.0  # how long the provider asked us to wait
-            start = self._clock()
             try:
-                response = http.post(self.url, json=body)
+                request = http.build_request("POST", self.url, json=body)
+                response = http.send(request, stream=stream)
             except httpx.TimeoutException as exc:
-                problem = f"timed out after {TIMEOUT_SECONDS:.0f} s"
+                problem, status, code = f"timed out after {TIMEOUT_SECONDS:.0f} s", None, "timeout"
                 if self.mode == "live":
-                    raise ProviderUnavailable(f"{self.name}: {problem}") from exc
+                    raise self._unavailable(problem, status, code) from exc
             except httpx.TransportError as exc:
-                problem = f"{type(exc).__name__}: {exc}"
+                problem, status, code = f"{type(exc).__name__}: {exc}", None, "connection_error"
                 if self.mode == "live":
-                    raise ProviderUnavailable(f"{self.name}: {problem}") from exc
+                    raise self._unavailable(problem, status, code) from exc
             else:
-                latency_ms = (self._clock() - start) * 1000
-                status = response.status_code
-                if _unavailable(response):
-                    message = f"{self.name}: HTTP {status}: {_message(response)}"
-                    log.error("provider unavailable: %s", message)
-                    raise ProviderUnavailable(message)
-                if status < 400:
-                    return self._completion(response, latency_ms)
-                if status != 429 and status < 500:
-                    raise ProviderError(f"{self.name}: HTTP {status}: {_message(response)}")
+                if response.status_code < 400:
+                    return response
+                if stream:
+                    response.read()
+                    response.close()
+                status, code = response.status_code, _error_field(response, "code")
                 problem = f"HTTP {status}: {_message(response)}"
+                if _unavailable(response):
+                    log.error("provider unavailable: %s: %s", self.name, problem)
+                    raise self._unavailable(problem, status, code)
+                if status != 429 and status < 500:
+                    raise ProviderError(
+                        f"{self.name}: {problem}", provider=self.provider, status=status, code=code
+                    )
                 asked = _retry_after(response)
             if attempt == MAX_RETRIES:
                 break
             wait = max(BACKOFF_SECONDS * 2**attempt, asked)
             if self.mode == "live":
                 if waited + wait > LIVE_WAIT_BUDGET_SECONDS:
-                    raise ProviderUnavailable(
-                        f"{self.name}: {problem}; waiting {wait:.0f} s more would pass the "
-                        f"{LIVE_WAIT_BUDGET_SECONDS:.0f} s live limit"
+                    raise self._unavailable(
+                        f"{problem}; waiting {wait:.0f} s more would pass the "
+                        f"{LIVE_WAIT_BUDGET_SECONDS:.0f} s live limit",
+                        status,
+                        code,
                     )
             else:
                 wait = min(wait, BATCH_MAX_WAIT_SECONDS)
@@ -132,11 +206,19 @@ class OpenAICompatibleChat:
             self._sleep(wait)
             waited += wait
         if self.mode == "live":
-            raise ProviderUnavailable(
-                f"{self.name}: {problem}; gave up after {MAX_RETRIES} retries"
-            )
+            raise self._unavailable(f"{problem}; gave up after {MAX_RETRIES} retries", status, code)
         raise ProviderError(
-            f"{self.name}: {problem}; gave up after {MAX_RETRIES} retries, so the run stops"
+            f"{self.name}: {problem}; gave up after {MAX_RETRIES} retries, so the run stops",
+            provider=self.provider,
+            status=status,
+            code=code,
+        )
+
+    def _unavailable(
+        self, problem: str, status: int | None, code: str | None
+    ) -> ProviderUnavailable:
+        return ProviderUnavailable(
+            f"{self.name}: {problem}", provider=self.provider, status=status, code=code
         )
 
     def _body(
@@ -167,7 +249,7 @@ class OpenAICompatibleChat:
             if not key:
                 message = f"{self.name}: {self.api_key_env} is not set (see .env.example)"
                 log.error("provider unavailable: %s", message)
-                raise ProviderUnavailable(message)
+                raise ProviderUnavailable(message, provider=self.provider, code="missing_key")
             self._http = httpx.Client(
                 headers={"Authorization": f"Bearer {key}"},
                 timeout=TIMEOUT_SECONDS,
@@ -175,10 +257,15 @@ class OpenAICompatibleChat:
             )
         return self._http
 
-    def _completion(self, response: httpx.Response, latency_ms: float) -> Completion:
-        data = response.json()
-        choice = data["choices"][0]
-        usage = data.get("usage") or {}
+    def _finish(
+        self,
+        text: str,
+        finish_reason: str,
+        usage: dict[str, Any],
+        headers: httpx.Headers,
+        latency_ms: float,
+    ) -> Completion:
+        """The completion with its cost; raise if it is incomplete or, in batch, unpriced."""
         prompt = _int_or_none(usage.get("prompt_tokens"))
         output = _int_or_none(usage.get("completion_tokens"))
         billed_output = output
@@ -187,16 +274,14 @@ class OpenAICompatibleChat:
             # Thinking tokens left out of completion_tokens are still billed as output.
             billed_output = max(output, total - prompt)
         completion = Completion(
-            text=(choice.get("message") or {}).get("content") or "",
+            text=text,
             prompt_tokens=prompt,
             completion_tokens=output,
             model=self.name,
             latency_ms=latency_ms,
             cost_usd=chat_cost_usd(self.name, prompt, billed_output),
-            finish_reason=choice.get("finish_reason") or "",
-            rate_limits={
-                k: v for k, v in response.headers.items() if k.lower().startswith("x-ratelimit-")
-            },
+            finish_reason=finish_reason,
+            rate_limits={k: v for k, v in headers.items() if k.lower().startswith("x-ratelimit-")},
             usage=usage,
         )
         if not completion.text.strip() or completion.finish_reason != "stop":
@@ -204,12 +289,20 @@ class OpenAICompatibleChat:
                 f"{self.name}: incomplete answer (finish_reason={completion.finish_reason!r}, "
                 f"{len(completion.text)} characters, completion_tokens={output})",
                 completion,
+                provider=self.provider,
+                code=(
+                    f"incomplete_{finish_reason or 'none'}"
+                    if completion.text.strip()
+                    else "incomplete_empty"
+                ),
             )
         if completion.cost_usd is None:
             if self.mode == "batch":
                 raise UnknownCostError(
                     f"{self.name}: the reply has no token usage, so its cost is unknown; "
-                    "a batch run needs every cost"
+                    "a batch run needs every cost",
+                    provider=self.provider,
+                    code="no_usage",
                 )
             self.unknown_cost_count += 1
             log.warning("%s: reply without token usage; cost unknown", self.name)

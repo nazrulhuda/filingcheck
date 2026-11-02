@@ -1,11 +1,15 @@
 """What every chat model takes and returns, and the errors callers handle."""
 
+import re
+from collections.abc import Iterator
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
 Mode = Literal["live", "batch"]
 Message = dict[str, str]  # {"role": "system" | "user" | "assistant", "content": ...}
+CODE_CHARS_RE = re.compile(r"[^A-Za-z0-9_.-]")
+MAX_CODE_CHARS = 60
 
 
 class Completion(BaseModel):
@@ -38,9 +42,43 @@ class ChatModel(Protocol):
         """One reply; `temperature=None` means the model's setting from the registry."""
         ...
 
+    def stream(
+        self,
+        messages: list[Message],
+        *,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> Iterator[str | Completion]:
+        """The reply's text in pieces as it arrives, then the whole `Completion`."""
+        ...
+
 
 class ProviderError(RuntimeError):
-    """A provider call failed in a way another model would not fix; the run stops."""
+    """A provider call failed in a way another model would not fix; the run stops.
+
+    The message may hold the provider's own text (Groq's 429 names the organization), so
+    only `log_code` (provider, HTTP status, the provider's error code) may be stored or shown.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        status: int | None = None,
+        code: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.status = status
+        self.code = code
+
+    @property
+    def log_code(self) -> str:
+        """For example "groq 429 rate_limit_exceeded"; "-" marks a part that is unknown."""
+        code = CODE_CHARS_RE.sub("_", self.code)[:MAX_CODE_CHARS] if self.code else "-"
+        provider = CODE_CHARS_RE.sub("_", self.provider)[:20] if self.provider else "-"
+        return f"{provider} {self.status if self.status is not None else '-'} {code}"
 
 
 class ProviderUnavailable(ProviderError):  # noqa: N818
@@ -54,6 +92,13 @@ class UnknownCostError(ProviderError):
 class IncompleteAnswer(ProviderError):  # noqa: N818
     """The reply was empty or cut off (finish_reason other than "stop"); never shown."""
 
-    def __init__(self, message: str, completion: Completion) -> None:
-        super().__init__(message)
+    def __init__(
+        self,
+        message: str,
+        completion: Completion,
+        *,
+        provider: str | None = None,
+        code: str | None = None,
+    ) -> None:
+        super().__init__(message, provider=provider, code=code)
         self.completion = completion

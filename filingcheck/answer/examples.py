@@ -69,6 +69,53 @@ def _yes(flag: bool) -> str:
     return "yes" if flag else "no"
 
 
+def load_example_questions(path: Path) -> list[dict[str, Any]]:
+    """The questions in a JSONL file; each line needs at least "id" and "question"."""
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+
+
+def answer_examples(
+    examples: list[dict[str, Any]],
+    *,
+    retriever: Retriever,
+    model: ChatModel,
+    use_filters: bool = False,
+    out: Callable[[str], None] = print,
+) -> list[tuple[str, str, Answer]] | None:
+    """Every example's (id, question, answer), or None at the first degraded or cut-off one.
+
+    With `use_filters` each question is searched within its "ticker" and "fiscal_year"; the
+    baseline file asks with the question text only. A degraded answer came from keyword
+    search alone (the question could not be embedded), and an incomplete one is not an
+    answer, so neither may be saved as an example.
+    """
+    rows: list[tuple[str, str, Answer]] = []
+    for example in examples:
+        try:
+            answer = answer_question(
+                example["question"],
+                retriever=retriever,
+                model=model,
+                ticker=example.get("ticker") if use_filters else None,
+                fiscal_year=example.get("fiscal_year") if use_filters else None,
+            )
+        except IncompleteAnswer as exc:
+            out(f"{example['id']}: stopped, nothing saved")
+            out(format_incomplete(exc))
+            return None
+        if answer.degraded:
+            out(
+                f"{example['id']}: degraded (keyword search answered alone because the question "
+                "could not be embedded); stopped, nothing saved"
+            )
+            return None
+        out(f"{example['id']}: {answer.model_used}, cost {format_cost(answer.cost_usd)}")
+        rows.append((example["id"], example["question"], answer))
+    return rows
+
+
 def run_examples(
     examples: list[dict[str, Any]],
     *,
@@ -79,27 +126,10 @@ def run_examples(
     run_date: date,
     out: Callable[[str], None] = print,
 ) -> int:
-    """Answer every example and write the file; stop without writing on a degraded answer.
-
-    A degraded answer came from keyword search alone (the question could not be embedded),
-    and an incomplete one is not an answer, so neither may stand in the baseline file.
-    """
-    rows: list[tuple[str, str, Answer]] = []
-    for example in examples:
-        try:
-            answer = answer_question(example["question"], retriever=retriever, model=model)
-        except IncompleteAnswer as exc:
-            out(f"{example['id']}: stopped, nothing written")
-            out(format_incomplete(exc))
-            return 1
-        if answer.degraded:
-            out(
-                f"{example['id']}: degraded (keyword search answered alone because the question "
-                f"could not be embedded); stopped, {output.name} not written"
-            )
-            return 1
-        out(f"{example['id']}: {answer.model_used}, cost {format_cost(answer.cost_usd)}")
-        rows.append((example["id"], example["question"], answer))
+    """Answer every example and write the file; stop without writing on a degraded answer."""
+    rows = answer_examples(examples, retriever=retriever, model=model, out=out)
+    if rows is None:
+        return 1
     output.write_text(
         render_examples(rows, settings=settings, run_date=run_date),
         encoding="utf-8",
@@ -115,14 +145,9 @@ def main() -> int:
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     router = router_from_env("batch")
-    examples = [
-        json.loads(line)
-        for line in EXAMPLES_FILE.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
     with connect() as conn:
         return run_examples(
-            examples,
+            load_example_questions(EXAMPLES_FILE),
             retriever=hybrid_retriever(conn),
             model=router,
             settings=settings_line(router.primary.name, filters="no filters (question text only)"),

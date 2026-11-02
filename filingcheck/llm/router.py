@@ -1,7 +1,8 @@
 """The primary chat model with fallbacks, used in live mode only."""
 
+import itertools
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from filingcheck.llm.chat import (
@@ -66,5 +67,41 @@ class ModelRouter:
             if i > 0:
                 self.fallbacks_used += 1
             return completion
+        assert failure is not None
+        raise failure
+
+    def stream(
+        self,
+        messages: list[Message],
+        *,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> Iterator[str | Completion]:
+        """The reply's text in pieces, then the `Completion`.
+
+        In live mode a model that fails before its first piece of text is skipped like in
+        `complete`. Once text has been sent the answer belongs to that model: a failure after
+        that is raised, because the text already shown cannot be taken back by a fallback.
+        """
+        models = [self.primary] if self.mode == "batch" else [self.primary, *self.fallbacks]
+        failure: ProviderUnavailable | IncompleteAnswer | None = None
+        for i, model in enumerate(models):
+            events = model.stream(messages, max_tokens=max_tokens, temperature=temperature)
+            try:
+                first = next(events)
+            except (ProviderUnavailable, IncompleteAnswer) as exc:
+                if self.mode == "batch":
+                    raise
+                log.warning("%s failed (%s); trying the next model", model.name, exc)
+                failure = exc
+                continue
+            for event in itertools.chain([first], events):
+                if isinstance(event, Completion):
+                    self.last_model = event.model
+                    self.last_completion = event
+                    if i > 0:
+                        self.fallbacks_used += 1
+                yield event
+            return
         assert failure is not None
         raise failure
