@@ -131,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
 
     paths = sorted(args.dir.glob("*.jsonl"))
     retrieval = [p for p in paths if p.name.startswith("retrieval")]  # their own format
+    paths = [p for p in paths if not p.name.startswith("page_")]  # the page examples, not eval
     try:
         counts = validate_files([p for p in paths if p not in retrieval], tickers)
         for path in retrieval:
