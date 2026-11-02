@@ -16,11 +16,11 @@
         {
           "item": "7",
           "quote": "the Ukrainian hryvnia as its functional currency. As of December 31, 2025, Citi had $1.9 billion of direct exposures related to Ukraine (compared to $1.7 billion at September 30, 2025).\n\nArgentina\n\nCi",
+          "number": 1,
           "ticker": "C",
           "chunk_id": 6700,
           "source_url": "https://www.sec.gov/Archives/edgar/data/831001/000083100126000011/c-20251231.htm",
-          "fiscal_year": 2025,
-          "number": 1
+          "fiscal_year": 2025
         }
       ],
       "latency_ms": 1978.638199994748,
@@ -47,11 +47,11 @@
         {
           "item": "7A",
           "quote": "rates and the related impact on the translation of the balance sheets resulted in the $0.3 billion net gain in the currency translation and other category of accumulated other comprehensive loss.\n\nWe ",
+          "number": 1,
           "ticker": "WMT",
           "chunk_id": 41662,
           "source_url": "https://www.sec.gov/Archives/edgar/data/104169/000010416924000056/wmt-20240131.htm",
-          "fiscal_year": 2024,
-          "number": 1
+          "fiscal_year": 2024
         }
       ],
       "latency_ms": 673.7189999985276,
@@ -78,11 +78,11 @@
         {
           "item": "7A",
           "quote": "our financial liabilities, which include debt and deposit liabilities, were at interest rates which vary with market rates, either directly or through the use of related interest rate swap contracts.\n",
+          "number": 1,
           "ticker": "UNH",
           "chunk_id": 39191,
           "source_url": "https://www.sec.gov/Archives/edgar/data/731766/000073176624000081/unh-20231231.htm",
-          "fiscal_year": 2023,
-          "number": 1
+          "fiscal_year": 2023
         }
       ],
       "latency_ms": 1077.4787999980617,
@@ -109,20 +109,20 @@
         {
           "item": "1A",
           "quote": "some of our content, merchandising our products and marketing our service.  From time to time, third parties allege that we have infringed or otherwise violated their intellectual property rights.  If",
+          "number": 1,
           "ticker": "NFLX",
           "chunk_id": 32211,
           "source_url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528024000030/nflx-20231231.htm",
-          "fiscal_year": 2023,
-          "number": 1
+          "fiscal_year": 2023
         },
         {
           "item": "1A",
           "quote": "resources to developing patents that could potentially affect many aspects of our business.  There are numerous patents that broadly claim means and methods of conducting business on the internet.  We",
+          "number": 7,
           "ticker": "NFLX",
           "chunk_id": 32212,
           "source_url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528024000030/nflx-20231231.htm",
-          "fiscal_year": 2023,
-          "number": 7
+          "fiscal_year": 2023
         }
       ],
       "latency_ms": 1281.3115999961155,
@@ -149,29 +149,29 @@
         {
           "item": "8",
           "quote": "In making this assessment, our management used the criteria set forth by the Committee of Sponsoring Organizations of the Treadway Commission (COSO) in Internal Control —Integrated Framework (2013).\n\n",
+          "number": 1,
           "ticker": "AXP",
           "chunk_id": 3374,
           "source_url": "https://www.sec.gov/Archives/edgar/data/4962/000000496226000080/axp-20251231.htm",
-          "fiscal_year": 2025,
-          "number": 1
+          "fiscal_year": 2025
         },
         {
           "item": "8",
           "quote": "to permit preparation of financial statements in accordance with GAAP and that our receipts and expenditures are being made only in accordance with authorizations of our management and directors; and\n",
+          "number": 5,
           "ticker": "AXP",
           "chunk_id": 3373,
           "source_url": "https://www.sec.gov/Archives/edgar/data/4962/000000496226000080/axp-20251231.htm",
-          "fiscal_year": 2025,
-          "number": 5
+          "fiscal_year": 2025
         },
         {
           "item": "8",
           "quote": "effective internal control over financial reporting as of December 31, 2025, based on criteria established in Internal Control - Integrated Framework (2013) issued by the COSO.\n\nBasis for Opinions\n\nTh",
+          "number": 8,
           "ticker": "AXP",
           "chunk_id": 3377,
           "source_url": "https://www.sec.gov/Archives/edgar/data/4962/000000496226000080/axp-20251231.htm",
-          "fiscal_year": 2025,
-          "number": 8
+          "fiscal_year": 2025
         }
       ],
       "latency_ms": 13034.093400005077,
