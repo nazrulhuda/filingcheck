@@ -12,6 +12,7 @@ from filingcheck.answer.baseline import (
     answer_question,
     is_abstain,
     passage_header,
+    stream_answer,
 )
 from filingcheck.answer.citations import has_uncited_claims, normalize_text, parse_citations
 from filingcheck.answer.examples import HEADER, render_examples, run_examples
@@ -379,3 +380,18 @@ def test_normalized_uncited_figures_are_flagged(text: str) -> None:
 
 def test_a_range_written_with_a_non_breaking_hyphen_cites_every_passage() -> None:
     assert [c.chunk_id for c in parse_citations(f"Risks [1{NB_HYPHEN}3].", HITS)] == [101, 102, 103]
+
+
+# ---------------------------------------------------------------- streaming
+
+
+def test_a_streamed_answer_yields_text_then_the_full_answer() -> None:
+    items = list(
+        stream_answer(
+            "Q?", retriever=FakeRetriever(degraded=True), model=FakeChat(["Peso swings [1]."])
+        )
+    )
+    texts, final = items[:-1], items[-1]
+    assert isinstance(final, Answer) and all(isinstance(t, str) for t in texts)
+    assert "".join(str(t) for t in texts) == final.text == "Peso swings [1]."
+    assert [c.chunk_id for c in final.citations] == [101] and final.degraded
