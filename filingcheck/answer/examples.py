@@ -81,17 +81,26 @@ def answer_examples(
     *,
     retriever: Retriever,
     model: ChatModel,
+    use_filters: bool = False,
     out: Callable[[str], None] = print,
 ) -> list[tuple[str, str, Answer]] | None:
     """Every example's (id, question, answer), or None at the first degraded or cut-off one.
 
-    A degraded answer came from keyword search alone (the question could not be embedded),
-    and an incomplete one is not an answer, so neither may be saved as an example.
+    With `use_filters` each question is searched within its "ticker" and "fiscal_year"; the
+    baseline file asks with the question text only. A degraded answer came from keyword
+    search alone (the question could not be embedded), and an incomplete one is not an
+    answer, so neither may be saved as an example.
     """
     rows: list[tuple[str, str, Answer]] = []
     for example in examples:
         try:
-            answer = answer_question(example["question"], retriever=retriever, model=model)
+            answer = answer_question(
+                example["question"],
+                retriever=retriever,
+                model=model,
+                ticker=example.get("ticker") if use_filters else None,
+                fiscal_year=example.get("fiscal_year") if use_filters else None,
+            )
         except IncompleteAnswer as exc:
             out(f"{example['id']}: stopped, nothing saved")
             out(format_incomplete(exc))

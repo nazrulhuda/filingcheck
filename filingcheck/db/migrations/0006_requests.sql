@@ -22,10 +22,13 @@ CREATE TABLE requests (
 CREATE INDEX requests_created_at ON requests (created_at);
 CREATE INDEX requests_client_created ON requests (client_ip_hash, created_at);
 
--- Answers to the example questions, filled by `make examples` and served by /examples.
+-- Answers to the example questions, filled by `make examples` and served by /examples,
+-- with the company and fiscal year each question was asked with.
 CREATE TABLE example_answers (
     id          serial PRIMARY KEY,
     question    text NOT NULL UNIQUE,
+    ticker      text,
+    fiscal_year integer,
     answer_json jsonb NOT NULL,
     created_at  timestamptz NOT NULL DEFAULT now()
 );

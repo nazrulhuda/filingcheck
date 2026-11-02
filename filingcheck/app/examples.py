@@ -1,9 +1,9 @@
 """`python -m filingcheck.app.examples [--questions FILE]`: refresh the cached example answers.
 
-Batch mode, question text only, so every answer comes from the primary model. The questions
-come from a JSONL file ("id" and "question" on each line) that can be swapped with
-`make examples EXAMPLES=path`. The cached answers are replaced only when every answer is
-complete and not degraded.
+Batch mode, so every answer comes from the primary model. The questions come from a JSONL
+file ("id", "question", "ticker" and "fiscal_year" on each line; the search is narrowed to
+that company and year) that can be swapped with `make examples EXAMPLES=path`. The cached
+answers are replaced only when every answer is complete and not degraded.
 """
 
 import argparse
@@ -36,11 +36,20 @@ def refresh_examples(
     out: Callable[[str], None] = print,
 ) -> int:
     """Answer every example and replace the cached answers; keep the old ones on a failure."""
-    rows = answer_examples(examples, retriever=retriever, model=model, out=out)
+    rows = answer_examples(examples, retriever=retriever, model=model, use_filters=True, out=out)
     if rows is None:
         return 1
+    by_id = {example["id"]: example for example in examples}
     store.replace_examples(
-        [ExampleAnswer(question=q, answer=answer.model_dump()) for _, q, answer in rows]
+        [
+            ExampleAnswer(
+                question=question,
+                ticker=by_id[example_id].get("ticker"),
+                fiscal_year=by_id[example_id].get("fiscal_year"),
+                answer=answer.model_dump(),
+            )
+            for example_id, question, answer in rows
+        ]
     )
     out(f"saved {len(rows)} example answers")
     return 0

@@ -47,9 +47,11 @@ class CompanyInfo(BaseModel):
 
 
 class ExampleAnswer(BaseModel):
-    """A cached answer to one example question, as the `Answer` JSON."""
+    """A cached answer to one example question, as the `Answer` JSON, with its search filters."""
 
     question: str
+    ticker: str | None = None
+    fiscal_year: int | None = None
     answer: dict[str, Any]
 
 
@@ -208,9 +210,9 @@ class PostgresStore:
         """The cached example answers in saved order."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT question, answer_json FROM example_answers ORDER BY id"
+                "SELECT question, ticker, fiscal_year, answer_json FROM example_answers ORDER BY id"
             ).fetchall()
-        return [ExampleAnswer(question=q, answer=a) for q, a in rows]
+        return [ExampleAnswer(question=q, ticker=t, fiscal_year=y, answer=a) for q, t, y, a in rows]
 
     def replace_examples(self, examples: list[ExampleAnswer]) -> None:
         """Delete every example answer and insert these, in one transaction."""
@@ -218,8 +220,9 @@ class PostgresStore:
             conn.execute("DELETE FROM example_answers")
             for example in examples:
                 conn.execute(
-                    "INSERT INTO example_answers (question, answer_json) VALUES (%s, %s)",
-                    (example.question, Jsonb(example.answer)),
+                    "INSERT INTO example_answers (question, ticker, fiscal_year, answer_json) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (example.question, example.ticker, example.fiscal_year, Jsonb(example.answer)),
                 )
 
     def deep_health(self) -> dict[str, bool]:

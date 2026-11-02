@@ -5,6 +5,7 @@ question that reaches the limits is logged; a provider failure is logged as a sh
 (provider, HTTP status, the provider's error code) and never as the provider's message.
 """
 
+import functools
 import hashlib
 import json
 import logging
@@ -26,7 +27,14 @@ from filingcheck.answer.baseline import Answer, answer_question, stream_answer
 from filingcheck.app.limits import TokenBucket, client_ip, hash_ip, nearest_example
 from filingcheck.app.settings import MAX_QUESTION_CHARS, Settings
 from filingcheck.app.stats import compute_stats
-from filingcheck.app.store import REFUSED, PostgresStore, RequestRow, Store
+from filingcheck.app.store import (
+    REFUSED,
+    CompanyInfo,
+    ExampleAnswer,
+    PostgresStore,
+    RequestRow,
+    Store,
+)
 from filingcheck.db import connect
 from filingcheck.embeddings.openai_client import OpenAIEmbeddings
 from filingcheck.llm import ChatModel, IncompleteAnswer, ProviderError, router_from_env
@@ -40,6 +48,7 @@ RATE_LIMITED = "Too many questions from your address; the limit is {n} an hour."
 DAILY_CAP = "The demo has reached today's limit of questions; please come back tomorrow."
 UNAVAILABLE = "The language models are busy or unavailable right now; please try again soon."
 CUT_OFF = "The answer was cut off before it finished; please try again."
+DISCONNECTED = "client_disconnected"  # error code of a stream the visitor abandoned
 
 
 @dataclass
@@ -124,6 +133,16 @@ def create_app(services: Services | None = None) -> FastAPI:
             "abstained": answer.abstained,
         }
 
+    # Companies change only on a re-pin and examples only on `make examples`; reading them
+    # once per process keeps page loads and bots from waking the database (a restart reloads).
+    @functools.cache
+    def cached_companies() -> list[CompanyInfo]:
+        return store.companies()
+
+    @functools.cache
+    def cached_examples() -> list[ExampleAnswer]:
+        return store.examples()
+
     def save(row: RequestRow) -> None:
         try:
             store.log_request(row)
@@ -153,7 +172,7 @@ def create_app(services: Services | None = None) -> FastAPI:
         if store.count_model_requests(today) < settings.daily_cap:
             return ip_hash, None
         save(new_row(request_id, body, ip_hash, error=REFUSED + "daily_cap"))
-        example = nearest_example(body.question, store.examples())
+        example = nearest_example(body.question, cached_examples())
         if example is None:
             return ip_hash, JSONResponse({"detail": DAILY_CAP}, status_code=429)
         return ip_hash, {"request_id": request_id, "cached": True, **example.answer}
@@ -195,30 +214,42 @@ def create_app(services: Services | None = None) -> FastAPI:
                 return
             start = datetime.now(UTC)
             answer: Answer | None = None
+            logged = False
             try:
-                with services.retriever() as retriever:
-                    for event in stream_answer(
-                        body.question,
-                        retriever=retriever,
-                        model=services.model,
-                        ticker=body.ticker,
-                        fiscal_year=body.fiscal_year,
-                    ):
-                        if isinstance(event, Answer):
-                            answer = event
-                        else:
-                            yield sse("token", {"text": event})
-            except ProviderError as exc:
-                latency = (datetime.now(UTC) - start).total_seconds() * 1000
-                save(new_row(request_id, body, ip_hash, error=exc.log_code, latency_ms=latency))
-                detail = CUT_OFF if isinstance(exc, IncompleteAnswer) else UNAVAILABLE
-                yield sse("error", {"request_id": request_id, "detail": detail})
-                return
-            assert answer is not None
-            save(new_row(request_id, body, ip_hash, **answer_fields(answer)))
-            yield sse(
-                "final", {"request_id": request_id, "cached": False, "answer": answer.model_dump()}
-            )
+                try:
+                    with services.retriever() as retriever:
+                        for event in stream_answer(
+                            body.question,
+                            retriever=retriever,
+                            model=services.model,
+                            ticker=body.ticker,
+                            fiscal_year=body.fiscal_year,
+                        ):
+                            if isinstance(event, Answer):
+                                answer = event
+                            else:
+                                yield sse("token", {"text": event})
+                except ProviderError as exc:
+                    latency = (datetime.now(UTC) - start).total_seconds() * 1000
+                    logged = True
+                    save(new_row(request_id, body, ip_hash, error=exc.log_code, latency_ms=latency))
+                    detail = CUT_OFF if isinstance(exc, IncompleteAnswer) else UNAVAILABLE
+                    yield sse("error", {"request_id": request_id, "detail": detail})
+                    return
+                assert answer is not None
+                logged = True
+                save(new_row(request_id, body, ip_hash, **answer_fields(answer)))
+                yield sse(
+                    "final",
+                    {"request_id": request_id, "cached": False, "answer": answer.model_dump()},
+                )
+            finally:
+                # The visitor left before the answer was logged: the model was still called,
+                # so the request counts toward the limits, with its tokens and cost if known.
+                if not logged:
+                    latency = (datetime.now(UTC) - start).total_seconds() * 1000
+                    fields = answer_fields(answer) if answer else {"latency_ms": latency}
+                    save(new_row(request_id, body, ip_hash, error=DISCONNECTED, **fields))
 
         return StreamingResponse(events(), media_type="text/event-stream")
 
@@ -239,11 +270,11 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     @app.get("/companies")
     def companies() -> list[dict[str, Any]]:
-        return [c.model_dump() for c in store.companies()]
+        return [c.model_dump() for c in cached_companies()]
 
     @app.get("/examples")
     def examples() -> list[dict[str, Any]]:
-        return [e.model_dump() for e in store.examples()]
+        return [e.model_dump() for e in cached_examples()]
 
     @app.get("/stats")
     def stats() -> dict[str, Any]:
