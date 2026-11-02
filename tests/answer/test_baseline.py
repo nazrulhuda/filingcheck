@@ -1,6 +1,8 @@
 """The plain-RAG baseline: prompt, citations, abstaining, uncited figures (all fakes)."""
 
+import json
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -14,7 +16,12 @@ from filingcheck.answer.baseline import (
     passage_header,
     stream_answer,
 )
-from filingcheck.answer.citations import has_uncited_claims, normalize_text, parse_citations
+from filingcheck.answer.citations import (
+    cited_numbers,
+    has_uncited_claims,
+    normalize_text,
+    parse_citations,
+)
 from filingcheck.answer.examples import HEADER, render_examples, run_examples
 from filingcheck.answer.run import format_answer, settings_line
 from filingcheck.llm import Completion, FakeChat, IncompleteAnswer, describe_settings
@@ -437,3 +444,22 @@ def test_a_figure_cited_with_lenticular_brackets_is_not_flagged_and_the_text_is_
     answer = ask(text)
     assert answer.text == text and [c.chunk_id for c in answer.citations] == [101]
     assert not answer.has_uncited_claims
+
+
+# ---------------------------------------------------------------- the rule the page shares
+
+MARKERS = json.loads(
+    (Path(__file__).resolve().parents[1] / "fixtures" / "citation_markers.json").read_text(
+        encoding="utf-8"
+    )
+)["cases"]
+
+
+@pytest.mark.parametrize("case", MARKERS, ids=[c["text"] for c in MARKERS])
+def test_the_shared_citation_cases_give_the_same_numbers(case: dict[str, Any]) -> None:
+    assert cited_numbers(case["text"], case["passages"]) == case["numbers"]
+
+
+def test_each_citation_carries_the_number_it_has_in_the_answer() -> None:
+    citations = parse_citations(f"Risk [4] and [2] and {OPEN}4{CLOSE}.", HITS)
+    assert [(c.number, c.chunk_id) for c in citations] == [(4, 104), (2, 102)]

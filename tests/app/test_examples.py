@@ -3,10 +3,12 @@
 import json
 from pathlib import Path
 
-from filingcheck.app.examples import load_example_questions, refresh_examples
+import pytest
+
+from filingcheck.app.examples import export_examples, load_example_questions, refresh_examples
 from filingcheck.app.store import ExampleAnswer, MemoryStore
 from filingcheck.llm import FakeChat
-from tests.answer.test_baseline import FakeRetriever
+from tests.answer.test_baseline import FakeRetriever, ask
 
 QUESTIONS = [
     {"id": "demo-001", "question": "What are Walmart's main risks in Mexico?"},
@@ -88,3 +90,44 @@ def test_the_page_examples_file_holds_five_questions_with_a_pinned_filing_each()
             source["ticker"],
             source["fiscal_year"],
         )
+
+
+# ---------------------------------------------------------------- make examples-export
+
+
+def stored(text: str, chunk_ids: list[int], numbered: bool) -> ExampleAnswer:
+    answer = ask(text).model_dump()
+    answer["citations"] = [
+        {"chunk_id": c, "ticker": "WMT", "fiscal_year": 2024, "item": "7A"}
+        | {"source_url": "u", "quote": "q"}
+        | ({"number": n} if numbered else {})
+        for n, c in enumerate(chunk_ids, 1)
+    ]
+    return ExampleAnswer(question="Q?", ticker="WMT", fiscal_year=2024, answer=answer)
+
+
+def test_the_export_writes_every_example_with_each_citations_number(tmp_path: Path) -> None:
+    store = MemoryStore(examples=[stored("Swaps [3] and rates [1].", [103, 101], numbered=False)])
+    path = tmp_path / "examples.json"
+    export_examples(store, path)
+    (example,) = json.loads(path.read_text(encoding="utf-8"))
+    assert (example["question"], example["ticker"], example["fiscal_year"]) == ("Q?", "WMT", 2024)
+    numbered = [(c["number"], c["chunk_id"]) for c in example["answer"]["citations"]]
+    assert numbered == [(3, 103), (1, 101)]
+    assert example["answer"]["text"] == "Swaps [3] and rates [1]."
+
+
+def test_the_export_refuses_an_answer_whose_markers_do_not_match_its_citations(
+    tmp_path: Path,
+) -> None:
+    store = MemoryStore(examples=[stored("Only one marker [1].", [101, 102], numbered=False)])
+    with pytest.raises(ValueError, match="2 citations"):
+        export_examples(store, tmp_path / "examples.json")
+    assert not (tmp_path / "examples.json").exists()
+
+
+def test_the_export_keeps_numbers_that_are_already_stored(tmp_path: Path) -> None:
+    store = MemoryStore(examples=[stored("A [1] and B [2].", [101, 102], numbered=True)])
+    export_examples(store, tmp_path / "examples.json")
+    (example,) = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
+    assert [c["number"] for c in example["answer"]["citations"]] == [1, 2]
