@@ -110,23 +110,39 @@ QUESTION = RetrievalQuestion(
 
 
 def test_a_hit_counts_if_it_is_the_expected_chunk_or_contains_the_phrase() -> None:
-    assert is_hit(hit(42), QUESTION, expected_id=42)
-    assert is_hit(hit(7, "Overall, iPhone net sales increased during 2025."), QUESTION, 42)
-    assert not is_hit(hit(7, "Mac net sales were flat."), QUESTION, 42)
+    assert is_hit(hit(42), QUESTION, expected_id=42, right_year=True)
+    assert is_hit(
+        hit(7, "Overall, iPhone net sales increased during 2025."), QUESTION, 42, right_year=True
+    )
+    assert not is_hit(hit(7, "Mac net sales were flat."), QUESTION, 42, right_year=False)
 
 
-def test_a_hit_from_another_year_or_company_never_counts() -> None:
+def test_the_same_text_from_another_year_counts_as_text_found_but_not_right_year() -> None:
     text = "iPhone net sales increased during the year."
-    assert not is_hit(hit(42, text, year=2024), QUESTION, expected_id=42)
-    assert not is_hit(hit(42, text, ticker="MSFT"), QUESTION, expected_id=42)
+    other_year = hit(7, text, year=2024)
+    assert is_hit(other_year, QUESTION, expected_id=42, right_year=False)
+    assert not is_hit(other_year, QUESTION, expected_id=42, right_year=True)
+
+
+def test_a_hit_from_another_company_never_counts() -> None:
+    text = "iPhone net sales increased during the year."
+    for right_year in (False, True):
+        assert not is_hit(hit(42, text, ticker="MSFT"), QUESTION, 42, right_year=right_year)
 
 
 def test_recall_and_reciprocal_rank() -> None:
     hits = [hit(1), hit(2), hit(42), hit(4)]
-    assert recall_at(hits, QUESTION, 42, k=5) == 1.0
-    assert recall_at(hits, QUESTION, 42, k=2) == 0.0
-    assert reciprocal_rank(hits, QUESTION, 42) == pytest.approx(1 / 3)
-    assert reciprocal_rank([hit(1)], QUESTION, 42) == 0.0
+    assert recall_at(hits, QUESTION, 42, k=5, right_year=True) == 1.0
+    assert recall_at(hits, QUESTION, 42, k=2, right_year=True) == 0.0
+    assert reciprocal_rank(hits, QUESTION, 42, right_year=True) == pytest.approx(1 / 3)
+    assert reciprocal_rank([hit(1)], QUESTION, 42, right_year=True) == 0.0
+
+
+def test_a_copy_from_another_year_ranks_first_only_for_text_found() -> None:
+    copy = hit(7, "Overall, iPhone net sales increased.", year=2024)
+    hits = [copy, hit(42)]
+    assert reciprocal_rank(hits, QUESTION, 42, right_year=False) == 1.0
+    assert reciprocal_rank(hits, QUESTION, 42, right_year=True) == 0.5
 
 
 def test_the_longest_run_of_words_shared_with_the_chunk() -> None:

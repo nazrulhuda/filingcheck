@@ -155,3 +155,24 @@ def test_a_trap_question_with_a_style_is_rejected() -> None:
 def test_an_unknown_style_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Question.model_validate(dict(CONTROL, style="free-form"))
+
+
+RETRIEVAL_ROW: dict[str, Any] = {
+    "id": "ret-001",
+    "source": "synthetic",
+    "question": "Who does IBM's lending arm compete with?",
+    "ticker": "IBM",
+    "fiscal_year": 2025,
+    "item": "1",
+    "accession": "0000051143-26-000010",
+    "chunk_index": 9,
+    "must_contain": "Financing primarily competes with",
+}
+
+
+def test_the_retrieval_file_is_checked_against_its_own_format(tmp_path: Path) -> None:
+    write(tmp_path, [BASE], "traps.jsonl")
+    write(tmp_path, [RETRIEVAL_ROW], "retrieval.jsonl")
+    assert main(["validate", "--dir", str(tmp_path)]) == 0
+    write(tmp_path, [dict(RETRIEVAL_ROW, must_contain="")], "retrieval.jsonl")
+    assert main(["validate", "--dir", str(tmp_path)]) == 1
