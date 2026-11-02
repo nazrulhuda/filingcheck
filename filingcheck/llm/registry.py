@@ -15,7 +15,7 @@ from filingcheck.llm.openai_compatible import OpenAICompatibleChat
 from filingcheck.llm.router import ModelRouter
 
 REGISTRY_FILE = Path(__file__).resolve().parent / "providers.yaml"
-DEFAULT_CHAT_MODEL = "groq:openai/gpt-oss-20b"
+DEFAULT_CHAT_MODEL = "openrouter:openai/gpt-oss-20b"
 DEFAULT_FALLBACK_MODELS = "gemini:gemini-3.5-flash-lite"
 
 
@@ -110,7 +110,9 @@ def describe_settings(spec: str, max_tokens: int, registry: Registry | None = No
     provider = registry.providers[spec.partition(":")[0]]
     settings = registry.models[spec]
     temperature = "provider default" if settings.temperature is None else settings.temperature
-    reasoning = settings.params.get("reasoning_effort", "provider default")
+    # Groq names it reasoning_effort; OpenRouter, reasoning.effort.
+    openrouter_effort = settings.params.get("reasoning", {}).get("effort")
+    reasoning = settings.params.get("reasoning_effort") or openrouter_effort or "provider default"
     limit = (
         f"{provider.token_limit_param} {max_tokens}"
         if provider.token_limit_param

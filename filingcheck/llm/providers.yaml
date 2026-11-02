@@ -17,6 +17,12 @@ providers:
     # for every model the API uses. Confirmed live (a tiny limit must end with "length").
     token_limit_param: max_tokens
     source: https://ai.google.dev/gemini-api/docs/openai
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    # OpenRouter's parameters page lists max_tokens (max_completion_tokens is an alias).
+    token_limit_param: max_tokens
+    source: https://openrouter.ai/docs/api/reference/parameters
 models:
   groq:openai/gpt-oss-20b:
     # Groq's reasoning page: default 0.6, best between 0.5 and 0.7. Its API reference says
@@ -30,6 +36,23 @@ models:
       include_reasoning: false
     json_schema: false  # not checked yet; checked before anything asks for structured output
     source: https://console.groq.com/docs/reasoning
+  openrouter:openai/gpt-oss-20b:
+    # The same model on the same host as groq:openai/gpt-oss-20b, through prepaid OpenRouter
+    # credit. OpenRouter's default is 1.0; Groq's recommended 0.6 is sent, as for groq:.
+    temperature: 0.6
+    params:
+      # Only Groq's servers, never another host: OpenRouter lists about ten hosts for this
+      # model, at other prices and quantizations. With no allowed host OpenRouter answers 404.
+      provider:
+        only: [groq]
+        allow_fallbacks: false
+      # OpenRouter's reasoning setting (not Groq's reasoning_effort / include_reasoning).
+      # exclude: the reasoning is not returned; it is still billed as output.
+      reasoning:
+        effort: low
+        exclude: true
+    json_schema: false  # not checked yet
+    source: https://openrouter.ai/docs/guides/routing/provider-selection
   gemini:gemini-3.5-flash-lite:
     # No temperature: Google strongly recommends the default 1.0 for Gemini 3 models.
     # No reasoning_effort: the model's default thinking level is "minimal".
