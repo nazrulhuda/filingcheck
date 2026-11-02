@@ -156,7 +156,8 @@ def create_app(services: Services | None = None) -> FastAPI:
         """The hashed address, and a refusal or a cached answer if the question is not let in."""
         peer = request.client.host if request.client else None
         ip_hash = hash_ip(
-            client_ip(peer, request.headers, settings.forwarded_hops), settings.ip_hash_salt
+            client_ip(peer, request.headers, settings.forwarded_hops, settings.client_ip_header),
+            settings.ip_hash_salt,
         )
         limited = JSONResponse(
             {"detail": RATE_LIMITED.format(n=settings.per_ip_per_hour)}, status_code=429

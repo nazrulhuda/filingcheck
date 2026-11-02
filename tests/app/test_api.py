@@ -374,6 +374,41 @@ def test_the_client_address_comes_from_the_trusted_forwarding_hop_only() -> None
     assert "1.1.1.1" not in hash_ip("1.1.1.1", "a")
 
 
+CF = "cf-connecting-ip"
+
+
+def test_with_a_client_ip_header_set_the_address_comes_from_that_header_only() -> None:
+    # On Render, Cloudflare overwrites CF-Connecting-IP on every request but only appends to
+    # X-Forwarded-For, whose first entries a caller can write.
+    headers = {CF: "203.0.113.7", "x-forwarded-for": "6.6.6.6, 203.0.113.7, 10.0.0.2"}
+    assert client_ip("10.0.0.1", headers, hops=0, header=CF) == "203.0.113.7"
+    assert client_ip("10.0.0.1", headers, hops=2, header=CF) == "203.0.113.7"
+    assert client_ip("10.0.0.1", {CF: " 203.0.113.7 "}, hops=0, header=CF) == "203.0.113.7"
+
+
+def test_with_a_client_ip_header_set_but_missing_the_connection_address_is_used() -> None:
+    forged_only = {"x-forwarded-for": "6.6.6.6, 7.7.7.7"}
+    assert client_ip("10.0.0.1", forged_only, hops=1, header=CF) == "10.0.0.1"
+    assert client_ip("10.0.0.1", {CF: "  "}, hops=0, header=CF) == "10.0.0.1"
+    assert client_ip(None, {}, hops=0, header=CF) == "unknown"
+
+
+def test_with_no_client_ip_header_set_the_header_is_ignored() -> None:
+    headers = {CF: "6.6.6.6", "x-forwarded-for": "1.1.1.1, 2.2.2.2"}
+    assert client_ip("10.0.0.1", headers, hops=0) == "10.0.0.1"
+    assert client_ip("10.0.0.1", headers, hops=1, header=None) == "2.2.2.2"
+
+
+def test_the_request_log_counts_the_address_from_the_client_ip_header() -> None:
+    client, store = make(FakeChat(["Peso [1].", "Peso [1]."]), client_ip_header=CF)
+    forged = {"CF-Connecting-IP": "203.0.113.7", "X-Forwarded-For": "6.6.6.6"}
+    assert client.post("/ask", json={"question": QUESTION}, headers=forged).status_code == 200
+    assert client.post("/ask", json={"question": QUESTION}).status_code == 200
+    first, second = store.rows
+    assert first.client_ip_hash == hash_ip("203.0.113.7", SALT)
+    assert second.client_ip_hash == hash_ip("testclient", SALT)
+
+
 def test_the_nearest_example_needs_most_of_its_words() -> None:
     examples = [
         ExampleAnswer(question=QUESTION, answer={}),
@@ -390,11 +425,14 @@ def test_settings_come_from_the_environment() -> None:
         "FC_CORS_ORIGINS": "http://localhost:3000, https://demo.example.app",
         "FC_FORWARDED_HOPS": "1",
         "FC_IP_HASH_SALT": "s",
+        "FC_CLIENT_IP_HEADER": " CF-Connecting-IP ",
     }
     s = Settings.from_env(env)
     assert (s.daily_cap, s.forwarded_hops, s.ip_hash_salt) == (30, 1, "s")
+    assert s.client_ip_header == "cf-connecting-ip"
     assert s.cors_origins == ["http://localhost:3000", "https://demo.example.app"]
     defaults = Settings.from_env({})
+    assert defaults.client_ip_header is None
     assert defaults.daily_cap == 65 and defaults.per_ip_per_hour == 20 and defaults.ip_hash_salt
 
 

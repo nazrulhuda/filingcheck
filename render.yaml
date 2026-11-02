@@ -1,0 +1,41 @@
+# The API on Render. Field names from Render's Blueprint reference
+# (https://render.com/docs/blueprint-spec, checked 2026-11-02); docs/decisions.md has the reasons.
+services:
+  - type: web
+    name: filingcheck-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # 0.5 CPU and 512 MB at a fixed $7 a month, never put to sleep (legacy name: starter).
+    plan: 0.5c-512mb
+    # Next to the database (Neon, AWS us-east-1); a region can't be changed later.
+    region: virginia
+    branch: main
+    # Deploy each commit on main once its CI checks pass.
+    autoDeployTrigger: checksPass
+    # No database query, so Render's frequent health checks never wake the database.
+    healthCheckPath: /health
+    numInstances: 1
+    envVars:
+      # Secrets: set from .env by a script, never written here.
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FC_IP_HASH_SALT
+        sync: false
+      - key: FC_CHAT_MODEL
+        value: openrouter:openai/gpt-oss-20b
+      - key: FC_FALLBACK_MODELS
+        value: gemini:gemini-3.5-flash-lite
+      - key: FC_DAILY_CAP
+        value: "65"
+      # Cloudflare, in front of every public Render web service, overwrites this header with
+      # the visitor's address; X-Forwarded-For is only appended to, so it is not trusted.
+      - key: FC_CLIENT_IP_HEADER
+        value: cf-connecting-ip
+      - key: FC_FORWARDED_HOPS
+        value: "0"
