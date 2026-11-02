@@ -1,0 +1,18 @@
+# Only pyproject.toml, uv.lock, README.md and filingcheck/ go into the image.
+.env
+.env.*
+.git
+.github
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+htmlcov
+coverage.xml
+data
+docs
+eval
+tests
+web
+scratchpad

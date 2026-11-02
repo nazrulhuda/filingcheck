@@ -1,6 +1,7 @@
 """A scripted chat model for tests: no network, no cost."""
 
-from collections.abc import Iterable
+import re
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from filingcheck.llm.chat import Completion, Message
@@ -54,3 +55,15 @@ class FakeChat:
             cost_usd=0.0,
             finish_reason="stop",
         )
+
+    def stream(
+        self,
+        messages: list[Message],
+        *,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> Iterator[str | Completion]:
+        """The next scripted reply word by word, then the whole `Completion`."""
+        completion = self.complete(messages, max_tokens=max_tokens, temperature=temperature)
+        yield from re.findall(r"\S+\s*|\s+", completion.text)
+        yield completion

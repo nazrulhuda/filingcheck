@@ -10,8 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from filingcheck.answer.baseline import ABSTAIN
+from filingcheck.app.api import Services, create_app
 from filingcheck.app.limits import TokenBucket, client_ip, hash_ip, nearest_example
-from filingcheck.app.main import Services, create_app
 from filingcheck.app.settings import Settings
 from filingcheck.app.stats import compute_stats, percentile
 from filingcheck.app.store import CompanyInfo, ExampleAnswer, MemoryStore, RequestRow

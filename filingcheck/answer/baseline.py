@@ -6,6 +6,7 @@ skeptical checks are measured against it.
 
 import re
 import time
+from collections.abc import Iterator
 
 from pydantic import BaseModel
 
@@ -15,8 +16,8 @@ from filingcheck.answer.citations import (
     normalize_text,
     parse_citations,
 )
-from filingcheck.llm import ChatModel, Message
-from filingcheck.retrieval import Hit, Retriever
+from filingcheck.llm import ChatModel, Completion, Message
+from filingcheck.retrieval import Hit, Retriever, SearchResult
 
 ABSTAIN = "I can't find this in the filings I have."
 K = 8
@@ -88,6 +89,30 @@ def answer_question(
     start = time.perf_counter()
     result = retriever.search(question, ticker=ticker, fiscal_year=fiscal_year, k=k)
     completion = model.complete(build_messages(question, result.hits), max_tokens=max_tokens)
+    return _answer(completion, result, start)
+
+
+def stream_answer(
+    question: str,
+    *,
+    retriever: Retriever,
+    model: ChatModel,
+    ticker: str | None = None,
+    fiscal_year: int | None = None,
+    k: int = K,
+    max_tokens: int = MAX_TOKENS,
+) -> Iterator[str | Answer]:
+    """Like `answer_question`, but yields the text as it arrives and then the `Answer`."""
+    start = time.perf_counter()
+    result = retriever.search(question, ticker=ticker, fiscal_year=fiscal_year, k=k)
+    for event in model.stream(build_messages(question, result.hits), max_tokens=max_tokens):
+        if isinstance(event, Completion):
+            yield _answer(event, result, start)
+        else:
+            yield event
+
+
+def _answer(completion: Completion, result: SearchResult, start: float) -> Answer:
     abstained = is_abstain(completion.text)
     return Answer(
         text=completion.text,
