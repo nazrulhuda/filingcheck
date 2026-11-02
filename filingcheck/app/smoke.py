@@ -2,6 +2,8 @@
 
 Calls /health, /companies, /examples and one /ask (one model call, counted against the daily
 cap), and fails on any status other than 200, an empty list, or an answer with no citations.
+It also fails on an answer that is cached, degraded or from a model other than the primary:
+each means a key or setting on the server is wrong, which a cited answer would otherwise hide.
 """
 
 import argparse
@@ -12,6 +14,7 @@ from typing import Any
 import httpx
 
 from filingcheck.console import use_utf8_output
+from filingcheck.llm.registry import DEFAULT_CHAT_MODEL
 
 # Answered with citations in every run so far; a question the baseline declines would fail.
 QUESTION = {
@@ -73,21 +76,44 @@ def non_empty(body: Any) -> str | None:
     return None if isinstance(body, list) and body else "empty list"
 
 
-def cites(body: Any) -> str | None:
-    """An answer must cite at least one passage."""
-    return (
-        None if isinstance(body, dict) and body.get("citations") else "the answer has no citations"
-    )
+def primary_is(model: str) -> Callable[[Any], str | None]:
+    """/health must name the expected primary model."""
+
+    def check(body: Any) -> str | None:
+        named = body.get("model") if isinstance(body, dict) else None
+        return None if named == model else f"the primary model is {named}, not {model}"
+
+    return check
 
 
-def run_checks(base_url: str, client: httpx.Client) -> list[Check]:
+def a_new_cited_answer_from(model: str) -> Callable[[Any], str | None]:
+    """The answer cites, is new, used vector search, and came from the primary model."""
+
+    def check(body: Any) -> str | None:
+        if not isinstance(body, dict):
+            return "the reply is not an answer"
+        problems = []
+        if not body.get("citations"):
+            problems.append("the answer has no citations")
+        if body.get("cached"):
+            problems.append("the answer is a saved example (cached), not a new model call")
+        if body.get("degraded"):
+            problems.append("degraded: keyword search only, so question embedding failed")
+        if body.get("model_used") != model:
+            problems.append(f"answered by {body.get('model_used')}, not the primary {model}")
+        return "; ".join(problems) or None
+
+    return check
+
+
+def run_checks(base_url: str, client: httpx.Client, model: str = DEFAULT_CHAT_MODEL) -> list[Check]:
     """Every check, in order; a failure does not stop the rest."""
     url = base_url.rstrip("/")
     return [
-        _check(client, "GET", url, "/health", lambda b: None),
+        _check(client, "GET", url, "/health", primary_is(model)),
         _check(client, "GET", url, "/companies", non_empty),
         _check(client, "GET", url, "/examples", non_empty),
-        _check(client, "POST", url, "/ask", cites, json=QUESTION),
+        _check(client, "POST", url, "/ask", a_new_cited_answer_from(model), json=QUESTION),
     ]
 
 
@@ -96,12 +122,15 @@ def main(argv: list[str] | None = None) -> int:
     use_utf8_output()
     parser = argparse.ArgumentParser(prog="python -m filingcheck.app.smoke")
     parser.add_argument("url", help="the deployed API, for example https://<service>.onrender.com")
+    parser.add_argument(
+        "--model", default=DEFAULT_CHAT_MODEL, help="the primary model the API must answer with"
+    )
     args = parser.parse_args(argv)
     if not args.url.startswith("https://"):
         print("give the API's https:// address: make smoke-live URL=https://...")
         return 2
     with make_client() as client:
-        results = run_checks(args.url, client)
+        results = run_checks(args.url, client, args.model)
     for _, line in results:
         print(line)
     failed = sum(not ok for ok, _ in results)
