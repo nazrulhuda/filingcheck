@@ -58,3 +58,34 @@ def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
     assert (retriever.calls[0]["ticker"], retriever.calls[0]["fiscal_year"]) == ("WMT", 2026)
     (saved,) = store.examples()
     assert (saved.ticker, saved.fiscal_year) == ("WMT", 2026)
+
+
+def test_the_page_examples_file_holds_six_questions_with_a_pinned_filing_each() -> None:
+    repo = Path(__file__).resolve().parents[2]
+    pinned = {
+        (f["ticker"], f["fiscal_year"])
+        for f in json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))[
+            "filings"
+        ]
+    }
+    retrieval = {
+        q["id"]: q for q in load_example_questions(repo / "eval" / "questions" / "retrieval.jsonl")
+    }
+    page = load_example_questions(repo / "eval" / "questions" / "page_examples.jsonl")
+    assert [q["id"] for q in page] == [
+        "ret-008",
+        "ret-024",
+        "ret-025",
+        "ret-040",
+        "ret-016",
+        "ret-010",
+    ]
+    for q in page:
+        assert set(q) == {"id", "question", "ticker", "fiscal_year"}
+        assert (q["ticker"], q["fiscal_year"]) in pinned
+        source = retrieval[q["id"]]
+        assert (q["question"], q["ticker"], q["fiscal_year"]) == (
+            source["question"],
+            source["ticker"],
+            source["fiscal_year"],
+        )
