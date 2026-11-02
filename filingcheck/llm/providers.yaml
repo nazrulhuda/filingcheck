@@ -1,0 +1,38 @@
+# Chat providers and per-model settings. Rule: send only parameters the provider documents,
+# and keep the provider's own default unless there is a stated reason. Each value was read
+# from the provider's docs on the date below; docs/decisions.md lists the pages and reasons.
+# Adding a provider or model means reading its docs first.
+checked_on: 2026-11-02
+providers:
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    # Groq's API reference marks max_tokens as deprecated in favour of this name.
+    token_limit_param: max_completion_tokens
+    source: https://console.groq.com/docs/api-reference
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    api_key_env: GEMINI_API_KEY
+    # Google's OpenAI-compatibility page documents no token limit parameter, so none is sent.
+    token_limit_param: null
+    source: https://ai.google.dev/gemini-api/docs/openai
+models:
+  groq:openai/gpt-oss-20b:
+    # Groq's reasoning page: default 0.6, best between 0.5 and 0.7. Its API reference says
+    # "Defaults to 1" for all models; the model-specific value is sent so the default is fixed.
+    temperature: 0.6
+    params:
+      # Default "medium". Low: fewer reasoning tokens under the 700-token cap and the
+      # per-minute token limit.
+      reasoning_effort: low
+      # Default true. The answer text is all we use; reasoning is not returned.
+      include_reasoning: false
+    json_schema: false  # not checked yet; checked before anything asks for structured output
+    source: https://console.groq.com/docs/reasoning
+  gemini:gemini-3.5-flash-lite:
+    # No temperature: Google strongly recommends the default 1.0 for Gemini 3 models.
+    # No reasoning_effort: the model's default thinking level is "minimal".
+    temperature: null
+    params: {}
+    json_schema: false  # not checked yet
+    source: https://ai.google.dev/gemini-api/docs/thinking

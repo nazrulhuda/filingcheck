@@ -292,6 +292,7 @@ def fallback() -> FakeChat:
         error(404, "The model does not exist", "model_not_found"),
         error(429, "rate limited", **{"retry-after": "45"}),
         httpx.ConnectTimeout("timed out"),
+        httpx.ConnectError("connection refused"),
     ],
 )
 def test_live_the_router_falls_back_and_records_which_model_answered(

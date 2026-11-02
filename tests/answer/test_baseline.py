@@ -15,7 +15,8 @@ from filingcheck.answer.baseline import (
 )
 from filingcheck.answer.citations import has_uncited_claims, parse_citations
 from filingcheck.answer.examples import HEADER, render_examples
-from filingcheck.llm import Completion, FakeChat
+from filingcheck.answer.run import format_answer, settings_line
+from filingcheck.llm import Completion, FakeChat, describe_settings
 from filingcheck.retrieval import Hit, SearchResult
 
 
@@ -248,3 +249,35 @@ def test_the_examples_file_opens_with_the_warning_then_the_date_and_settings() -
     assert "What was Walmart's revenue for 2025?" in text
     assert "Peso swings are a risk [1]." in text
     assert "https://www.sec.gov/doc1.htm" in text and "fake:chat" in text
+
+
+# ---------------------------------------------------------------- settings line and printout
+
+
+def test_the_settings_line_names_every_model_setting() -> None:
+    assert settings_line("groq:openai/gpt-oss-20b", filters="no filters") == (
+        "model groq:openai/gpt-oss-20b, temperature 0.6, reasoning effort low, "
+        "max_completion_tokens 700; retriever hybrid, k 8, no filters"
+    )
+    assert describe_settings("gemini:gemini-3.5-flash-lite", 700) == (
+        "model gemini:gemini-3.5-flash-lite, temperature provider default, "
+        "reasoning effort provider default, no token limit sent"
+    )
+
+
+def test_the_printout_shows_cost_degraded_and_the_rate_limit_headers() -> None:
+    reply = Completion(
+        text="Peso swings [1].",
+        prompt_tokens=None,
+        completion_tokens=None,
+        model="fake:chat",
+        latency_ms=1.0,
+        cost_usd=None,
+        finish_reason="stop",
+        rate_limits={"x-ratelimit-limit-tokens": "8000"},
+    )
+    answer = answer_question("Q?", retriever=FakeRetriever(), model=FakeChat([reply]))
+    text = format_answer(answer, reply)
+    assert "cost: unknown" in text and "degraded: false" in text
+    assert "x-ratelimit-limit-tokens: 8000" in text
+    assert "WMT FY2025 Item 1A (chunk 101): https://www.sec.gov/doc1.htm" in text

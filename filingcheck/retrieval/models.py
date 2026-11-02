@@ -1,6 +1,7 @@
 """What a search returns, and the rules every retriever shares."""
 
 import math
+from datetime import date
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -17,6 +18,7 @@ class Hit(BaseModel):
     chunk_id: int
     ticker: str
     fiscal_year: int
+    period_end: date | None = None  # the day the fiscal year ended
     item: str
     text: str
     score: float
