@@ -267,6 +267,9 @@ def test_the_settings_line_names_every_model_setting() -> None:
         "model groq:openai/gpt-oss-20b, temperature 0.6, reasoning effort low, "
         "max_completion_tokens 700; retriever hybrid, k 8, no filters"
     )
+    assert describe_settings("openrouter:openai/gpt-oss-20b", 700) == (
+        "model openrouter:openai/gpt-oss-20b, temperature 0.6, reasoning effort low, max_tokens 700"
+    )
     assert describe_settings("gemini:gemini-3.5-flash-lite", 700) == (
         "model gemini:gemini-3.5-flash-lite, temperature provider default, "
         "reasoning effort provider default, max_tokens 700"

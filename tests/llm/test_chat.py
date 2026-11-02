@@ -24,6 +24,7 @@ from filingcheck.llm.pricing import PRICING, MissingPriceError, chat_cost_usd
 
 GROQ = "groq:openai/gpt-oss-20b"
 GEMINI = "gemini:gemini-3.5-flash-lite"
+OPENROUTER = "openrouter:openai/gpt-oss-20b"
 MESSAGES = [{"role": "user", "content": "What are Walmart's main risks in Mexico?"}]
 RATE_HEADERS = {
     "x-ratelimit-limit-requests": "1000",
@@ -106,6 +107,49 @@ def test_groq_gets_its_documented_parameters_and_max_completion_tokens() -> None
         "reasoning_effort": "low",
         "include_reasoning": False,
     }
+
+
+def test_openrouter_is_pinned_to_groq_with_no_other_host_and_gets_its_own_reasoning_setting() -> (
+    None
+):
+    script = Script(ok(usage=USAGE))
+    chat(OPENROUTER, script).complete(MESSAGES, max_tokens=700)
+    request = script.requests[0]
+    assert str(request.url) == "https://openrouter.ai/api/v1/chat/completions"
+    assert request.headers["authorization"] == "Bearer test-key"
+    assert script.body() == {
+        "model": "openai/gpt-oss-20b",
+        "messages": MESSAGES,
+        "max_tokens": 700,
+        "temperature": 0.6,
+        "provider": {"only": ["groq"], "allow_fallbacks": False},
+        "reasoning": {"effort": "low", "exclude": True},
+    }
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        error(404, "No allowed providers are available for the selected model."),
+        error(402, "Insufficient credits"),
+    ],
+)
+def test_live_openrouter_with_no_allowed_host_or_no_credit_falls_back(
+    response: httpx.Response,
+) -> None:
+    backup = fallback()
+    router = ModelRouter(chat(OPENROUTER, Script(response), mode="live"), [backup], mode="live")
+    assert router.complete(MESSAGES, max_tokens=700).model == "fake:chat"
+    assert router.fallbacks_used == 1
+
+
+def test_batch_openrouter_with_no_allowed_host_stops_instead_of_falling_back() -> None:
+    backup = fallback()
+    script = Script(error(404, "No allowed providers are available for the selected model."))
+    router = ModelRouter(chat(OPENROUTER, script), [backup], mode="batch")
+    with pytest.raises(ProviderUnavailable):
+        router.complete(MESSAGES, max_tokens=700)
+    assert backup.calls == []
 
 
 def test_gemini_gets_max_tokens_but_no_temperature_reasoning_or_groq_parameters() -> None:
@@ -353,7 +397,13 @@ def test_the_router_is_built_from_the_environment() -> None:
     assert router.primary.name == GROQ and [m.name for m in router.fallbacks] == [GEMINI, GROQ]
     assert router.mode == "live"
     defaults = router_from_env("batch", {})
-    assert defaults.primary.name == GROQ and [m.name for m in defaults.fallbacks] == [GEMINI]
+    assert defaults.primary.name == OPENROUTER and [m.name for m in defaults.fallbacks] == [GEMINI]
+
+
+def test_the_default_models_never_need_the_retired_groq_key() -> None:
+    defaults = router_from_env("live", {})
+    keys = {m.api_key_env for m in [defaults.primary, *defaults.fallbacks]}
+    assert keys == {"OPENROUTER_API_KEY", "GEMINI_API_KEY"}
 
 
 @pytest.mark.parametrize("spec", ["nowhere:some-model", "groq:not-in-the-registry", "no-colon"])
@@ -367,6 +417,8 @@ def test_a_model_missing_from_the_registry_is_refused(spec: str) -> None:
 
 def test_chat_cost_counts_input_and_output_at_their_own_prices() -> None:
     assert chat_cost_usd(GROQ, 1_000_000, 1_000_000) == pytest.approx(0.075 + 0.30)
+    # OpenRouter lists the Groq host's own price for this model.
+    assert chat_cost_usd(OPENROUTER, 1_000_000, 1_000_000) == pytest.approx(0.075 + 0.30)
     assert chat_cost_usd(GROQ, 1000, None) is None
     assert chat_cost_usd(GROQ, None, 10) is None
 
@@ -385,7 +437,8 @@ def test_a_chat_model_with_no_output_price_raises() -> None:
 
 def test_every_model_in_the_registry_has_an_input_and_an_output_price_with_a_source() -> None:
     registry = load_registry()
-    assert set(registry.models) == {GROQ, GEMINI}
+    # The groq: entry stays: the saved example answers were made with it.
+    assert set(registry.models) == {GROQ, GEMINI, OPENROUTER}
     for spec in registry.models:
         entry = PRICING["models"][spec]
         assert entry["input_per_million"] > 0 and entry["output_per_million"] > 0
