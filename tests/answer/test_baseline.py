@@ -1,0 +1,250 @@
+"""The plain-RAG baseline: prompt, citations, abstaining, uncited figures (all fakes)."""
+
+from datetime import date
+from typing import Any
+
+import pytest
+
+from filingcheck.answer.baseline import (
+    ABSTAIN,
+    MAX_TOKENS,
+    Answer,
+    answer_question,
+    is_abstain,
+    passage_header,
+)
+from filingcheck.answer.citations import has_uncited_claims, parse_citations
+from filingcheck.answer.examples import HEADER, render_examples
+from filingcheck.llm import Completion, FakeChat
+from filingcheck.retrieval import Hit, SearchResult
+
+
+def hit(n: int, ticker: str = "WMT", year: int = 2025, item: str = "1A") -> Hit:
+    return Hit(
+        chunk_id=100 + n,
+        ticker=ticker,
+        fiscal_year=year,
+        period_end=date(2025, 1, 31),
+        item=item,
+        text=f"Passage {n}: " + "x" * 300,
+        score=1.0 / n,
+        source_url=f"https://www.sec.gov/doc{n}.htm",
+    )
+
+
+HITS = [hit(1), hit(2), hit(3), hit(4, item="7")]
+
+
+class FakeRetriever:
+    name = "hybrid"
+
+    def __init__(self, hits: list[Hit] = HITS, degraded: bool = False) -> None:
+        self.hits = hits
+        self.degraded = degraded
+        self.calls: list[dict[str, Any]] = []
+
+    def search(
+        self,
+        query: str,
+        *,
+        ticker: str | None = None,
+        fiscal_year: int | None = None,
+        items: list[str] | None = None,
+        k: int = 10,
+    ) -> SearchResult:
+        self.calls.append({"query": query, "ticker": ticker, "fiscal_year": fiscal_year, "k": k})
+        return SearchResult(hits=self.hits[:k], retriever=self.name, degraded=self.degraded)
+
+
+def ask(reply: str, retriever: FakeRetriever | None = None, **filters: Any) -> Answer:
+    return answer_question(
+        "What are Walmart's main risks in Mexico?",
+        retriever=retriever or FakeRetriever(),
+        model=FakeChat([reply]),
+        **filters,
+    )
+
+
+# ---------------------------------------------------------------- the prompt
+
+
+def test_the_passage_header_names_the_company_fiscal_year_its_end_date_and_item() -> None:
+    assert passage_header(hit(1)) == "WMT, fiscal year 2025 (ended 2025-01-31), Item 1A"
+    undated = hit(1).model_copy(update={"period_end": None})
+    assert passage_header(undated) == "WMT, fiscal year 2025, Item 1A"
+
+
+def test_the_model_sees_numbered_passages_with_headers_and_the_question() -> None:
+    model = FakeChat(["Peso swings [1]."])
+    answer_question("Risks in Mexico?", retriever=FakeRetriever(), model=model)
+    call = model.calls[0]
+    system, user = call["messages"]
+    assert system["role"] == "system" and ABSTAIN in system["content"]
+    assert "[n]" in system["content"] and "fiscal year" in system["content"]
+    assert user["role"] == "user"
+    assert "[1] WMT, fiscal year 2025 (ended 2025-01-31), Item 1A\nPassage 1:" in user["content"]
+    assert "[4] WMT, fiscal year 2025 (ended 2025-01-31), Item 7\n" in user["content"]
+    assert user["content"].rstrip().endswith("Question: Risks in Mexico?")
+    assert call["max_tokens"] == MAX_TOKENS == 700 and call["temperature"] is None
+
+
+def test_filters_and_k_reach_the_retriever() -> None:
+    retriever = FakeRetriever()
+    ask("Peso swings [1].", retriever, ticker="WMT", fiscal_year=2025, k=3)
+    assert retriever.calls == [
+        {
+            "query": "What are Walmart's main risks in Mexico?",
+            "ticker": "WMT",
+            "fiscal_year": 2025,
+            "k": 3,
+        }
+    ]
+    default = FakeRetriever()
+    ask("Peso swings [1].", default)
+    assert default.calls[0]["k"] == 8 and default.calls[0]["ticker"] is None
+
+
+# ---------------------------------------------------------------- citations
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Peso swings are a risk [2].", [102]),
+        ("Two risks [1, 3].", [101, 103]),
+        ("Two risks [1][3].", [101, 103]),
+        ("Three risks [1-3].", [101, 102, 103]),
+        ("Three risks [1–3].", [101, 102, 103]),  # noqa: RUF001 (an en dash, as models write it)
+        ("Risks [3] and more risks [1] and again [3].", [103, 101]),
+        ("A passage that does not exist [9], and one that does [4].", [104]),
+        ("No citation at all.", []),
+    ],
+)
+def test_citations_are_parsed_in_every_form_and_unknown_numbers_are_dropped(
+    text: str, expected: list[int]
+) -> None:
+    assert [c.chunk_id for c in parse_citations(text, HITS)] == expected
+
+
+def test_a_citation_carries_where_the_passage_came_from_and_a_short_quote() -> None:
+    (citation,) = parse_citations("Risk [4].", HITS)
+    assert (citation.ticker, citation.fiscal_year, citation.item) == ("WMT", 2025, "7")
+    assert citation.source_url == "https://www.sec.gov/doc4.htm"
+    assert citation.quote == HITS[3].text[:200] and len(citation.quote) == 200
+
+
+# ---------------------------------------------------------------- abstaining
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I can't find this in the filings I have.",
+        "I can\u2019t find this in the filings I have.",  # a curly apostrophe
+        "**I can't find this in the filings I have.**",
+        "  i can't find this in the filings i have  ",
+        "_I can't find this in the filings I have_!",
+        "`I can't find this in the filings I have.`",
+    ],
+)
+def test_the_abstain_sentence_is_recognised_through_formatting(text: str) -> None:
+    assert is_abstain(text)
+    answer = ask(text)
+    assert answer.abstained and answer.citations == [] and not answer.has_uncited_claims
+
+
+def test_an_abstain_sentence_followed_by_more_text_is_not_an_abstain() -> None:
+    text = "I can't find this in the filings I have. Revenue was $5 billion [1]."
+    assert not is_abstain(text)
+    answer = ask(text)
+    assert not answer.abstained and [c.chunk_id for c in answer.citations] == [101]
+
+
+# ---------------------------------------------------------------- uncited figures
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Walmart's fiscal year 2025 ended on January 31, 2025.",
+        "In fiscal 2025 Walmart listed currency risk in Mexico.",
+        "The period ended 2025-01-31, as the FY 2025 report says.",
+        "See Item 7 and Note 8 of the 10-K; the 10-Q and 8-K say more.",
+        "Walmart filed its FY2025 10-K; COVID-19 affected Q3.",
+        "Revenue was $2.1 billion [3].",
+        "Revenue was $2.1 billion. [3]",
+        "Main risks:\n1. Peso swings cut sales by 5% [1].\n2) Regulation costs $40 million [2].",
+        "(a) Peso swings cut sales by 2% [1].\n(b) Tariffs [2].",
+        "Net sales of $121.9 billion came from outside the U.S. Walmart International segment [2].",
+        "Walmart Inc. reported $648.1 billion of revenue, i.e. approx. most of it [1].",
+        "Items 1A and 7A cover this.",
+    ],
+)
+def test_years_dates_forms_labels_and_cited_figures_are_not_flagged(text: str) -> None:
+    assert not has_uncited_claims(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "$2.1 billion of revenue came from Mexico.",
+        "Mexico was 13% of net sales.",
+        "Peso swings are a risk [1]. Sales in Mexico fell by $3 billion.",
+        "Main risks:\n1. Peso swings cut sales by 5% [1].\n2. Sales fell 3% in Mexico.",
+        "Revenue grew to 2,025 million dollars.",
+    ],
+)
+def test_a_figure_without_a_citation_in_its_sentence_is_flagged(text: str) -> None:
+    assert has_uncited_claims(text)
+
+
+def test_an_answer_reports_whether_it_has_uncited_figures() -> None:
+    assert ask("Mexico was 13% of net sales.").has_uncited_claims
+    assert not ask("Mexico was 13% of net sales [1].").has_uncited_claims
+
+
+# ---------------------------------------------------------------- the answer record
+
+
+def test_the_answer_records_model_retriever_usage_cost_and_degraded() -> None:
+    reply = Completion(
+        text="Peso swings [1].",
+        prompt_tokens=1200,
+        completion_tokens=80,
+        model="groq:openai/gpt-oss-20b",
+        latency_ms=850.0,
+        cost_usd=0.000114,
+        finish_reason="stop",
+    )
+    answer = answer_question("Q?", retriever=FakeRetriever(degraded=True), model=FakeChat([reply]))
+    assert answer.text == "Peso swings [1]." and answer.model_used == "groq:openai/gpt-oss-20b"
+    assert answer.retriever_name == "hybrid" and answer.degraded
+    assert answer.usage == {"prompt_tokens": 1200, "completion_tokens": 80}
+    assert answer.cost_usd == 0.000114 and answer.finish_reason == "stop"
+    assert answer.latency_ms >= 0 and not answer.abstained
+
+
+def test_a_normal_search_gives_an_answer_that_is_not_degraded() -> None:
+    assert not ask("Peso swings [1].").degraded
+
+
+# ---------------------------------------------------------------- docs/baseline_examples.md
+
+
+def test_the_examples_file_opens_with_the_warning_then_the_date_and_settings() -> None:
+    answer = ask("Peso swings are a risk [1].")
+    text = render_examples(
+        [("trap-002", "What was Walmart's revenue for 2025?", answer)],
+        settings="model groq:openai/gpt-oss-20b, temperature 0.6",
+        run_date=date(2026, 11, 2),
+    )
+    lines = text.splitlines()
+    assert lines[0] == HEADER
+    assert HEADER == (
+        "Week 2 baseline: plain RAG, no agent, no checks. "
+        "These answers are not graded and may be wrong."
+    )
+    assert "2026-11-02" in text and "model groq:openai/gpt-oss-20b, temperature 0.6" in text
+    assert "What was Walmart's revenue for 2025?" in text
+    assert "Peso swings are a risk [1]." in text
+    assert "https://www.sec.gov/doc1.htm" in text and "fake:chat" in text
