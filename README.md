@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings with a citation for each claim, using the plain baseline: there is no agent yet, and no skeptical checks or number labels, so answers are not checked and numbers may be wrong.
+**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings, and the model is asked to cite a passage for each claim. It uses the plain baseline: there is no agent yet, and no skeptical checks or number labels, so answers are not checked and numbers may be wrong.
 
 FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
 
