@@ -134,7 +134,7 @@ export default function Home() {
       <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
       <p className="mt-1 text-sm text-slate-600">
         Questions about the 10-K filings of 25 public companies, answered from the filings&apos;
-        text with a citation for each claim.
+        text, and the model is asked to cite a passage for each claim.
       </p>
 
       {backend === "waking" && (
