@@ -2,7 +2,7 @@
 
 ## What is live
 
-A public page (Next.js on Vercel) sends each question to the API (FastAPI on Render, Virginia). The API searches a Postgres 16 database on Neon (AWS us-east-1) and has `gpt-oss-20b` write the answer through OpenRouter, on Groq's servers, with Gemini as the fallback. Each answer is the plain baseline: one model call over 8 retrieved passages, with a citation for each claim. There is no agent yet, and no skeptical checks or number labels, so answers are not checked. The live smoke test passes; the README links the demo.
+A public page (Next.js on Vercel) sends each question to the API (FastAPI on Render, Virginia). The API searches a Postgres 16 database on Neon (AWS us-east-1) and has `gpt-oss-20b` write the answer through OpenRouter, on Groq's servers, with Gemini as the fallback. Each answer is the plain baseline: one model call over 8 retrieved passages; the model is asked to cite a passage for each claim. There is no agent yet, and no skeptical checks or number labels, so answers are not checked. The live smoke test passes; the README links the demo.
 
 ## Retrieval
 
