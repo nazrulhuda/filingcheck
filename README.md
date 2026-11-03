@@ -2,11 +2,13 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
+**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings with a citation for each claim, using the plain baseline: there is no agent yet, and no skeptical checks or number labels, so answers are not checked and numbers may be wrong.
+
 FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
 
 What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent and the checks arrive in weeks 3 to 5 and the results in week 6; none of them is in the code yet.
 
-**Status: work in progress, week 2 of 7.** Search, baseline answers, the API and the web page are built; the public deploy is next. No evaluation results yet.
+**Status: week 2 of 7 done.** Search, baseline answers, the API and the web page are built and deployed: the page on Vercel, the API on Render and the database on Neon. No evaluation results yet.
 
 ## What works today
 
