@@ -51,6 +51,7 @@ ingest:
 	uv run python -m filingcheck.ingest companyfacts
 	uv run python -m filingcheck.ingest sections
 	uv run python -m filingcheck.ingest chunks
+	uv run python -m filingcheck.ingest facts
 	uv run python -m filingcheck.ingest load
 	uv run python -m filingcheck.ingest report
 
@@ -83,11 +84,12 @@ examples:  # answer the example questions (batch mode) and replace the cached an
 examples-export:  # write the stored example answers to web/data/examples.json for the page; no model call
 	uv run python -m filingcheck.app.examples --export web/data/examples.json
 
-snapshot:  # rewrite data/section_snapshot.json and data/chunk_snapshot.json after an intended change
+snapshot:  # rewrite the section, chunk and facts snapshots in data/ after an intended change
 	uv run python -m filingcheck.ingest.verify --write-snapshots
 
-verify-facts:  # which candidate XBRL tags have 10-K facts per filing; writes docs/facts_coverage.md
+verify-facts:  # coverage per metric (docs/facts_coverage.md) and the companyfacts cross-check (docs/facts_report.md)
 	uv run python -m filingcheck.ingest.facts_coverage
+	uv run python -m filingcheck.ingest.facts_check
 
 validate-questions:
 	uv run python -m filingcheck.eval.questions validate

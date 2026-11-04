@@ -56,6 +56,11 @@ def decode_document(body: bytes) -> str:
     return body.decode("utf-8", errors="replace")
 
 
+def cache_file(url: str, cache_dir: Path = CACHE_DIR) -> Path:
+    """Where the cached copy of `url` is saved: the SHA-1 of the URL, in `cache_dir`."""
+    return cache_dir / hashlib.sha1(url.encode("utf-8")).hexdigest()
+
+
 class CacheMissError(LookupError):
     """Raised in cache-only mode when a URL has not been downloaded yet."""
 
@@ -184,7 +189,7 @@ class SecClient:
         self.close()
 
     def _cache_path(self, url: str) -> Path:
-        return self._cache_dir / hashlib.sha1(url.encode("utf-8")).hexdigest()
+        return cache_file(url, self._cache_dir)
 
     def _write_cache(self, path: Path, body: bytes) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

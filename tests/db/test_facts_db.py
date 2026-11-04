@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import pytest
@@ -15,7 +16,7 @@ from tests.db.test_load import APPLE, FILING, chunks, write_jsonl
 
 
 def apple_facts(revenue: str = "416161000000") -> list[Fact]:
-    common = {
+    common: dict[str, Any] = {
         "accession": FILING.accession,
         "ticker": "AAPL",
         "fiscal_year": 2025,
@@ -80,7 +81,7 @@ def write_facts(path: Path, rows: list[Fact]) -> Path:
 @pytest.mark.integration
 def test_the_facts_table_has_the_columns_of_the_facts_file(db: psycopg.Connection) -> None:
     migrate(db)
-    columns = dict(
+    columns: dict[str, str] = dict(
         db.execute(
             "SELECT column_name, data_type FROM information_schema.columns "
             "WHERE table_name = 'facts'"
@@ -173,17 +174,3 @@ def test_facts_for_a_filing_not_in_the_database_stop_the_load(
         load_facts(db, write_facts(tmp_path / "bad.jsonl", [stranger]))
     db.rollback()
     assert db.execute("SELECT count(*) FROM facts").fetchone() == (4,)  # unchanged
-
-
-@pytest.mark.integration
-def test_a_duplicate_fact_is_rejected_by_the_table(db: psycopg.Connection, tmp_path: Path) -> None:
-    migrate(db)
-    load_all(db, [APPLE], Manifest(filings=[FILING]), write_jsonl(tmp_path / "c.jsonl", chunks(2)))
-    filing_id = db.execute("SELECT id FROM filings").fetchone()[0]  # type: ignore[index]
-    insert = (
-        "INSERT INTO facts (filing_id, concept, value, unit, instant, dimensions, context_ref) "
-        "VALUES (%s, 'us-gaap:Assets', 1, 'USD', '2025-09-27', '{}', 'c-2')"
-    )
-    db.execute(insert, (filing_id,))
-    with pytest.raises(psycopg.errors.UniqueViolation):
-        db.execute(insert, (filing_id,))

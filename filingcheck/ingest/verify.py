@@ -658,6 +658,81 @@ def compare_chunk_counts(expected: dict[str, int], current: dict[str, int]) -> l
     return problems
 
 
+def current_facts(root: Path) -> dict[str, dict[str, Any]]:
+    """Per filing ("TICKER FYyear"): its facts, its company totals and a hash of its lines.
+
+    Read straight from `data/facts.jsonl`, line by line, so any change to a fact of a filing
+    (value, period, unit, any field) changes that filing's hash.
+    """
+    path = root / "data" / "facts.jsonl"
+    if not path.exists():
+        return {}
+    entries: dict[str, dict[str, Any]] = {}
+    hashes: dict[str, Any] = {}
+    with path.open(encoding="utf-8", newline="") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            name = f"{row['ticker']} FY{row['fiscal_year']}"
+            entry = entries.setdefault(name, {"facts": 0, "totals": 0})
+            entry["facts"] += 1
+            entry["totals"] += 0 if row["dimensions"] else 1
+            hashes.setdefault(name, hashlib.sha256()).update(line.encode("utf-8"))
+    for name, digest in hashes.items():
+        entries[name]["sha256"] = digest.hexdigest()
+    return entries
+
+
+def compare_facts(
+    expected: dict[str, dict[str, Any]], current: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Every filing whose facts are new, gone or changed since the snapshot."""
+    problems = []
+    for name in sorted(set(expected) | set(current)):
+        if name not in current:
+            problems.append(f"{name}: {expected[name]['facts']:,} facts in the snapshot, none now")
+        elif name not in expected:
+            problems.append(f"{name}: {current[name]['facts']:,} facts now, not in the snapshot")
+        elif expected[name] != current[name]:
+            was, now = expected[name], current[name]
+            if (was["facts"], was["totals"]) == (now["facts"], now["totals"]):
+                problems.append(f"{name}: facts changed (same counts, different values or fields)")
+            else:
+                problems.append(
+                    f"{name}: facts changed ({was['facts']:,} to {now['facts']:,} facts; "
+                    f"{was['totals']:,} to {now['totals']:,} company totals)"
+                )
+    return problems
+
+
+def pin_differences(root: Path) -> list[str]:
+    """The companyfacts files that differ from their pin, have none, or are missing.
+
+    Informational: a fresh clone can only download the SEC's current files, which grow.
+    """
+    pins_path = root / "data" / "companyfacts_pins.json"
+    if not pins_path.exists():
+        return ["data/companyfacts_pins.json is missing"]
+    pins: dict[str, dict[str, Any]] = _read_json(pins_path)
+    folder = root / "data" / "companyfacts"
+    lines = []
+    for ticker in sorted(pins):
+        path = folder / f"{ticker}.json"
+        where = f"data/companyfacts/{ticker}.json"
+        if not path.exists():
+            lines.append(f"{ticker}: pinned, but {where} is missing")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != pins[ticker]["sha256"]:
+            lines.append(
+                f"{ticker}: {where} differs from its pin "
+                f"(downloaded {pins[ticker]['downloaded_utc']})"
+            )
+    for path in sorted(folder.glob("*.json")) if folder.exists() else []:
+        if path.stem not in pins:
+            lines.append(f"{path.stem}: data/companyfacts/{path.name} has no pin")
+    return lines
+
+
 def write_snapshot(path: Path, entries: dict[str, Any]) -> None:
     """One entry per line, sorted, so a change shows as a one-line diff."""
     body = ",\n".join(f"  {json.dumps(k)}: {json.dumps(entries[k])}" for k in sorted(entries))
@@ -680,10 +755,12 @@ def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
     """
     sections_file = root / "data" / "section_snapshot.json"
     chunks_file = root / "data" / "chunk_snapshot.json"
+    facts_file = root / "data" / "facts_snapshot.json"
     if write_snapshots:
         write_snapshot(sections_file, current_sections(root))
         write_snapshot(chunks_file, current_chunk_counts(root))
-        print(f"wrote {sections_file.name} and {chunks_file.name}")
+        write_snapshot(facts_file, current_facts(root))
+        print(f"wrote {sections_file.name}, {chunks_file.name} and {facts_file.name}")
     failures: dict[str, list[str]] = {}
     documents: dict[tuple[str, int, str], list[Path]] = {}
     for f in _read_json(root / "data" / "manifest.json")["filings"]:
@@ -755,6 +832,13 @@ def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
     failures["Chunk counts that differ from data/chunk_snapshot.json"] = check_snapshot(
         chunks_file, current_chunk_counts(root), compare_chunk_counts
     )
+    facts_now = current_facts(root)
+    failures["Facts that differ from data/facts_snapshot.json"] = (
+        check_snapshot(facts_file, facts_now, compare_facts)
+        if facts_now
+        else ["data/facts.jsonl is missing; run `python -m filingcheck.ingest facts`"]
+    )
+    pins = pin_differences(root)
 
     (root / "docs" / "spot_check.md").write_text(spot_check(root), encoding="utf-8", newline="\n")
     for name, page in (("section_bounds.md", section_bounds), ("table_sample.md", table_sample)):
@@ -775,6 +859,13 @@ def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
         f"Chunk texts shared by different filings (allowed, e.g. risk factors repeated "
         f"year to year): {duplicates.across_filings:,}"
     )
+    print(
+        f"companyfacts files that differ from data/companyfacts_pins.json (informational: the "
+        f"SEC's files grow, so a fresh download differs; rerun the facts cross-check in a PR "
+        f"when one is refreshed): {len(pins)}"
+    )
+    for entry in pins:
+        print(f"  {entry}")
     print("wrote docs/spot_check.md, docs/section_bounds.md and docs/table_sample.md")
     print("PASSED" if total == 0 else f"FAILED: {total} problems")
     return 0 if total == 0 else 1

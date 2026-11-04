@@ -8,6 +8,7 @@ data/sections/
 data/companyfacts/
 data/chunks.*
 data/table_chunks.*
+data/facts.*
 data/embeddings/
 
 # Raw evaluation outputs

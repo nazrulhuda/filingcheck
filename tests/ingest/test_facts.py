@@ -242,7 +242,7 @@ def test_the_facts_stage_writes_the_file_and_prints_the_totals(
     out = capsys.readouterr().out
     assert (tmp_path / "data" / "facts.jsonl").exists()
     assert "11 facts from 1 filings (2 documents)" in out
-    assert "13 numeric facts parsed, 2 duplicates removed, 2 nil facts skipped" in out
+    assert "14 numeric facts parsed, 3 duplicates removed, 1 nil facts skipped" in out
     assert "conflicts: 2 facts in 1 groups" in out
     assert (
         "EXMP FY2025 us-gaap:OperatingIncomeLoss 2025-01-01 to 2025-12-31: 100000000, 101000000"

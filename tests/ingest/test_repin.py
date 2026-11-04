@@ -132,7 +132,7 @@ def test_companies_refresh_downloads_the_ticker_list_again(tmp_path: Path) -> No
 def test_the_refresh_flag_reaches_the_stage(stage: str, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[bool] = []
 
-    def fake_stage(*args: object, refresh: bool = False) -> int:
+    def fake_stage(*args: object, refresh: bool = False, pin: bool = False) -> int:
         calls.append(refresh)
         return 0
 

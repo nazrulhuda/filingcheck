@@ -1,6 +1,6 @@
 # Data report
 
-Written by `make ingest` from `data/manifest.json` and the files the ingest stages produce. Do not edit by hand.
+Written by `make ingest` from `data/manifest.json` and the files the ingest stages produce. Do not edit by hand. The us-gaap tag counts include only tags with a fact from one of the 75 pinned filings, so they stay the same when the SEC's companyfacts files grow with later filings.
 
 ## Totals
 
@@ -10,7 +10,7 @@ Written by `make ingest` from `data/manifest.json` and the files the ingest stag
 | Filings | 75 |
 | Items saved | 372 |
 | Chunks | 42,612 |
-| us-gaap tags (all companies) | 16,086 |
+| us-gaap tags in the pinned filings (all companies) | 8,010 |
 | Number tables set aside (table_chunks) | 7,796 |
 
 ## Gaps
@@ -171,7 +171,7 @@ Where taking the tables out would move a section's start or end, that section is
 
 ## AAPL
 
-Apple Inc. · CIK 0000320193 · fiscal year ends in September · 512 us-gaap tags
+Apple Inc. · CIK 0000320193 · fiscal year ends in September · 219 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -181,7 +181,7 @@ Apple Inc. · CIK 0000320193 · fiscal year ends in September · 512 us-gaap tag
 
 ## AMZN
 
-Amazon.com, Inc. · CIK 0001018724 · fiscal year ends in December · 545 us-gaap tags
+Amazon.com, Inc. · CIK 0001018724 · fiscal year ends in December · 301 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -191,7 +191,7 @@ Amazon.com, Inc. · CIK 0001018724 · fiscal year ends in December · 545 us-gaa
 
 ## AXP
 
-American Express Company · CIK 0000004962 · fiscal year ends in December · 670 us-gaap tags
+American Express Company · CIK 0000004962 · fiscal year ends in December · 336 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -201,7 +201,7 @@ American Express Company · CIK 0000004962 · fiscal year ends in December · 67
 
 ## C
 
-Citigroup Inc. · CIK 0000831001 · fiscal year ends in December · 796 us-gaap tags
+Citigroup Inc. · CIK 0000831001 · fiscal year ends in December · 401 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -211,7 +211,7 @@ Citigroup Inc. · CIK 0000831001 · fiscal year ends in December · 796 us-gaap 
 
 ## COF
 
-Capital One Financial Corporation · CIK 0000927628 · fiscal year ends in December · 1,041 us-gaap tags
+Capital One Financial Corporation · CIK 0000927628 · fiscal year ends in December · 380 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -221,7 +221,7 @@ Capital One Financial Corporation · CIK 0000927628 · fiscal year ends in Decem
 
 ## COST
 
-Costco Wholesale Corporation · CIK 0000909832 · fiscal year ends in August · 476 us-gaap tags
+Costco Wholesale Corporation · CIK 0000909832 · fiscal year ends in August · 253 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -231,7 +231,7 @@ Costco Wholesale Corporation · CIK 0000909832 · fiscal year ends in August · 
 
 ## GOOGL
 
-Alphabet Inc. · CIK 0001652044 · fiscal year ends in December · 543 us-gaap tags
+Alphabet Inc. · CIK 0001652044 · fiscal year ends in December · 302 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -241,7 +241,7 @@ Alphabet Inc. · CIK 0001652044 · fiscal year ends in December · 543 us-gaap t
 
 ## GS
 
-The Goldman Sachs Group, Inc. · CIK 0000886982 · fiscal year ends in December · 642 us-gaap tags
+The Goldman Sachs Group, Inc. · CIK 0000886982 · fiscal year ends in December · 421 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -251,7 +251,7 @@ The Goldman Sachs Group, Inc. · CIK 0000886982 · fiscal year ends in December 
 
 ## IBM
 
-International Business Machines Corporation · CIK 0000051143 · fiscal year ends in December · 781 us-gaap tags
+International Business Machines Corporation · CIK 0000051143 · fiscal year ends in December · 365 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -261,7 +261,7 @@ International Business Machines Corporation · CIK 0000051143 · fiscal year end
 
 ## JNJ
 
-Johnson & Johnson · CIK 0000200406 · fiscal year ends in December · 610 us-gaap tags
+Johnson & Johnson · CIK 0000200406 · fiscal year ends in December · 341 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -271,7 +271,7 @@ Johnson & Johnson · CIK 0000200406 · fiscal year ends in December · 610 us-ga
 
 ## JPM
 
-JPMorgan Chase & Co. · CIK 0000019617 · fiscal year ends in December · 918 us-gaap tags
+JPMorgan Chase & Co. · CIK 0000019617 · fiscal year ends in December · 451 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -281,7 +281,7 @@ JPMorgan Chase & Co. · CIK 0000019617 · fiscal year ends in December · 918 us
 
 ## KO
 
-The Coca-Cola Company · CIK 0000021344 · fiscal year ends in December · 724 us-gaap tags
+The Coca-Cola Company · CIK 0000021344 · fiscal year ends in December · 412 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -291,7 +291,7 @@ The Coca-Cola Company · CIK 0000021344 · fiscal year ends in December · 724 u
 
 ## MA
 
-Mastercard Incorporated · CIK 0001141391 · fiscal year ends in December · 607 us-gaap tags
+Mastercard Incorporated · CIK 0001141391 · fiscal year ends in December · 296 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -301,7 +301,7 @@ Mastercard Incorporated · CIK 0001141391 · fiscal year ends in December · 607
 
 ## MCO
 
-Moody's Corporation · CIK 0001059556 · fiscal year ends in December · 705 us-gaap tags
+Moody's Corporation · CIK 0001059556 · fiscal year ends in December · 336 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -311,7 +311,7 @@ Moody's Corporation · CIK 0001059556 · fiscal year ends in December · 705 us-
 
 ## META
 
-Meta Platforms, Inc. · CIK 0001326801 · fiscal year ends in December · 462 us-gaap tags
+Meta Platforms, Inc. · CIK 0001326801 · fiscal year ends in December · 269 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -321,7 +321,7 @@ Meta Platforms, Inc. · CIK 0001326801 · fiscal year ends in December · 462 us
 
 ## MS
 
-Morgan Stanley · CIK 0000895421 · fiscal year ends in December · 914 us-gaap tags
+Morgan Stanley · CIK 0000895421 · fiscal year ends in December · 375 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -331,7 +331,7 @@ Morgan Stanley · CIK 0000895421 · fiscal year ends in December · 914 us-gaap 
 
 ## MSFT
 
-Microsoft Corporation · CIK 0000789019 · fiscal year ends in June · 562 us-gaap tags
+Microsoft Corporation · CIK 0000789019 · fiscal year ends in June · 268 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -341,7 +341,7 @@ Microsoft Corporation · CIK 0000789019 · fiscal year ends in June · 562 us-ga
 
 ## NFLX
 
-Netflix, Inc. · CIK 0001065280 · fiscal year ends in December · 490 us-gaap tags
+Netflix, Inc. · CIK 0001065280 · fiscal year ends in December · 262 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -351,7 +351,7 @@ Netflix, Inc. · CIK 0001065280 · fiscal year ends in December · 490 us-gaap t
 
 ## NKE
 
-NIKE, Inc. · CIK 0000320187 · fiscal year ends in May · 444 us-gaap tags
+NIKE, Inc. · CIK 0000320187 · fiscal year ends in May · 213 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -361,7 +361,7 @@ NIKE, Inc. · CIK 0000320187 · fiscal year ends in May · 444 us-gaap tags
 
 ## NVDA
 
-NVIDIA Corporation · CIK 0001045810 · fiscal year ends in January · 627 us-gaap tags
+NVIDIA Corporation · CIK 0001045810 · fiscal year ends in January · 273 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -371,7 +371,7 @@ NVIDIA Corporation · CIK 0001045810 · fiscal year ends in January · 627 us-ga
 
 ## PFE
 
-Pfizer Inc. · CIK 0000078003 · fiscal year ends in December · 667 us-gaap tags
+Pfizer Inc. · CIK 0000078003 · fiscal year ends in December · 350 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -381,7 +381,7 @@ Pfizer Inc. · CIK 0000078003 · fiscal year ends in December · 667 us-gaap tag
 
 ## SPGI
 
-S&P Global Inc. · CIK 0000064040 · fiscal year ends in December · 622 us-gaap tags
+S&P Global Inc. · CIK 0000064040 · fiscal year ends in December · 284 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -391,7 +391,7 @@ S&P Global Inc. · CIK 0000064040 · fiscal year ends in December · 622 us-gaap
 
 ## UNH
 
-UnitedHealth Group Incorporated · CIK 0000731766 · fiscal year ends in December · 573 us-gaap tags
+UnitedHealth Group Incorporated · CIK 0000731766 · fiscal year ends in December · 316 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -401,7 +401,7 @@ UnitedHealth Group Incorporated · CIK 0000731766 · fiscal year ends in Decembe
 
 ## VZ
 
-Verizon Communications Inc. · CIK 0000732712 · fiscal year ends in December · 677 us-gaap tags
+Verizon Communications Inc. · CIK 0000732712 · fiscal year ends in December · 333 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -411,7 +411,7 @@ Verizon Communications Inc. · CIK 0000732712 · fiscal year ends in December ·
 
 ## WMT
 
-Walmart Inc. · CIK 0000104169 · fiscal year ends in January · 478 us-gaap tags
+Walmart Inc. · CIK 0000104169 · fiscal year ends in January · 253 us-gaap tags in its pinned filings
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
