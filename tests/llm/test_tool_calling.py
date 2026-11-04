@@ -176,3 +176,14 @@ def test_the_router_passes_the_tools_on() -> None:
     completion = router.complete([], max_tokens=700, tools=TOOLS, tool_choice="auto")
     assert isinstance(completion, Completion) and completion.tool_calls[0].name == "calculate"
     assert (fake.calls[0]["tools"], fake.calls[0]["tool_choice"]) == (TOOLS, "auto")
+
+
+def test_null_fields_are_left_out_of_the_kept_message_because_groq_rejects_them() -> None:
+    # OpenRouter returns "refusal": null; Groq answers the next turn with HTTP 400
+    # ("property 'refusal' is unsupported") if it is sent back. Real fields stay as returned.
+    message = {"role": "assistant", "content": None, "refusal": None, "tool_calls": [CALL]}
+    body = {"choices": [{"message": message, "finish_reason": "tool_calls"}], "usage": USAGE}
+    completion = client(Script(httpx.Response(200, json=body))).complete(
+        [{"role": "user", "content": "x"}], max_tokens=700, tools=TOOLS
+    )
+    assert completion.message == {"role": "assistant", "content": None, "tool_calls": [CALL]}
