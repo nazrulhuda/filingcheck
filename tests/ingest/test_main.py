@@ -194,7 +194,12 @@ class FakeFactsClient:
         return None
 
     def get_bytes(self, url: str, refresh: bool = False) -> bytes:
-        return b'{"facts": {"us-gaap": {"Assets": {}, "Revenues": {}}}}'
+        # Assets comes from the pinned filing; Revenues only from another filing.
+        return (
+            b'{"facts": {"us-gaap": {'
+            b'"Assets": {"units": {"USD": [{"accn": "0000051143-26-000010", "val": 1}]}}, '
+            b'"Revenues": {"units": {"USD": [{"accn": "0000051143-25-000001", "val": 2}]}}}}}'
+        )
 
 
 def test_companyfacts_and_report_stages_write_their_files(
@@ -234,14 +239,14 @@ def test_companyfacts_and_report_stages_write_their_files(
     assert cli.run_report(companies, manifest, tmp_path) == 0
     report = (tmp_path / cli.DATA_REPORT).read_text(encoding="utf-8")
     assert "## EXMP" in report
-    assert "2 us-gaap tags" in report
+    assert "1 us-gaap tags" in report  # only tags with a fact from the pinned filing
     assert "Items 7 and 8 are short and the filing has no Exhibit 13" in report
 
 
 def test_the_companyfacts_and_report_stages_are_wired(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
-    def fake_facts(companies: Path, root: Path, refresh: bool = False) -> int:
+    def fake_facts(companies: Path, root: Path, refresh: bool = False, pin: bool = False) -> int:
         calls.append("f")
         return 0
 

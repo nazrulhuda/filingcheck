@@ -1,6 +1,7 @@
-"""Load the companies, filings, chunks and number tables into Postgres, replacing what was there."""
+"""Load the companies, filings, chunks, number tables and facts into Postgres, replacing them."""
 
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 
 import psycopg
@@ -9,6 +10,7 @@ from psycopg.types.json import Jsonb
 from filingcheck.embeddings import content_hash
 from filingcheck.ingest.chunking import Chunk, TableChunk
 from filingcheck.ingest.companies import Company
+from filingcheck.ingest.facts import Fact
 from filingcheck.ingest.filings import Manifest
 from filingcheck.ingest.sections import load_summary
 
@@ -21,6 +23,25 @@ COPY_TABLES = (
     "COPY table_chunks (filing_id, item, table_index, source_url, position, text) FROM STDIN"
 )
 COPY_TABLE_TYPES = ["bigint", "text", "integer", "text", "integer", "text"]
+COPY_FACTS = (
+    "COPY facts (filing_id, concept, value, unit, period_start, period_end, instant, decimals, "
+    "scale, sign, dimensions, context_ref, conflict) FROM STDIN"
+)
+COPY_FACT_TYPES = [
+    "bigint",
+    "text",
+    "numeric",
+    "text",
+    "date",
+    "date",
+    "date",
+    "text",
+    "integer",
+    "text",
+    "jsonb",
+    "text",
+    "boolean",
+]
 
 
 def read_chunks(path: Path) -> Iterator[Chunk]:
@@ -46,8 +67,9 @@ def load_all(
     chunks_path: Path,
     table_chunks_path: Path | None = None,
     summary_path: Path | None = None,
+    facts_path: Path | None = None,
 ) -> dict[str, int]:
-    """Replace the companies, filings, chunks and number tables in one transaction.
+    """Replace the companies, filings, chunks, number tables and facts in one transaction.
 
     Returns the row counts and how many chunk embeddings were restored from the cache.
     Chunks and tables are bulk-loaded with COPY. A row whose filing is not in the manifest
@@ -56,7 +78,7 @@ def load_all(
     """
     with conn.transaction():
         conn.execute(
-            "TRUNCATE companies, filings, chunks, table_chunks, section_sources "
+            "TRUNCATE companies, filings, chunks, table_chunks, section_sources, facts "
             "RESTART IDENTITY CASCADE"
         )
         with conn.cursor() as cur:
@@ -131,10 +153,19 @@ def load_all(
                     )
         if summary_path is not None:
             _load_section_sources(conn, manifest, summary_path, filing_ids)
+        if facts_path is not None:
+            _copy_facts(conn, facts_path, filing_ids)
         model = current_model(conn)
         restored = restore_embeddings(conn, model) if model else 0
     counts = {}
-    for table_name in ("companies", "filings", "chunks", "table_chunks", "section_sources"):
+    for table_name in (
+        "companies",
+        "filings",
+        "chunks",
+        "table_chunks",
+        "section_sources",
+        "facts",
+    ):
         row = conn.execute(f"SELECT count(*) FROM {table_name}").fetchone()  # fixed names
         counts[table_name] = int(row[0]) if row else 0
     counts["embeddings_restored"] = restored
@@ -182,3 +213,53 @@ def restore_embeddings(conn: psycopg.Connection, model: str) -> int:
         (model,),
     )
     return cursor.rowcount
+
+
+def read_facts(path: Path) -> Iterator[Fact]:
+    """Read the facts written by the facts stage, one JSON object per line."""
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                yield Fact.model_validate_json(line)
+
+
+def _copy_facts(conn: psycopg.Connection, path: Path, filing_ids: dict[str, int]) -> int:
+    count = 0
+    with conn.cursor() as cur, cur.copy(COPY_FACTS) as copy:
+        copy.set_types(COPY_FACT_TYPES)
+        for fact in read_facts(path):
+            if fact.accession not in filing_ids:
+                raise KeyError(f"fact for a filing not in the database: {fact.accession}")
+            copy.write_row(
+                (
+                    filing_ids[fact.accession],
+                    fact.concept,
+                    Decimal(fact.value),
+                    fact.unit,
+                    fact.period_start,
+                    fact.period_end,
+                    fact.instant,
+                    fact.decimals,
+                    fact.scale,
+                    fact.sign,
+                    Jsonb(fact.dimensions),
+                    fact.context_ref,
+                    fact.conflict,
+                )
+            )
+            count += 1
+    return count
+
+
+def load_facts(conn: psycopg.Connection, path: Path) -> int:
+    """Replace only the facts table, in one transaction; return the number of facts loaded.
+
+    Each fact's filing is found by accession, so this works on any database that holds the
+    same filings, whatever their ids. The passages and their vectors are not touched.
+    """
+    with conn.transaction():
+        filing_ids = {str(a): int(i) for i, a in conn.execute("SELECT id, accession FROM filings")}
+        conn.execute("TRUNCATE facts RESTART IDENTITY")
+        count = _copy_facts(conn, path, filing_ids)
+    conn.commit()
+    return count

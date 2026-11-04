@@ -145,14 +145,75 @@ def run_chunks(manifest_path: Path, root: Path) -> int:
     return 0
 
 
-def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
-    """Apply the migrations, then replace the companies, filings and chunks in the database."""
-    from filingcheck.db import connect
-    from filingcheck.db.load import load_all
-    from filingcheck.db.migrate import migrate
-    from filingcheck.ingest.companies import load_companies
+def run_facts(manifest_path: Path, root: Path) -> int:
+    """Read every pinned filing's numeric XBRL facts into `data/facts.jsonl`."""
+    import time
+
+    from filingcheck.ingest.facts import FACTS_FILE, write_facts
     from filingcheck.ingest.filings import load_manifest
 
+    started = time.monotonic()
+    results = write_facts(load_manifest(manifest_path), root, root / FACTS_FILE)
+    seconds = time.monotonic() - started
+    facts = sum(len(r.facts) for r in results)
+    totals = sum(1 for r in results for f in r.facts if not f.dimensions)
+    conflicts = [group for r in results for group in r.conflicts]
+    print(
+        f"{facts:,} facts from {len(results)} filings "
+        f"({sum(r.documents for r in results)} documents); {totals:,} company totals "
+        "(no dimensions)"
+    )
+    print(
+        f"{sum(r.parsed for r in results):,} numeric facts parsed, "
+        f"{sum(r.duplicates_removed for r in results):,} duplicates removed, "
+        f"{sum(r.rounded_copies_removed for r in results):,} rounded copies removed, "
+        f"{sum(r.nil for r in results):,} nil facts skipped"
+    )
+    print(
+        f"conflicts: {sum(len(g) for g in conflicts)} facts in "
+        f"{sum(r.conflict_groups for r in results)} groups"
+    )
+    for group in conflicts:
+        first = group[0]
+        period = (
+            f"{first.period_start} to {first.period_end}"
+            if first.period_end
+            else str(first.instant)
+        )
+        dims = f" {first.dimensions}" if first.dimensions else ""
+        print(
+            f"  {first.ticker} FY{first.fiscal_year} {first.concept}{dims} {period}: "
+            + ", ".join(f.value for f in group)
+        )
+    print(f"wrote {FACTS_FILE} in {seconds:.0f} s")
+    return 0
+
+
+def run_load(companies_path: Path, manifest_path: Path, root: Path, only: str | None = None) -> int:
+    """Apply the migrations, then replace the companies, filings, chunks and facts.
+
+    `only="facts"` replaces the facts table alone, so the passages and their vectors stay.
+    """
+    from filingcheck.db import connect
+    from filingcheck.db.load import load_all, load_facts
+    from filingcheck.db.migrate import migrate
+    from filingcheck.ingest.companies import load_companies
+    from filingcheck.ingest.facts import FACTS_FILE
+    from filingcheck.ingest.filings import load_manifest
+
+    facts_path = root / FACTS_FILE
+    facts_in_file = 0
+    if facts_path.exists():
+        with facts_path.open(encoding="utf-8") as handle:
+            facts_in_file = sum(1 for line in handle if line.strip())
+    if only == "facts":
+        with connect() as conn:
+            applied = migrate(conn)
+            loaded = load_facts(conn, facts_path)
+        if applied:
+            print(f"applied migrations: {', '.join(applied)}")
+        print(f"loaded {loaded:,} facts ({facts_in_file:,} in {FACTS_FILE}); nothing else changed")
+        return 0 if loaded == facts_in_file else 1
     chunks_path = root / CHUNKS_FILE
     tables_path = root / TABLE_CHUNKS_FILE
     summary = root / SECTIONS_SUMMARY
@@ -165,6 +226,7 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
             chunks_path,
             tables_path if tables_path.exists() else None,
             summary if summary.exists() else None,
+            facts_path=facts_path if facts_path.exists() else None,
         )
     with chunks_path.open(encoding="utf-8") as handle:
         in_file = sum(1 for line in handle if line.strip())
@@ -182,31 +244,41 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path) -> int:
         f"loaded {counts['table_chunks']:,} number tables "
         f"({tables_in_file:,} in {TABLE_CHUNKS_FILE})"
     )
+    print(f"loaded {counts['facts']:,} facts ({facts_in_file:,} in {FACTS_FILE})")
     print(f"restored {counts['embeddings_restored']:,} chunk embeddings from the cache")
-    if counts["chunks"] != in_file or counts["table_chunks"] != tables_in_file:
+    if (
+        counts["chunks"] != in_file
+        or counts["table_chunks"] != tables_in_file
+        or counts["facts"] != facts_in_file
+    ):
         print("ERROR: the database and the chunk files disagree")
         return 1
     return 0
 
 
-def run_companyfacts(companies_path: Path, root: Path, refresh: bool = False) -> int:
+def run_companyfacts(
+    companies_path: Path, root: Path, refresh: bool = False, pin: bool = False
+) -> int:
     """Download and check every company's XBRL companyfacts file.
 
     `refresh=True` downloads them again instead of using the cached copies (the re-pin).
+    `pin=True` records each file's SHA-256, size and download time (the time its
+    cached copy was saved) in `data/companyfacts_pins.json`; done deliberately, in a PR.
     """
     from filingcheck.ingest.companies import load_companies
-    from filingcheck.ingest.companyfacts import fetch_companyfacts
+    from filingcheck.ingest.companyfacts import PINS_FILE, fetch_companyfacts, write_pins
     from filingcheck.ingest.sec_client import SecClient
 
+    companies = load_companies(companies_path)
     with SecClient() as client:
-        tags = {
-            c.ticker: fetch_companyfacts(c, client, root, refresh=refresh)
-            for c in load_companies(companies_path)
-        }
+        tags = {c.ticker: fetch_companyfacts(c, client, root, refresh=refresh) for c in companies}
         downloads = client.downloads
     for ticker, count in tags.items():
         print(f"{ticker:<6} {count:>5,} us-gaap tags")
     print(f"{len(tags)} companyfacts files; {downloads} downloaded from sec.gov in this run")
+    if pin:
+        write_pins(companies, root)
+        print(f"wrote {PINS_FILE}")
     return 0
 
 
@@ -216,21 +288,23 @@ def run_report(companies_path: Path, manifest_path: Path, root: Path) -> int:
 
     from filingcheck.db.load import read_chunks
     from filingcheck.ingest.companies import load_companies
-    from filingcheck.ingest.companyfacts import companyfacts_path, count_us_gaap_tags
+    from filingcheck.ingest.companyfacts import companyfacts_path, count_pinned_us_gaap_tags
     from filingcheck.ingest.filings import load_manifest
     from filingcheck.ingest.report import build_report
     from filingcheck.ingest.sections import load_summary
 
     companies = load_companies(companies_path)
+    manifest = load_manifest(manifest_path)
     chunk_counts = Counter((c.accession, c.item) for c in read_chunks(root / CHUNKS_FILE))
     tags = {}
     for company in companies:
         path = root / companyfacts_path(company.ticker)
         if path.exists():
-            tags[company.ticker] = count_us_gaap_tags(path.read_bytes())
+            pinned = {f.accession for f in manifest.filings if f.ticker == company.ticker}
+            tags[company.ticker] = count_pinned_us_gaap_tags(path.read_bytes(), pinned)
     text = build_report(
         companies,
-        load_manifest(manifest_path),
+        manifest,
         load_summary(root / SECTIONS_SUMMARY),
         dict(chunk_counts),
         tags,
@@ -262,9 +336,20 @@ def main(argv: list[str] | None = None) -> int:
     companyfacts.add_argument(
         "--refresh", action="store_true", help="download the files again instead of reusing"
     )
+    companyfacts.add_argument(
+        "--write-pins",
+        action="store_true",
+        help="record each file's SHA-256, size and download time in data/companyfacts_pins.json",
+    )
     stages.add_parser("sections", help="split each filing into Items 1, 1A, 7, 7A and 8")
     stages.add_parser("chunks", help="chunk the saved Items into data/chunks.jsonl")
-    stages.add_parser("load", help="load companies, filings and chunks into Postgres")
+    stages.add_parser("facts", help="read each filing's numeric XBRL facts into data/facts.jsonl")
+    load = stages.add_parser("load", help="load companies, filings, chunks and facts into Postgres")
+    load.add_argument(
+        "--only",
+        choices=["facts"],
+        help="replace only this table (the passages and their vectors stay as they are)",
+    )
     stages.add_parser("report", help="write docs/data_report.md")
     args = parser.parse_args(argv)
     if args.stage == "companies":
@@ -276,9 +361,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.stage == "chunks":
         return run_chunks(MANIFEST_FILE, REPO_ROOT)
     if args.stage == "companyfacts":
-        return run_companyfacts(COMPANIES_FILE, REPO_ROOT, refresh=args.refresh)
+        return run_companyfacts(
+            COMPANIES_FILE, REPO_ROOT, refresh=args.refresh, pin=args.write_pins
+        )
+    if args.stage == "facts":
+        return run_facts(MANIFEST_FILE, REPO_ROOT)
     if args.stage == "load":
-        return run_load(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
+        return run_load(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT, only=args.only)
     if args.stage == "report":
         return run_report(COMPANIES_FILE, MANIFEST_FILE, REPO_ROOT)
     return 1  # pragma: no cover  (argparse rejects unknown stages first)

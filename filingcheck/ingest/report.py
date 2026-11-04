@@ -45,7 +45,8 @@ def build_report(
     """The data report as Markdown.
 
     `chunk_counts` maps (accession, Item) to the number of chunks kept; `tag_counts` maps a
-    ticker to the number of us-gaap tags in its companyfacts file.
+    ticker to the number of us-gaap tags in its companyfacts file that have a fact from one of
+    its pinned filings.
     """
     by_accession = {s.accession: s for s in summaries}
     filings_by_ticker = defaultdict(list)
@@ -57,7 +58,9 @@ def build_report(
         "# Data report",
         "",
         "Written by `make ingest` from `data/manifest.json` and the files the ingest stages "
-        "produce. Do not edit by hand.",
+        "produce. Do not edit by hand. The us-gaap tag counts include only tags with a fact "
+        "from one of the 75 pinned filings, so they stay the same when the SEC's companyfacts "
+        "files grow with later filings.",
         "",
         "## Totals",
         "",
@@ -67,7 +70,7 @@ def build_report(
         f"| Filings | {len(manifest.filings)} |",
         f"| Items saved | {sum(len(s.items) for s in summaries):,} |",
         f"| Chunks | {sum(chunk_counts.values()):,} |",
-        f"| us-gaap tags (all companies) | {sum(tag_counts.values()):,} |",
+        f"| us-gaap tags in the pinned filings (all companies) | {sum(tag_counts.values()):,} |",
         f"| Number tables set aside (table_chunks) | {sum(s.tables_saved for s in summaries):,} |",
         "",
     ]
@@ -180,7 +183,7 @@ def build_report(
         header = "| FY | Accession | Period of report | " + " | ".join(names)
         month = calendar.month_name[company.fiscal_year_end]
         tags = tag_counts.get(company.ticker)
-        tag_text = f" · {tags:,} us-gaap tags" if tags is not None else ""
+        tag_text = f" · {tags:,} us-gaap tags in its pinned filings" if tags is not None else ""
         lines += [
             f"## {company.ticker}",
             "",

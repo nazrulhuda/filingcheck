@@ -87,7 +87,10 @@ def report() -> str:
 def test_there_is_a_section_per_company_in_ticker_order() -> None:
     text = report()
     assert text.index("## AAPL") < text.index("## IBM")
-    assert "Apple Inc. · CIK 0000320193 · fiscal year ends in September · 503 us-gaap tags" in text
+    assert (
+        "Apple Inc. · CIK 0000320193 · fiscal year ends in September · "
+        "503 us-gaap tags in its pinned filings"
+    ) in text
 
 
 def test_each_filing_row_shows_items_chunks_and_where_sections_came_from() -> None:
@@ -102,7 +105,7 @@ def test_the_totals_cover_every_company() -> None:
     assert "| Companies | 2 |" in text
     assert "| Filings | 2 |" in text
     assert "| Chunks | 80 |" in text
-    assert "| us-gaap tags (all companies) | 1,114 |" in text
+    assert "| us-gaap tags in the pinned filings (all companies) | 1,114 |" in text
 
 
 def test_short_items_and_moved_sections_are_listed() -> None:

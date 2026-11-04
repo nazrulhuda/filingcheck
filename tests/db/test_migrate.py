@@ -70,20 +70,6 @@ def test_running_the_migrations_again_changes_nothing(db: psycopg.Connection) ->
 
 
 @pytest.mark.integration
-def test_facts_reject_a_duplicate_instant_fact(db: psycopg.Connection) -> None:
-    # Balance-sheet facts have no start date; NULLs must still count as equal.
-    migrate(db)
-    row = ("0000320193", "us-gaap", "Assets", "USD", 1, None, "2025-09-27", "acc-1")
-    insert = (
-        "INSERT INTO facts (cik, taxonomy, tag, unit, value, start_date, end_date, accession) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-    )
-    db.execute(insert, row)
-    with pytest.raises(psycopg.errors.UniqueViolation):
-        db.execute(insert, row)
-
-
-@pytest.mark.integration
 def test_chunks_carry_their_boundary_and_other_items(db: psycopg.Connection) -> None:
     migrate(db)
     columns: dict[str, str] = dict(
