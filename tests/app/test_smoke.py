@@ -139,7 +139,10 @@ def test_the_expected_primary_model_can_be_given() -> None:
     lines = smoke.run_checks(BASE, client, model=expected)
     assert failures(lines) == [
         "FAIL GET /health: the primary model is "
-        "openrouter:openai/gpt-oss-20b, not gemini:gemini-3.5-flash-lite"
+        "openrouter:openai/gpt-oss-20b, not gemini:gemini-3.5-flash-lite",
+        # The fake agent answer still names the OpenRouter model, so it fails too.
+        "FAIL POST /ask (agent): answered by openrouter:openai/gpt-oss-20b, "
+        "not the primary gemini:gemini-3.5-flash-lite",
     ]
 
 

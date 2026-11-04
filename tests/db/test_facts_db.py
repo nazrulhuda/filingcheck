@@ -177,16 +177,23 @@ def test_facts_for_a_filing_not_in_the_database_stop_the_load(
 
 
 @pytest.mark.integration
-def test_the_request_log_records_the_mode_and_the_tool_calls(db: psycopg.Connection) -> None:
+def test_the_request_log_records_the_mode_and_the_tool_calls(
+    db: psycopg.Connection, fresh_db_url: str
+) -> None:
     from datetime import UTC, datetime
 
     from filingcheck.app.store import PostgresStore, RequestRow
 
     migrate(db)
     db.commit()
-    store = PostgresStore(db.info.dsn)
+    store = PostgresStore(fresh_db_url)
     now = datetime.now(UTC)
-    base = {"created_at": now, "question_hash": "h", "question": "q", "client_ip_hash": "ip"}
+    base: dict[str, Any] = {
+        "created_at": now,
+        "question_hash": "h",
+        "question": "q",
+        "client_ip_hash": "ip",
+    }
     store.log_request(RequestRow(id="00000000-0000-0000-0000-000000000001", **base))
     store.log_request(
         RequestRow(

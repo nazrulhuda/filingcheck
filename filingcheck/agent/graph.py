@@ -8,13 +8,13 @@ checks: a wrong tool argument comes back to the model as the tool's error, nothi
 
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from filingcheck.answer.baseline import ABSTAIN, MAX_TOKENS, Answer, is_abstain
 from filingcheck.answer.citations import (
@@ -25,7 +25,7 @@ from filingcheck.answer.citations import (
     parse_fact_citations,
 )
 from filingcheck.facts.lookup import FactResult
-from filingcheck.llm import ChatModel, Completion, Message
+from filingcheck.llm import ChatModel, Completion, IncompleteAnswer, Message, ProviderUnavailable
 from filingcheck.tools import ToolDeps, run_tool, tool_schemas
 
 MAX_MODEL_CALLS = 6
@@ -82,6 +82,9 @@ class AgentAnswer(Answer):
     fact_citations: list[FactCitation]
     model_calls: int
     stopped_by: Literal["model_calls", "tool_calls"] | None = None
+    # Log codes of models that failed before this one answered; each restart began the
+    # question again from an empty message list.
+    restarts: list[str] = Field(default_factory=list)
 
 
 class _Passage(BaseModel):
@@ -300,6 +303,46 @@ def run_agent(
     }
     final_state = agent.invoke(state, config={"recursion_limit": 4 * MAX_MODEL_CALLS + 4})
     return _answer(final_state, start)
+
+
+def run_agent_with_fallbacks(
+    question: str,
+    *,
+    models: Sequence[ChatModel],
+    deps: ToolDeps,
+    ticker: str | None = None,
+    fiscal_year: int | None = None,
+    max_tokens: int = MAX_TOKENS,
+    on_tool_call: Callable[[ToolCallRecord], None] | None = None,
+    on_restart: Callable[[str], None] | None = None,
+) -> AgentAnswer:
+    """The agent with each model in turn: if one fails mid-run, the next starts again.
+
+    A run is never continued by another model, whose tool calls would follow a
+    conversation it did not have; the next model gets the question from the beginning.
+    The last model's failure is raised.
+    """
+    restarts: list[str] = []
+    for i, model in enumerate(models):
+        try:
+            answer = run_agent(
+                question,
+                model=model,
+                deps=deps,
+                ticker=ticker,
+                fiscal_year=fiscal_year,
+                max_tokens=max_tokens,
+                on_tool_call=on_tool_call,
+            )
+        except (ProviderUnavailable, IncompleteAnswer) as exc:
+            if i == len(models) - 1:
+                raise
+            restarts.append(exc.log_code)
+            if on_restart is not None:
+                on_restart(exc.log_code)
+            continue
+        return answer.model_copy(update={"restarts": restarts})
+    raise ValueError("no models to run the agent with")
 
 
 def _answer(state: AgentState, start: float) -> AgentAnswer:

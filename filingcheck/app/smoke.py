@@ -1,7 +1,8 @@
 """`make smoke-live URL=https://...`: the deployed API answers on every public path.
 
-Calls /health, /companies, /examples and one /ask (one model call, counted against the daily
-cap), and fails on any status other than 200, an empty list, or an answer with no citations.
+Calls /health, /companies, /examples, one /ask with the baseline and one with the agent (two
+questions counted against the daily cap), and fails on any status other than 200, an empty
+list, or an answer with no citations (the agent's: no tool call or no fact citation).
 It also fails on an answer that is cached, degraded or from a model other than the primary:
 each means a key or setting on the server is wrong, which a cited answer would otherwise hide.
 """
@@ -21,6 +22,8 @@ QUESTION = {
     "question": "What does Netflix say about intellectual-property claims?",
     "ticker": "NFLX",
 }
+# The agent must look this number up with get_financial_fact and cite it as [F1].
+AGENT_QUESTION = {"question": "What were Apple's total net sales in fiscal 2025?", "mode": "agent"}
 # The first request after Neon has suspended waits for it to wake, and an answer for the model.
 TIMEOUT_SECONDS = 60.0
 
@@ -38,10 +41,12 @@ def _check(
     url: str,
     path: str,
     describe: Callable[[Any], str | None],
+    *,
+    label_suffix: str = "",
     **kwargs: Any,
 ) -> Check:
     """One request; `describe` returns a failure reason for the JSON body, or None if fine."""
-    label = f"{method} {path}"
+    label = f"{method} {path}{label_suffix}"
     try:
         response = client.request(method, url + path, **kwargs)
     except httpx.HTTPError as exc:
@@ -62,6 +67,13 @@ def summary(path: str, body: Any) -> str:
     """A short description of a good reply."""
     if path == "/health":
         return f"status {body.get('status')}, model {body.get('model')}"
+    if path == "/ask" and body.get("mode") == "agent":
+        tools = ", ".join(c.get("name", "?") for c in body.get("tool_calls") or [])
+        facts = len(body.get("fact_citations") or [])
+        return (
+            f"tool calls {tools}, {facts} fact citation{'s' if facts != 1 else ''}, "
+            f"model {body.get('model_used')}, cached {body.get('cached')}"
+        )
     if path == "/ask":
         count = len(body.get("citations") or [])
         return (
@@ -106,6 +118,30 @@ def a_new_cited_answer_from(model: str) -> Callable[[Any], str | None]:
     return check
 
 
+def an_agent_answer_from(model: str) -> Callable[[Any], str | None]:
+    """The agent answered: it called a tool, cited a fact, was new and used the primary."""
+
+    def check(body: Any) -> str | None:
+        if not isinstance(body, dict):
+            return "the reply is not an answer"
+        if body.get("mode") != "agent":
+            return "the reply is not from the agent"
+        problems = []
+        if not body.get("tool_calls"):
+            problems.append("the agent made no tool call")
+        if not body.get("fact_citations"):
+            problems.append("the agent's answer cites no fact")
+        if body.get("restarts"):
+            problems.append(f"the agent restarted with a fallback ({', '.join(body['restarts'])})")
+        if body.get("cached"):
+            problems.append("the answer is a saved example (cached), not a new model call")
+        if body.get("model_used") != model:
+            problems.append(f"answered by {body.get('model_used')}, not the primary {model}")
+        return "; ".join(problems) or None
+
+    return check
+
+
 def run_checks(base_url: str, client: httpx.Client, model: str = DEFAULT_CHAT_MODEL) -> list[Check]:
     """Every check, in order; a failure does not stop the rest."""
     url = base_url.rstrip("/")
@@ -114,6 +150,15 @@ def run_checks(base_url: str, client: httpx.Client, model: str = DEFAULT_CHAT_MO
         _check(client, "GET", url, "/companies", non_empty),
         _check(client, "GET", url, "/examples", non_empty),
         _check(client, "POST", url, "/ask", a_new_cited_answer_from(model), json=QUESTION),
+        _check(
+            client,
+            "POST",
+            url,
+            "/ask",
+            an_agent_answer_from(model),
+            label_suffix=" (agent)",
+            json=AGENT_QUESTION,
+        ),
     ]
 
 
