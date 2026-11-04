@@ -2,15 +2,15 @@
 
 from datetime import date
 
-from filingcheck.facts.lookup import TotalFact
+from filingcheck.facts.lookup import FilingRef, TotalFact
 from filingcheck.ingest.facts_coverage import build_coverage
 from tests.db.test_load import APPLE, FILING
 from tests.facts.test_lookup import FakeFacts, duration, instant
 
 
 def apple_source(facts: list[TotalFact]) -> FakeFacts:
-    source = FakeFacts(facts)
-    source._filing = source._filing.__class__(  # the Apple filing of tests.db.test_load
+    """A source holding the Apple filing of tests.db.test_load."""
+    filing = FilingRef(
         ticker="AAPL",
         fiscal_year=2025,
         accession=FILING.accession,
@@ -18,8 +18,7 @@ def apple_source(facts: list[TotalFact]) -> FakeFacts:
         source_url=FILING.primary_document_url,
         revenue_rule="standard",
     )
-    source.filing = lambda t, y: source._filing if (t, y) == ("AAPL", 2025) else None  # type: ignore[method-assign]
-    return source
+    return FakeFacts(facts, filing=filing)
 
 
 def test_the_coverage_page_shows_the_lookups_tag_or_unavailable_per_metric() -> None:

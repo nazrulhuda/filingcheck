@@ -41,8 +41,8 @@ def write(tmp_path: Path, rows: list[dict[str, Any]], name: str = "q.jsonl") -> 
     return path
 
 
-def test_the_twelve_metrics_and_all_categories_are_allowed() -> None:
-    assert len(METRICS) == 12
+def test_the_thirteen_metrics_and_all_categories_are_allowed() -> None:
+    assert len(METRICS) == 13 and "pretax_income" in METRICS
     assert "stockholders_equity" in METRICS and "shares_outstanding" in METRICS
     assert {"prompt_injection", "control", "lookalike_company", "units_scale"} <= set(CATEGORIES)
 

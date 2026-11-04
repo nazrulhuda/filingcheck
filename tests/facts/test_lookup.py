@@ -16,9 +16,14 @@ YEAR = (date(2025, 1, 1), date(2025, 12, 31))
 
 
 class FakeFacts:
-    def __init__(self, facts: list[TotalFact], revenue_rule: str = "standard") -> None:
+    def __init__(
+        self,
+        facts: list[TotalFact],
+        revenue_rule: str = "standard",
+        filing: FilingRef | None = None,
+    ) -> None:
         self._facts = facts
-        self._filing = FilingRef(
+        self._filing = filing or FilingRef(
             ticker="EXMP",
             fiscal_year=2025,
             accession=ACC,
@@ -29,7 +34,7 @@ class FakeFacts:
         self.asked: list[tuple[str, tuple[str, ...]]] = []
 
     def filing(self, ticker: str, fiscal_year: int) -> FilingRef | None:
-        if (ticker, fiscal_year) == ("EXMP", 2025):
+        if (ticker, fiscal_year) == (self._filing.ticker, self._filing.fiscal_year):
             return self._filing
         return None
 
@@ -137,7 +142,10 @@ def test_the_first_candidate_with_a_fact_wins() -> None:
         ]
     )
     result = lookup(source, "EXMP", 2025, "revenue")
-    assert result is not None and (result.concept, result.value) == ("us-gaap:Revenues", 1000)
+    assert result is not None and (result.concept, result.value) == (
+        "us-gaap:Revenues",
+        Decimal(1000),
+    )
     only_second = FakeFacts(
         [duration("us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax", "900")]
     )
@@ -186,7 +194,10 @@ def test_an_instant_must_fall_on_the_period_of_report() -> None:
         is None
     )
     result = lookup(FakeFacts([instant("us-gaap:Assets", "10")]), "EXMP", 2025, "total_assets")
-    assert result is not None and (result.instant, result.value) == (date(2025, 12, 31), 10)
+    assert result is not None and (result.instant, result.value) == (
+        date(2025, 12, 31),
+        Decimal(10),
+    )
 
 
 def test_only_company_totals_count_never_a_segment() -> None:
@@ -213,7 +224,11 @@ def test_the_cover_page_share_count_keeps_its_own_later_date_and_says_so() -> No
     )
     result = lookup(FakeFacts([cover]), "EXMP", 2025, "shares_outstanding")
     assert result is not None
-    assert (result.value, result.unit, result.instant) == (7500000, "shares", date(2026, 2, 10))
+    assert (result.value, result.unit, result.instant) == (
+        Decimal(7500000),
+        "shares",
+        date(2026, 2, 10),
+    )
     assert result.note is not None and "2026-02-10" in result.note and "2025-12-31" in result.note
     period_end = instant("us-gaap:CommonStockSharesOutstanding", "7400000", unit="shares")
     result = lookup(FakeFacts([cover, period_end]), "EXMP", 2025, "shares_outstanding")
