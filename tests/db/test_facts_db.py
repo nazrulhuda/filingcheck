@@ -174,3 +174,30 @@ def test_facts_for_a_filing_not_in_the_database_stop_the_load(
         load_facts(db, write_facts(tmp_path / "bad.jsonl", [stranger]))
     db.rollback()
     assert db.execute("SELECT count(*) FROM facts").fetchone() == (4,)  # unchanged
+
+
+@pytest.mark.integration
+def test_the_request_log_records_the_mode_and_the_tool_calls(db: psycopg.Connection) -> None:
+    from datetime import UTC, datetime
+
+    from filingcheck.app.store import PostgresStore, RequestRow
+
+    migrate(db)
+    db.commit()
+    store = PostgresStore(db.info.dsn)
+    now = datetime.now(UTC)
+    base = {"created_at": now, "question_hash": "h", "question": "q", "client_ip_hash": "ip"}
+    store.log_request(RequestRow(id="00000000-0000-0000-0000-000000000001", **base))
+    store.log_request(
+        RequestRow(
+            id="00000000-0000-0000-0000-000000000002",
+            mode="agent",
+            tool_calls={"calls": [{"name": "calculate"}], "restarts": ["fake 503 busy"]},
+            **base,
+        )
+    )
+    rows = sorted(store.requests_since(now), key=lambda r: r.id)
+    assert [(r.mode, r.tool_calls) for r in rows] == [
+        ("baseline", None),
+        ("agent", {"calls": [{"name": "calculate"}], "restarts": ["fake 503 busy"]}),
+    ]
