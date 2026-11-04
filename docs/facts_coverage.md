@@ -15,9 +15,9 @@ For each company and pinned fiscal year, what the lookup returns for each metric
 | total_liabilities | 60 of 75 | `Liabilities` 60 |
 | stockholders_equity | 75 of 75 | `StockholdersEquity` 66, `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` 9 |
 | operating_cash_flow | 75 of 75 | `NetCashProvidedByUsedInOperatingActivities` 75 |
-| capital_expenditures | 57 of 75 | `PaymentsToAcquirePropertyPlantAndEquipment` 57 |
+| capital_expenditures | 69 of 75 | `PaymentsToAcquirePropertyPlantAndEquipment` 57, `PaymentsToAcquireProductiveAssets` 9, `PaymentsToAcquireOtherProductiveAssets` 3 |
 | cash_and_equivalents | 75 of 75 | `CashAndCashEquivalentsAtCarryingValue` 63, `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` 12 |
-| long_term_debt | 61 of 75 | `LongTermDebtNoncurrent` 51, `LongTermDebt` 10 |
+| long_term_debt | 75 of 75 | `LongTermDebtNoncurrent` 51, `LongTermDebt` 10, `LongTermDebtAndCapitalLeaseObligations` 8, `UnsecuredLongTermDebt` 3, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` 3 |
 | shares_outstanding | 66 of 75 | `CommonStockSharesOutstanding` 45, `dei:EntityCommonStockSharesOutstanding` 21 |
 
 Candidate tags, in the order they are tried:
@@ -31,9 +31,9 @@ Candidate tags, in the order they are tried:
 - total_liabilities: `Liabilities`
 - stockholders_equity: `StockholdersEquity`, `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`
 - operating_cash_flow: `NetCashProvidedByUsedInOperatingActivities`
-- capital_expenditures: `PaymentsToAcquirePropertyPlantAndEquipment`
+- capital_expenditures: `PaymentsToAcquirePropertyPlantAndEquipment`, `PaymentsToAcquireProductiveAssets`, `PaymentsToAcquireOtherProductiveAssets`
 - cash_and_equivalents: `CashAndCashEquivalentsAtCarryingValue`, `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`
-- long_term_debt: `LongTermDebtNoncurrent`, `LongTermDebt`
+- long_term_debt: `LongTermDebtNoncurrent`, `LongTermDebt`, `LongTermDebtAndCapitalLeaseObligations`, `UnsecuredLongTermDebt`, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`
 - shares_outstanding: `CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`
 - revenue, for companies with `revenue_rule: bank`: `RevenuesNetOfInterestExpense`, `Revenues`
 
@@ -41,8 +41,7 @@ Candidate tags, in the order they are tried:
 
 - operating_income (30): AXP FY2023, AXP FY2024, AXP FY2025, C FY2023, C FY2024, C FY2025, COF FY2023, COF FY2024, COF FY2025, GS FY2023, GS FY2024, GS FY2025, IBM FY2023, IBM FY2024, IBM FY2025, JNJ FY2023, JNJ FY2024, JNJ FY2025, JPM FY2023, JPM FY2024, JPM FY2025, MS FY2023, MS FY2024, MS FY2025, NKE FY2024, NKE FY2025, NKE FY2026, PFE FY2023, PFE FY2024, PFE FY2025
 - total_liabilities (15): AMZN FY2023, AMZN FY2024, AMZN FY2025, KO FY2023, KO FY2024, KO FY2025, NKE FY2024, NKE FY2025, NKE FY2026, VZ FY2023, VZ FY2024, VZ FY2025, WMT FY2024, WMT FY2025, WMT FY2026
-- capital_expenditures (18): AMZN FY2023, AMZN FY2024, AMZN FY2025, JPM FY2023, JPM FY2024, JPM FY2025, MS FY2023, MS FY2024, MS FY2025, NVDA FY2024, NVDA FY2025, NVDA FY2026, SPGI FY2023, SPGI FY2024, SPGI FY2025, VZ FY2023, VZ FY2024, VZ FY2025
-- long_term_debt (14): COF FY2023, COF FY2024, COF FY2025, GS FY2023, GS FY2024, GS FY2025, JPM FY2023, JPM FY2024, JPM FY2025, KO FY2024, KO FY2025, VZ FY2023, VZ FY2024, VZ FY2025
+- capital_expenditures (6): JPM FY2023, JPM FY2024, JPM FY2025, MS FY2023, MS FY2024, MS FY2025
 - shares_outstanding (9): MA FY2023, MA FY2024, MA FY2025, META FY2023, META FY2024, META FY2025, NKE FY2024, NKE FY2025, NKE FY2026
 
 ## AAPL
@@ -76,7 +75,7 @@ Candidate tags, in the order they are tried:
 | total_liabilities | unavailable | unavailable | unavailable |
 | stockholders_equity | found: `StockholdersEquity` | found: `StockholdersEquity` | found: `StockholdersEquity` |
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
-| capital_expenditures | unavailable | unavailable | unavailable |
+| capital_expenditures | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
 | long_term_debt | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
@@ -132,7 +131,7 @@ Candidate tags, in the order they are tried:
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
 | capital_expenditures | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` |
 | cash_and_equivalents | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` |
-| long_term_debt | unavailable | unavailable | unavailable |
+| long_term_debt | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtAndCapitalLeaseObligations` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
 
 ## COST
@@ -186,7 +185,7 @@ Candidate tags, in the order they are tried:
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
 | capital_expenditures | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
-| long_term_debt | unavailable | unavailable | unavailable |
+| long_term_debt | found: `UnsecuredLongTermDebt` | found: `UnsecuredLongTermDebt` | found: `UnsecuredLongTermDebt` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
 
 ## IBM
@@ -240,7 +239,7 @@ Candidate tags, in the order they are tried:
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
 | capital_expenditures | unavailable | unavailable | unavailable |
 | cash_and_equivalents | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | found: `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` |
-| long_term_debt | unavailable | unavailable | unavailable |
+| long_term_debt | found: `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` | found: `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` | found: `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
 
 ## KO
@@ -258,7 +257,7 @@ Candidate tags, in the order they are tried:
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
 | capital_expenditures | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
-| long_term_debt | found: `LongTermDebtNoncurrent` | unavailable | unavailable |
+| long_term_debt | found: `LongTermDebtNoncurrent` | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtAndCapitalLeaseObligations` |
 | shares_outstanding | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2024-02-16) | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2025-02-18) | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2026-02-18) |
 
 ## MA
@@ -400,7 +399,7 @@ Candidate tags, in the order they are tried:
 | total_liabilities | found: `Liabilities` | found: `Liabilities` | found: `Liabilities` |
 | stockholders_equity | found: `StockholdersEquity` | found: `StockholdersEquity` | found: `StockholdersEquity` |
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
-| capital_expenditures | unavailable | unavailable | unavailable |
+| capital_expenditures | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
 | long_term_debt | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
@@ -436,7 +435,7 @@ Candidate tags, in the order they are tried:
 | total_liabilities | found: `Liabilities` | found: `Liabilities` | found: `Liabilities` |
 | stockholders_equity | found: `StockholdersEquity` | found: `StockholdersEquity` | found: `StockholdersEquity` |
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
-| capital_expenditures | unavailable | unavailable | unavailable |
+| capital_expenditures | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` | found: `PaymentsToAcquireProductiveAssets` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
 | long_term_debt | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
@@ -472,9 +471,9 @@ Candidate tags, in the order they are tried:
 | total_liabilities | unavailable | unavailable | unavailable |
 | stockholders_equity | found: `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` | found: `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` | found: `StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` |
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
-| capital_expenditures | unavailable | unavailable | unavailable |
+| capital_expenditures | found: `PaymentsToAcquireOtherProductiveAssets` | found: `PaymentsToAcquireOtherProductiveAssets` | found: `PaymentsToAcquireOtherProductiveAssets` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
-| long_term_debt | unavailable | unavailable | unavailable |
+| long_term_debt | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtAndCapitalLeaseObligations` |
 | shares_outstanding | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2024-01-31) | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2025-01-31) | found: `dei:EntityCommonStockSharesOutstanding` (cover page, 2026-01-30) |
 
 ## WMT

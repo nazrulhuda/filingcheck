@@ -20,7 +20,13 @@ import psycopg
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from filingcheck.facts.metrics import ANNUAL_DAYS, COVER_PAGE_SHARES, METRICS, candidate_tags
+from filingcheck.facts.metrics import (
+    ANNUAL_DAYS,
+    COVER_PAGE_SHARES,
+    METRICS,
+    candidate_tags,
+    line_label,
+)
 
 
 @dataclass(frozen=True)
@@ -64,7 +70,7 @@ class FactsSource(Protocol):
 class FactResult(BaseModel):
     """A metric's value as one filing reports it, with where it came from."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     ticker: str
     fiscal_year: int
@@ -78,6 +84,7 @@ class FactResult(BaseModel):
     accession: str
     source_url: str
     decimals: str | None
+    line_label: str  # the statement line, in the company's wording where known
     note: str | None = None
 
 
@@ -143,6 +150,7 @@ def lookup(source: FactsSource, ticker: str, fiscal_year: int, metric: str) -> F
             accession=filing.accession,
             source_url=filing.source_url,
             decimals=fact.decimals,
+            line_label=line_label(fact.concept, filing.ticker),
             note=note,
         )
     return None

@@ -85,11 +85,11 @@ The numeric facts of each pinned filing, read from the filing's own inline XBRL 
 
 ## Cross-check with companyfacts
 
-Candidate tags compared: 22 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax`, `us-gaap:RevenuesNetOfInterestExpense`, `us-gaap:SalesRevenueNet`, `us-gaap:NetIncomeLoss`, `us-gaap:ProfitLoss`, `us-gaap:EarningsPerShareDiluted`, `us-gaap:OperatingIncomeLoss`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments`, `us-gaap:Assets`, `us-gaap:Liabilities`, `us-gaap:StockholdersEquity`, `us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`, `us-gaap:NetCashProvidedByUsedInOperatingActivities`, `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment`, `us-gaap:CashAndCashEquivalentsAtCarryingValue`, `us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, `us-gaap:LongTermDebtNoncurrent`, `us-gaap:LongTermDebt`, `us-gaap:CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`).
+Candidate tags compared: 27 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax`, `us-gaap:RevenuesNetOfInterestExpense`, `us-gaap:SalesRevenueNet`, `us-gaap:NetIncomeLoss`, `us-gaap:ProfitLoss`, `us-gaap:EarningsPerShareDiluted`, `us-gaap:OperatingIncomeLoss`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments`, `us-gaap:Assets`, `us-gaap:Liabilities`, `us-gaap:StockholdersEquity`, `us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`, `us-gaap:NetCashProvidedByUsedInOperatingActivities`, `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment`, `us-gaap:PaymentsToAcquireProductiveAssets`, `us-gaap:PaymentsToAcquireOtherProductiveAssets`, `us-gaap:CashAndCashEquivalentsAtCarryingValue`, `us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, `us-gaap:LongTermDebtNoncurrent`, `us-gaap:LongTermDebt`, `us-gaap:LongTermDebtAndCapitalLeaseObligations`, `us-gaap:UnsecuredLongTermDebt`, `us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, `us-gaap:CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`).
 
-- Agreements: 1,028
+- Agreements: 1,067
 - Disagreements: 0
-- Not in companyfacts: 16
+- Not in companyfacts: 17
 - Not in the filing's XBRL: 0
 
 | Ticker | FY | Agree | Disagree | Not in companyfacts | Not in the filing's XBRL |
@@ -97,39 +97,39 @@ Candidate tags compared: 22 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWit
 | AAPL | 2024 | 15 | 0 | 0 | 0 |
 | AAPL | 2025 | 15 | 0 | 0 | 0 |
 | AAPL | 2026 | 15 | 0 | 0 | 0 |
-| AMZN | 2023 | 13 | 0 | 0 | 0 |
-| AMZN | 2024 | 13 | 0 | 0 | 0 |
-| AMZN | 2025 | 13 | 0 | 0 | 0 |
+| AMZN | 2023 | 14 | 0 | 0 | 0 |
+| AMZN | 2024 | 14 | 0 | 0 | 0 |
+| AMZN | 2025 | 14 | 0 | 0 | 0 |
 | AXP | 2023 | 13 | 0 | 0 | 0 |
 | AXP | 2024 | 13 | 0 | 0 | 0 |
 | AXP | 2025 | 13 | 0 | 0 | 0 |
 | C | 2023 | 13 | 0 | 0 | 0 |
 | C | 2024 | 13 | 0 | 0 | 0 |
 | C | 2025 | 13 | 0 | 0 | 0 |
-| COF | 2023 | 12 | 0 | 0 | 0 |
-| COF | 2024 | 12 | 0 | 0 | 0 |
-| COF | 2025 | 12 | 0 | 0 | 0 |
+| COF | 2023 | 13 | 0 | 0 | 0 |
+| COF | 2024 | 13 | 0 | 0 | 0 |
+| COF | 2025 | 13 | 0 | 0 | 0 |
 | COST | 2024 | 17 | 0 | 0 | 0 |
 | COST | 2025 | 17 | 0 | 0 | 0 |
 | COST | 2026 | 14 | 0 | 0 | 0 |
-| GOOGL | 2023 | 14 | 0 | 0 | 0 |
-| GOOGL | 2024 | 15 | 0 | 0 | 0 |
+| GOOGL | 2023 | 16 | 0 | 0 | 0 |
+| GOOGL | 2024 | 16 | 0 | 0 | 0 |
 | GOOGL | 2025 | 15 | 0 | 0 | 0 |
-| GS | 2023 | 12 | 0 | 0 | 0 |
-| GS | 2024 | 12 | 0 | 0 | 0 |
-| GS | 2025 | 12 | 0 | 0 | 0 |
-| IBM | 2023 | 14 | 0 | 0 | 0 |
-| IBM | 2024 | 14 | 0 | 0 | 0 |
-| IBM | 2025 | 14 | 0 | 0 | 0 |
+| GS | 2023 | 13 | 0 | 0 | 0 |
+| GS | 2024 | 13 | 0 | 0 | 0 |
+| GS | 2025 | 13 | 0 | 0 | 0 |
+| IBM | 2023 | 16 | 0 | 0 | 0 |
+| IBM | 2024 | 16 | 0 | 0 | 0 |
+| IBM | 2025 | 16 | 0 | 0 | 0 |
 | JNJ | 2023 | 17 | 0 | 0 | 0 |
 | JNJ | 2024 | 13 | 0 | 0 | 0 |
 | JNJ | 2025 | 13 | 0 | 0 | 0 |
-| JPM | 2023 | 11 | 0 | 0 | 0 |
-| JPM | 2024 | 11 | 0 | 0 | 0 |
-| JPM | 2025 | 11 | 0 | 0 | 0 |
+| JPM | 2023 | 12 | 0 | 0 | 0 |
+| JPM | 2024 | 12 | 0 | 0 | 0 |
+| JPM | 2025 | 12 | 0 | 0 | 0 |
 | KO | 2023 | 15 | 0 | 0 | 0 |
-| KO | 2024 | 13 | 0 | 0 | 0 |
-| KO | 2025 | 13 | 0 | 0 | 0 |
+| KO | 2024 | 15 | 0 | 0 | 0 |
+| KO | 2025 | 15 | 0 | 0 | 0 |
 | MA | 2023 | 14 | 0 | 0 | 0 |
 | MA | 2024 | 14 | 0 | 0 | 0 |
 | MA | 2025 | 14 | 0 | 0 | 0 |
@@ -151,21 +151,21 @@ Candidate tags compared: 22 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWit
 | NKE | 2024 | 12 | 0 | 0 | 0 |
 | NKE | 2025 | 12 | 0 | 0 | 0 |
 | NKE | 2026 | 12 | 0 | 0 | 0 |
-| NVDA | 2024 | 14 | 0 | 0 | 0 |
-| NVDA | 2025 | 14 | 0 | 0 | 0 |
-| NVDA | 2026 | 14 | 0 | 0 | 0 |
+| NVDA | 2024 | 15 | 0 | 0 | 0 |
+| NVDA | 2025 | 15 | 0 | 0 | 0 |
+| NVDA | 2026 | 15 | 0 | 0 | 0 |
 | PFE | 2023 | 15 | 0 | 0 | 0 |
 | PFE | 2024 | 14 | 0 | 0 | 0 |
 | PFE | 2025 | 14 | 0 | 0 | 0 |
-| SPGI | 2023 | 16 | 0 | 0 | 0 |
-| SPGI | 2024 | 0 | 0 | 16 | 0 |
-| SPGI | 2025 | 16 | 0 | 0 | 0 |
+| SPGI | 2023 | 17 | 0 | 0 | 0 |
+| SPGI | 2024 | 0 | 0 | 17 | 0 |
+| SPGI | 2025 | 17 | 0 | 0 | 0 |
 | UNH | 2023 | 15 | 0 | 0 | 0 |
 | UNH | 2024 | 15 | 0 | 0 | 0 |
 | UNH | 2025 | 15 | 0 | 0 | 0 |
-| VZ | 2023 | 11 | 0 | 0 | 0 |
-| VZ | 2024 | 11 | 0 | 0 | 0 |
-| VZ | 2025 | 11 | 0 | 0 | 0 |
+| VZ | 2023 | 14 | 0 | 0 | 0 |
+| VZ | 2024 | 14 | 0 | 0 | 0 |
+| VZ | 2025 | 14 | 0 | 0 | 0 |
 | WMT | 2024 | 16 | 0 | 0 | 0 |
 | WMT | 2025 | 16 | 0 | 0 | 0 |
 | WMT | 2026 | 16 | 0 | 0 | 0 |
@@ -186,6 +186,7 @@ Every row that is not an agreement:
 | SPGI | 2024 | `us-gaap:NetCashProvidedByUsedInOperatingActivities` | 2024-01-01 to 2024-12-31 | not in companyfacts | 5689000000 | — |
 | SPGI | 2024 | `us-gaap:NetIncomeLoss` | 2024-01-01 to 2024-12-31 | not in companyfacts | 3852000000 | — |
 | SPGI | 2024 | `us-gaap:OperatingIncomeLoss` | 2024-01-01 to 2024-12-31 | not in companyfacts | 5580000000 | — |
+| SPGI | 2024 | `us-gaap:PaymentsToAcquireProductiveAssets` | 2024-01-01 to 2024-12-31 | not in companyfacts | 124000000 | — |
 | SPGI | 2024 | `us-gaap:ProfitLoss` | 2024-01-01 to 2024-12-31 | not in companyfacts | 4167000000 | — |
 | SPGI | 2024 | `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax` | 2024-01-01 to 2024-12-31 | not in companyfacts | 14208000000 | — |
 | SPGI | 2024 | `us-gaap:StockholdersEquity` | 2024-12-31 | not in companyfacts | 33159000000 | — |
