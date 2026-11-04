@@ -44,6 +44,8 @@ class ModelRouter:
         max_tokens: int,
         temperature: float | None = None,
         json_schema: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
     ) -> Completion:
         """The first reply from the primary or, in live mode, a fallback."""
         models = [self.primary] if self.mode == "batch" else [self.primary, *self.fallbacks]
@@ -55,6 +57,8 @@ class ModelRouter:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     json_schema=json_schema,
+                    tools=tools,
+                    tool_choice=tool_choice,
                 )
             except (ProviderUnavailable, IncompleteAnswer) as exc:
                 if self.mode == "batch":

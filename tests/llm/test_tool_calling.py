@@ -187,3 +187,10 @@ def test_null_fields_are_left_out_of_the_kept_message_because_groq_rejects_them(
         [{"role": "user", "content": "x"}], max_tokens=700, tools=TOOLS
     )
     assert completion.message == {"role": "assistant", "content": None, "tool_calls": [CALL]}
+
+
+def test_tool_calling_is_marked_checked_only_for_the_two_models_the_agent_uses() -> None:
+    from filingcheck.llm import load_registry
+
+    checked = {name for name, m in load_registry().models.items() if m.tool_calls}
+    assert checked == {"openrouter:openai/gpt-oss-20b", "gemini:gemini-3.5-flash-lite"}
