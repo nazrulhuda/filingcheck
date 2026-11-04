@@ -75,16 +75,25 @@ def run_filings(
 
 
 def run_sections(manifest_path: Path, root: Path) -> int:
-    """Split every pinned filing into its Items, fetching Exhibit 13 where it is needed."""
+    """Split every pinned filing into its Items, fetching Exhibit 13 where it is needed.
+
+    Section folders of filings that are no longer pinned (after a re-pin) are deleted.
+    """
     from filingcheck.ingest.filings import load_manifest, write_manifest
     from filingcheck.ingest.sec_client import SecClient
-    from filingcheck.ingest.sections import build_sections, write_summary
+    from filingcheck.ingest.sections import (
+        build_sections,
+        remove_unlisted_section_folders,
+        write_summary,
+    )
 
     with SecClient() as client:
         manifest, summaries = build_sections(load_manifest(manifest_path), client, root)
         downloads = client.downloads
     write_manifest(manifest_path, manifest)
     write_summary(root / SECTIONS_SUMMARY, summaries)
+    for folder in remove_unlisted_section_folders(manifest, root):
+        print(f"removed {folder} (not in the manifest)")
     for s in summaries:
         notes = [f"short: {', '.join(s.short)}"] if s.short else []
         exhibit = [item for item, found in s.items.items() if found.method == "exhibit"]

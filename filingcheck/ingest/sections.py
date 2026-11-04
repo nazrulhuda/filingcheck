@@ -8,6 +8,7 @@ report filed as Exhibit 13; then the exhibit is downloaded and the two Items com
 
 import json
 import re
+import shutil
 from collections import Counter, defaultdict
 from collections.abc import Iterator
 from html import unescape
@@ -821,6 +822,32 @@ def build_sections(
         filings.append(updated)
         summaries.append(summary)
     return Manifest(filings=filings), summaries
+
+
+def remove_unlisted_section_folders(manifest: Manifest, root: Path) -> list[str]:
+    """Delete section folders whose filing is not pinned; return them, relative to `root`.
+
+    A re-pin that drops a fiscal year (or a company) would otherwise leave its folder on
+    disk. Nothing reads it, but `make verify-data` fails on it. A company folder goes as a
+    whole when the company has no pinned filing.
+    """
+    base = root / "data" / "sections"
+    if not base.is_dir():
+        return []
+    years: dict[str, set[str]] = defaultdict(set)
+    for f in manifest.filings:
+        years[f.ticker].add(str(f.fiscal_year))
+    removed: list[str] = []
+    for company in sorted(p for p in base.iterdir() if p.is_dir()):
+        if company.name not in years:
+            shutil.rmtree(company)
+            removed.append(company.relative_to(root).as_posix())
+            continue
+        for folder in sorted(p for p in company.iterdir() if p.is_dir()):
+            if folder.name not in years[company.name]:
+                shutil.rmtree(folder)
+                removed.append(folder.relative_to(root).as_posix())
+    return removed
 
 
 def write_summary(path: Path, summaries: list[SectionSummary]) -> None:
