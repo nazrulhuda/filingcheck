@@ -5,6 +5,10 @@
 # printed_units, convert it to raw units in value (dollars, not millions), and set
 # verified_by_hand: true.
 #
+# The four facts were read on 2026-11-04 from the printed consolidated statement in each
+# source_url document, fetched from sec.gov: the visible table row and the statement's own
+# units line ("in millions"), not the XBRL tags, so they cannot share a bug with the XBRL code.
+#
 # Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code
 # (tests/test_golden_facts.py enforces the format now; the fact check is added with that code).
 
@@ -18,11 +22,11 @@ facts:
     where_to_look: Consolidated statements of income, line "Total net revenue"
     source_url: https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/jpm-20231231.htm
     expected_around: "158,104 million USD"
-    value_as_printed: null
-    printed_units: null
-    value: null
+    value_as_printed: "158,104"
+    printed_units: millions
+    value: 158104000000
     unit: USD
-    verified_by_hand: false
+    verified_by_hand: true
 
   - id: aapl-fy2025-total-net-sales
     ticker: AAPL
@@ -33,11 +37,11 @@ facts:
     where_to_look: Consolidated statements of operations, line "Total net sales"
     source_url: https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm
     expected_around: null
-    value_as_printed: null
-    printed_units: null
-    value: null
+    value_as_printed: "416,161"
+    printed_units: millions
+    value: 416161000000
     unit: USD
-    verified_by_hand: false
+    verified_by_hand: true
 
   - id: wmt-fy2026-total-revenues
     ticker: WMT
@@ -48,11 +52,11 @@ facts:
     where_to_look: Consolidated statements of income, line "Total revenues"
     source_url: https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm
     expected_around: null
-    value_as_printed: null
-    printed_units: null
-    value: null
+    value_as_printed: "713,163"
+    printed_units: millions
+    value: 713163000000
     unit: USD
-    verified_by_hand: false
+    verified_by_hand: true
 
   - id: axp-fy2023-total-revenues-net-of-interest-expense
     ticker: AXP
@@ -63,8 +67,8 @@ facts:
     where_to_look: Consolidated statements of income, line "Total revenues net of interest expense"
     source_url: https://www.sec.gov/Archives/edgar/data/4962/000000496224000013/axp-20231231.htm
     expected_around: null
-    value_as_printed: null
-    printed_units: null
-    value: null
+    value_as_printed: "60,515"
+    printed_units: millions
+    value: 60515000000
     unit: USD
-    verified_by_hand: false
+    verified_by_hand: true

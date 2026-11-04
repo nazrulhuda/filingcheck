@@ -53,3 +53,15 @@ def test_a_fact_marked_verified_has_its_value_filled_in() -> None:
             assert row["value_as_printed"] is not None and row["printed_units"], row["id"]
         else:
             assert row["value"] is None, f"{row['id']}: a value without verification"
+
+
+SCALE = {"units": 1, "thousands": 1_000, "millions": 1_000_000, "billions": 1_000_000_000}
+
+
+def test_a_verified_value_is_the_printed_number_in_its_printed_units() -> None:
+    for row in facts():
+        if not row["verified_by_hand"]:
+            continue
+        assert row["printed_units"] in SCALE, f"{row['id']}: unknown units {row['printed_units']}"
+        printed = int(str(row["value_as_printed"]).replace(",", ""))
+        assert row["value"] == printed * SCALE[row["printed_units"]], row["id"]
