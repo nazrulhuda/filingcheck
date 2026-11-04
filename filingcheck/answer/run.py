@@ -1,5 +1,8 @@
 """What `make ask` and the examples run share: the retriever, the settings line, the printout."""
 
+import json
+from typing import TYPE_CHECKING
+
 import psycopg
 
 from filingcheck.answer.baseline import MAX_TOKENS, Answer, K
@@ -7,6 +10,9 @@ from filingcheck.embeddings.openai_client import OpenAIEmbeddings
 from filingcheck.llm import Completion, IncompleteAnswer, describe_settings
 from filingcheck.retrieval import HybridRetriever, KeywordRetriever, VectorRetriever
 from filingcheck.retrieval.query import QueryEmbedder
+
+if TYPE_CHECKING:
+    from filingcheck.agent import AgentAnswer, ToolCallRecord
 
 
 def hybrid_retriever(conn: psycopg.Connection) -> HybridRetriever:
@@ -64,4 +70,47 @@ def format_answer(answer: Answer, completion: Completion | None) -> str:
         lines.append(f"usage as sent: {completion.usage}")
         for name, value in sorted(completion.rate_limits.items()):
             lines.append(f"{name}: {value}")
+    return "\n".join(lines)
+
+
+def format_tool_call(record: "ToolCallRecord") -> str:
+    """One tool call as the agent makes it, for the terminal."""
+    filled = (
+        f" (from the selection: {', '.join(record.defaults_applied)})"
+        if record.defaults_applied
+        else ""
+    )
+    return (
+        f"-> {record.name}({json.dumps(record.arguments)}){filled} "
+        f"[{record.status}, {record.duration_ms:.0f} ms]\n   {record.result_summary}"
+    )
+
+
+def format_agent_answer(answer: "AgentAnswer") -> str:
+    """The agent's answer, its passage and fact citations, its calls and what it cost."""
+    lines = [answer.text, "", "Passage citations:"]
+    lines += [
+        f"  [{c.number}] {c.ticker} FY{c.fiscal_year} Item {c.item} (chunk {c.chunk_id}): "
+        f"{c.source_url}"
+        for c in answer.citations
+    ] or ["  (none)"]
+    lines.append("Fact citations:")
+    lines += [
+        f"  [F{c.number}] {c.concept} = {c.value} {c.unit}, "
+        f"{c.instant or f'{c.period_start} to {c.period_end}'}: {c.source_url}"
+        for c in answer.fact_citations
+    ] or ["  (none)"]
+    lines += [
+        "",
+        f"model used: {answer.model_used}",
+        f"model calls: {answer.model_calls}; tool calls: {len(answer.tool_calls)}"
+        + (f"; stopped by the {answer.stopped_by} limit" if answer.stopped_by else ""),
+        f"tokens: prompt {answer.usage['prompt_tokens']}, "
+        f"completion {answer.usage['completion_tokens']}",
+        f"finish_reason: {answer.finish_reason}",
+        f"cost: {format_cost(answer.cost_usd)}",
+        f"abstained: {str(answer.abstained).lower()}, "
+        f"uncited figures: {str(answer.has_uncited_claims).lower()}",
+        f"time: {answer.latency_ms / 1000:.1f} s",
+    ]
     return "\n".join(lines)

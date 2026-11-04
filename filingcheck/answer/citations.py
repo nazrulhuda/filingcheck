@@ -20,6 +20,8 @@ NORMALIZE = str.maketrans(
 # [1], [1, 3], [1-3]; [1][3] is two matches.
 CITATION_RE = re.compile(r"\[\s*(\d+(?:\s*[,-]\s*\d+)*)\s*\]")
 RANGE_RE = re.compile(r"\s*-\s*")
+# The agent cites a number from get_financial_fact as [F1], [F2] or [F1, F2].
+FACT_CITATION_RE = re.compile(r"\[\s*(F\d+(?:\s*,\s*F?\d+)*)\s*\]")
 
 # Abbreviations whose period never ends a sentence.
 ABBREVIATIONS = (
@@ -96,6 +98,14 @@ def cited_numbers(text: str, passages: int) -> list[int]:
     return list(dict.fromkeys(numbers))
 
 
+def parse_fact_citations(text: str, facts: int) -> list[int]:
+    """The fact numbers cited as [Fn] in the text, in first-cited order, within 1..facts."""
+    numbers: list[int] = []
+    for match in FACT_CITATION_RE.finditer(normalize_text(text)):
+        numbers.extend(int(n) for n in re.findall(r"\d+", match.group(1)) if 1 <= int(n) <= facts)
+    return list(dict.fromkeys(numbers))
+
+
 def parse_citations(text: str, hits: list[Hit]) -> list[Citation]:
     """Citations for the passages the text cites; numbers that point to no passage are dropped."""
     return [
@@ -132,5 +142,8 @@ def has_figure(sentence: str) -> bool:
 
 
 def has_uncited_claims(text: str) -> bool:
-    """True if any sentence states a figure without a citation in that sentence."""
-    return any(has_figure(s) and not CITATION_RE.search(s) for s in sentences(normalize_text(text)))
+    """True if any sentence states a figure without a citation ([n] or [Fn]) in that sentence."""
+    return any(
+        has_figure(s) and not CITATION_RE.search(s) and not FACT_CITATION_RE.search(s)
+        for s in sentences(normalize_text(text))
+    )
