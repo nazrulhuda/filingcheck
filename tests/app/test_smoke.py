@@ -18,6 +18,21 @@ ANSWER = {
     "model_used": "openrouter:openai/gpt-oss-20b",
     "degraded": False,
 }
+AGENT_ANSWER = {
+    "request_id": "r2",
+    "cached": False,
+    "example": None,
+    "mode": "agent",
+    "text": "Apple's total net sales in fiscal 2025 were $416,161 million [F1].",
+    "citations": [],
+    "fact_citations": [
+        {"number": 1, "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"}
+    ],
+    "tool_calls": [{"name": "get_financial_fact", "status": "ok"}],
+    "restarts": [],
+    "model_used": "openrouter:openai/gpt-oss-20b",
+    "degraded": False,
+}
 
 
 def api(**overrides: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
@@ -29,13 +44,17 @@ def api(**overrides: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
         "GET /companies": lambda r: httpx.Response(200, json=[{"ticker": "NFLX"}] * 25),
         "GET /examples": lambda r: httpx.Response(200, json=[{"question": "Q?"}] * 5),
         "POST /ask": lambda r: httpx.Response(200, json=ANSWER),
+        "POST /ask agent": lambda r: httpx.Response(200, json=AGENT_ANSWER),
     }
     routes.update({k.replace("_", " /", 1): v for k, v in overrides.items()})  # POST_ask: POST /ask
     seen: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        return routes[f"{request.method} {request.url.path}"](request)
+        key = f"{request.method} {request.url.path}"
+        if request.method == "POST" and b'"agent"' in request.content:
+            key += " agent"
+        return routes[key](request)
 
     client = httpx.Client(transport=httpx.MockTransport(handle))
     client.seen = seen  # type: ignore[attr-defined]
@@ -55,10 +74,12 @@ def test_a_healthy_api_passes_every_check_with_one_question() -> None:
         "ok GET /companies",
         "ok GET /examples",
         "ok POST /ask",
+        "ok POST /ask (agent)",
     ]
     asks = [r for r in client.seen if r.method == "POST"]  # type: ignore[attr-defined]
-    assert len(asks) == 1 and str(asks[0].url) == BASE + "/ask"
-    assert "1 citation" in lines[-1][1] and "openrouter:openai/gpt-oss-20b" in lines[-1][1]
+    assert len(asks) == 2 and str(asks[0].url) == BASE + "/ask"
+    assert "1 citation" in lines[3][1] and "openrouter:openai/gpt-oss-20b" in lines[3][1]
+    assert "get_financial_fact" in lines[4][1] and "1 fact citation" in lines[4][1]
 
 
 def test_an_answer_with_no_citations_fails() -> None:
@@ -140,7 +161,7 @@ def test_any_status_other_than_200_or_an_empty_list_fails_and_the_rest_still_run
 ) -> None:
     lines = smoke.run_checks(BASE, api(**{route: lambda r: response}))
     assert failures(lines) == [expected]
-    assert len(lines) == 4
+    assert len(lines) == 5
 
 
 def test_an_unreachable_api_fails_every_check_without_crashing() -> None:
@@ -149,7 +170,7 @@ def test_an_unreachable_api_fails_every_check_without_crashing() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(refuse))
     lines = smoke.run_checks(BASE, client)
-    assert len(failures(lines)) == 4
+    assert len(failures(lines)) == 5
     assert all("ConnectError" in line for line in failures(lines))
 
 
@@ -168,3 +189,23 @@ def test_main_needs_an_https_url_and_returns_1_on_any_failure(
     monkeypatch.setattr(smoke, "make_client", api)
     assert smoke.main([BASE]) == 0
     assert "smoke test passed" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("fields", "reason"),
+    [
+        ({"tool_calls": []}, "the agent made no tool call"),
+        ({"fact_citations": []}, "the agent's answer cites no fact"),
+        ({"mode": None}, "the reply is not from the agent"),
+        (
+            {"restarts": ["openrouter 503 -"]},
+            "the agent restarted with a fallback (openrouter 503 -)",
+        ),
+    ],
+)
+def test_the_agent_question_must_use_a_tool_and_cite_a_fact(
+    fields: dict[str, Any], reason: str
+) -> None:
+    answer = AGENT_ANSWER | fields
+    client = api(**{"POST_ask agent": lambda r: httpx.Response(200, json=answer)})
+    assert failures(smoke.run_checks(BASE, client)) == [f"FAIL POST /ask (agent): {reason}"]
