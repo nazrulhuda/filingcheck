@@ -123,6 +123,7 @@ def test_a_fact_is_returned_with_its_value_unit_period_tag_and_source() -> None:
         accession=ACC,
         source_url=URL,
         decimals="-6",
+        line_label="Revenues",
         note=None,
     )
 
@@ -271,4 +272,86 @@ def test_units_are_never_changed() -> None:
         Decimal("8.98"),
         "USD/shares",
         "2",
+    )
+
+
+# ---------------------------------------------------------------- line labels and the added tags
+
+
+def test_every_candidate_tag_has_a_line_label() -> None:
+    from filingcheck.facts.metrics import BANK_REVENUE_TAGS, line_label
+
+    for spec in METRICS.values():
+        for tag in spec.tags:
+            assert line_label(tag, "EXMP"), tag
+    for tag in BANK_REVENUE_TAGS:
+        assert line_label(tag, "EXMP"), tag
+
+
+def test_the_line_label_comes_through_for_a_bank_tag_and_a_standard_tag() -> None:
+    bank = lookup(
+        FakeFacts([duration("us-gaap:RevenuesNetOfInterestExpense", "60515000000")], "bank"),
+        "EXMP",
+        2025,
+        "revenue",
+    )
+    assert bank is not None and bank.line_label == "Revenues, net of interest expense"
+    standard = lookup(FakeFacts([instant("us-gaap:Assets", "10")]), "EXMP", 2025, "total_assets")
+    assert standard is not None and standard.line_label == "Total assets"
+
+
+def gs_filing() -> FilingRef:
+    return FilingRef(
+        ticker="GS",
+        fiscal_year=2025,
+        accession=ACC,
+        period_of_report=date(2025, 12, 31),
+        source_url=URL,
+        revenue_rule="bank",
+    )
+
+
+def test_a_company_whose_statement_words_the_line_differently_gets_its_own_label() -> None:
+    debt = instant("us-gaap:UnsecuredLongTermDebt", "285500000000")
+    result = lookup(FakeFacts([debt], filing=gs_filing()), "GS", 2025, "long_term_debt")
+    assert result is not None
+    assert (result.concept, result.line_label) == (
+        "us-gaap:UnsecuredLongTermDebt",
+        "Unsecured long-term borrowings",
+    )
+    nvda = FilingRef(
+        ticker="NVDA",
+        fiscal_year=2025,
+        accession=ACC,
+        period_of_report=date(2025, 12, 31),
+        source_url=URL,
+        revenue_rule="standard",
+    )
+    capex = duration("us-gaap:PaymentsToAcquireProductiveAssets", "6042000000")
+    result = lookup(FakeFacts([capex], filing=nvda), "NVDA", 2025, "capital_expenditures")
+    assert result is not None
+    assert result.line_label == "Purchases related to property and equipment and intangible assets"
+
+
+def test_the_added_capex_and_debt_tags_come_after_the_existing_ones_in_order() -> None:
+    assert candidate_tags("capital_expenditures", "standard") == (
+        "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment",
+        "us-gaap:PaymentsToAcquireProductiveAssets",
+        "us-gaap:PaymentsToAcquireOtherProductiveAssets",
+    )
+    assert candidate_tags("long_term_debt", "standard") == (
+        "us-gaap:LongTermDebtNoncurrent",
+        "us-gaap:LongTermDebt",
+        "us-gaap:LongTermDebtAndCapitalLeaseObligations",
+        "us-gaap:UnsecuredLongTermDebt",
+        "us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+    )
+    both = [
+        duration("us-gaap:PaymentsToAcquireProductiveAssets", "2"),
+        duration("us-gaap:PaymentsToAcquirePropertyPlantAndEquipment", "1"),
+    ]
+    result = lookup(FakeFacts(both), "EXMP", 2025, "capital_expenditures")
+    assert (
+        result is not None
+        and result.concept == "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
     )
