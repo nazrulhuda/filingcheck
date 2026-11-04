@@ -242,9 +242,82 @@ def test_the_facts_stage_writes_the_file_and_prints_the_totals(
     out = capsys.readouterr().out
     assert (tmp_path / "data" / "facts.jsonl").exists()
     assert "11 facts from 1 filings (2 documents)" in out
-    assert "14 numeric facts parsed, 3 duplicates removed, 1 nil facts skipped" in out
+    assert (
+        "14 numeric facts parsed, 3 duplicates removed, 0 rounded copies removed, "
+        "1 nil facts skipped" in out
+    )
     assert "conflicts: 2 facts in 1 groups" in out
     assert (
         "EXMP FY2025 us-gaap:OperatingIncomeLoss 2025-01-01 to 2025-12-31: 100000000, 101000000"
         in out
     )
+
+
+# ---------------------------------------------------------------- rounded copies
+
+
+def row(value: str, decimals: str | None, **over: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "concept": "us-gaap:Assets",
+        "value": value,
+        "unit": "USD",
+        "period_start": None,
+        "period_end": None,
+        "instant": date(2025, 12, 31),
+        "decimals": decimals,
+        "scale": 6,
+        "sign": None,
+        "dimensions": {},
+        "context_ref": f"c-{value}",
+    }
+    base.update(over)
+    return base
+
+
+def test_a_rounded_copy_in_the_text_is_removed_and_the_table_value_kept() -> None:
+    # 261,108 million in the balance sheet, "$261 billion" in the text.
+    result = deduplicate([row("261000000000", "-9"), row("261108000000", "-6")])
+    assert [(f["value"], f["conflict"]) for f in result.facts] == [("261108000000", False)]
+    assert (result.rounded_copies_removed, result.conflict_groups) == (1, 0)
+
+
+def test_in_a_three_way_group_only_the_most_precise_fact_is_kept() -> None:
+    result = deduplicate(
+        [row("1235000000", "-6"), row("1234567000", "-3"), row("1200000000", "-8")]
+    )
+    assert [f["value"] for f in result.facts] == ["1234567000"]
+    assert (result.rounded_copies_removed, result.conflict_groups) == (2, 0)
+
+
+def test_rounding_is_half_up_as_the_filings_round() -> None:
+    # Goldman prints 1,245 million as 1.25 billion (decimals -7); half-even would give 1.24.
+    for exact, rounded in (("1245000000", "1250000000"), ("27985000000", "27990000000")):
+        result = deduplicate([row(exact, "-6"), row(rounded, "-7")])
+        assert [f["value"] for f in result.facts] == [exact]
+        assert result.rounded_copies_removed == 1
+    negative = deduplicate([row("-1245000000", "-6"), row("-1250000000", "-7")])
+    assert [f["value"] for f in negative.facts] == ["-1245000000"]
+
+
+def test_a_value_that_is_not_a_rounding_of_the_precise_one_is_a_real_conflict() -> None:
+    result = deduplicate([row("261108000000", "-6"), row("262000000000", "-9")])
+    assert sorted((f["value"], f["conflict"]) for f in result.facts) == [
+        ("261108000000", True),
+        ("262000000000", True),
+    ]
+    assert (result.rounded_copies_removed, result.conflict_groups) == (0, 1)
+
+
+def test_different_values_with_the_same_decimals_are_a_real_conflict() -> None:
+    result = deduplicate([row("100000000", "-6"), row("101000000", "-6")])
+    assert sorted((f["value"], f["conflict"]) for f in result.facts) == [
+        ("100000000", True),
+        ("101000000", True),
+    ]
+    assert (result.rounded_copies_removed, result.conflict_groups) == (0, 1)
+
+
+def test_an_exact_fact_counts_as_the_most_precise() -> None:
+    result = deduplicate([row("1626828437", "INF"), row("1627000000", "-6")])
+    assert [f["value"] for f in result.facts] == ["1626828437"]
+    assert result.rounded_copies_removed == 1

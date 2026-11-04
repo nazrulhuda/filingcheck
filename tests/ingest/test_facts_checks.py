@@ -232,34 +232,3 @@ def test_the_facts_report_lists_counts_the_cross_check_and_conflicts() -> None:
     assert "Agreements: 1" in page and "Disagreements: 0" in page
     assert "Conflicts: 2 facts in 1 groups" in page
     assert "us-gaap:OperatingIncomeLoss" in page.split("## Conflicts")[1]
-
-
-def test_a_rounded_copy_in_the_filing_is_not_a_disagreement() -> None:
-    # The filing prints total assets exactly in a table and rounded in the text.
-    facts = [
-        fact(
-            concept="us-gaap:Assets",
-            period_start=None,
-            period_end=None,
-            instant="2025-12-31",
-            value="261108000000",
-            decimals="-6",
-            conflict=True,
-        ),
-        fact(
-            concept="us-gaap:Assets",
-            period_start=None,
-            period_end=None,
-            instant="2025-12-31",
-            value="261000000000",
-            decimals="-9",
-            conflict=True,
-        ),
-    ]
-    data = companyfacts({"Assets": [{"accn": ACC, "end": "2025-12-31", "val": 261108000000}]})
-    [row] = cross_check(FILING, facts, data, ["Assets"])
-    assert row.status == "agree, with a rounded copy in the filing"
-    assert (row.ours, row.theirs) == ("261000000000, 261108000000", "261108000000")
-    wrong = companyfacts({"Assets": [{"accn": ACC, "end": "2025-12-31", "val": 261000000001}]})
-    [row] = cross_check(FILING, facts, wrong, ["Assets"])
-    assert row.status == "disagree"
