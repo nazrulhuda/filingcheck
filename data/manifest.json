@@ -3,19 +3,6 @@
     {
       "ticker": "AAPL",
       "cik": "0000320193",
-      "fiscal_year": 2023,
-      "fiscal_year_source": "dei",
-      "form": "10-K",
-      "accession": "0000320193-23-000106",
-      "filing_date": "2023-11-03",
-      "period_of_report": "2023-09-30",
-      "primary_document_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
-      "document_path": "data/filings/AAPL/2023_0000320193-23-000106.html",
-      "extra_documents": []
-    },
-    {
-      "ticker": "AAPL",
-      "cik": "0000320193",
       "fiscal_year": 2024,
       "fiscal_year_source": "dei",
       "form": "10-K",
@@ -37,6 +24,19 @@
       "period_of_report": "2025-09-27",
       "primary_document_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
       "document_path": "data/filings/AAPL/2025_0000320193-25-000079.html",
+      "extra_documents": []
+    },
+    {
+      "ticker": "AAPL",
+      "cik": "0000320193",
+      "fiscal_year": 2026,
+      "fiscal_year_source": "dei",
+      "form": "10-K",
+      "accession": "0000320193-26-000026",
+      "filing_date": "2026-11-03",
+      "period_of_report": "2026-09-26",
+      "primary_document_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/aapl-20260926.htm",
+      "document_path": "data/filings/AAPL/2026_0000320193-26-000026.html",
       "extra_documents": []
     },
     {

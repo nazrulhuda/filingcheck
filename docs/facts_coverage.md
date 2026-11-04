@@ -36,7 +36,7 @@ Candidate tags, in the order they are tried:
 
 ## AAPL
 
-| Metric | FY2023 | FY2024 | FY2025 |
+| Metric | FY2024 | FY2025 | FY2026 |
 |---|---|---|---|
 | revenue | found: `RevenueFromContractWithCustomerExcludingAssessedTax` | found: `RevenueFromContractWithCustomerExcludingAssessedTax` | found: `RevenueFromContractWithCustomerExcludingAssessedTax` |
 | net income | found: `NetIncomeLoss` | found: `NetIncomeLoss` | found: `NetIncomeLoss` |

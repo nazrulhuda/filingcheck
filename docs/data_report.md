@@ -9,9 +9,9 @@ Written by `make ingest` from `data/manifest.json` and the files the ingest stag
 | Companies | 25 |
 | Filings | 75 |
 | Items saved | 372 |
-| Chunks | 42,581 |
-| us-gaap tags (all companies) | 16,077 |
-| Number tables set aside (table_chunks) | 7,794 |
+| Chunks | 42,612 |
+| us-gaap tags (all companies) | 16,086 |
+| Number tables set aside (table_chunks) | 7,796 |
 
 ## Gaps
 
@@ -86,9 +86,9 @@ These 10-Ks map their Items to page ranges through their own index, so a section
 
 Passages that appear more than once in the same filing are kept once, under the first Item that has them, and their chunks list the other Items. Repeats across fiscal years are kept.
 
-- AAPL FY2023: 5
 - AAPL FY2024: 4
 - AAPL FY2025: 3
+- AAPL FY2026: 4
 - AMZN FY2023: 1
 - AMZN FY2024: 1
 - AMZN FY2025: 1
@@ -160,7 +160,7 @@ Passages that appear more than once in the same filing are kept once, under the 
 
 Tables with more than half their non-empty cells numeric (contents lists aside) are taken out of the prose before the sections are cut, and each is saved as one record in table_chunks: its rows as "label: values" text, the Item that held it, and its position in the source document. companyfacts has whole-company numbers only; segment numbers are only in these tables. They are not searched with the chunks.
 
-- Saved: 7,794, of which 297 lie outside the Items above
+- Saved: 7,796, of which 297 lie outside the Items above
 
 Where taking the tables out would move a section's start or end, that section is cut from the full document instead, and its tables are also left to the chunk filter:
 
@@ -171,13 +171,13 @@ Where taking the tables out would move a section's start or end, that section is
 
 ## AAPL
 
-Apple Inc. · CIK 0000320193 · fiscal year ends in September · 503 us-gaap tags
+Apple Inc. · CIK 0000320193 · fiscal year ends in September · 512 us-gaap tags
 
 | FY | Accession | Period of report | Item 1 | Item 1A | Item 7 | Item 7A | Item 8 | Items 1-7A (10-K text, sections not separable) | Chunks |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| 2023 | 0000320193-23-000106 | 2023-09-30 | 15,162 | 67,629 | 13,883 | 2,758 | 41,505 | — | 201 |
 | 2024 | 0000320193-24-000123 | 2024-09-28 | 15,767 | 68,484 | 13,818 | 2,758 | 40,450 | — | 199 |
 | 2025 | 0000320193-25-000079 | 2025-09-27 | 16,054 | 67,760 | 16,505 | 2,758 | 41,360 | — | 198 |
+| 2026 | 0000320193-26-000026 | 2026-09-26 | 20,800 | 86,034 | 16,152 | 2,758 | 42,307 | — | 232 |
 
 ## AMZN
 

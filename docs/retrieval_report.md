@@ -4,7 +4,7 @@ Written by `make retrieval-eval`; do not edit by hand.
 
 ## Settings
 
-- date: 2026-11-01
+- date: 2026-11-03
 - questions: 40 (eval/questions/retrieval.jsonl)
 - embedding model: text-embedding-3-small
 - hits scored per search (k): 10
@@ -19,12 +19,12 @@ Each question is searched once per row; the top 10 hits are scored two ways. **T
 
 | Retriever | Filter | Recall@5 text found | Recall@5 right year | Recall@10 text found | Recall@10 right year | MRR text found | MRR right year | Median latency (ms) | Near-duplicates collapsed |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| vector | none | 0.45 | 0.40 | 0.55 | 0.42 | 0.334 | 0.237 | 48 | 1 |
-| keyword | none | 0.12 | 0.07 | 0.20 | 0.15 | 0.106 | 0.057 | 128 | 0 |
-| hybrid | none | 0.40 | 0.33 | 0.47 | 0.42 | 0.271 | 0.188 | 245 | 0 |
-| vector | company + year | 0.72 | 0.72 | 0.80 | 0.80 | 0.511 | 0.511 | 47 | 2 |
-| keyword | company + year | 0.45 | 0.45 | 0.55 | 0.55 | 0.293 | 0.293 | 7 | 0 |
-| hybrid | company + year | 0.60 | 0.60 | 0.80 | 0.80 | 0.426 | 0.426 | 61 | 0 |
+| vector | none | 0.45 | 0.40 | 0.55 | 0.42 | 0.334 | 0.237 | 54 | 1 |
+| keyword | none | 0.12 | 0.07 | 0.20 | 0.15 | 0.106 | 0.057 | 286 | 0 |
+| hybrid | none | 0.40 | 0.33 | 0.47 | 0.42 | 0.271 | 0.188 | 359 | 0 |
+| vector | company + year | 0.72 | 0.72 | 0.80 | 0.80 | 0.511 | 0.511 | 51 | 2 |
+| keyword | company + year | 0.45 | 0.45 | 0.55 | 0.55 | 0.293 | 0.293 | 15 | 0 |
+| hybrid | company + year | 0.60 | 0.60 | 0.80 | 0.80 | 0.426 | 0.426 | 73 | 0 |
 
 ## Notes
 
@@ -58,7 +58,7 @@ Longest run: the longest run of consecutive words a question shares with its sou
 | ret-016 | NFLX | 2023 | 1A | 3 | What does Netflix say about others claiming it infringed their intellectual property? |
 | ret-017 | NVDA | 2026 | 1 | 2 | Which kinds of customers use Nvidia's data center platforms, and what do they run on them? |
 | ret-018 | NVDA | 2024 | 1A | 1 | Why does Nvidia worry that rivals could undercut it on price? |
-| ret-019 | AAPL | 2023 | 1 | 1 | What does AppleCare actually give customers? |
+| ret-019 | AAPL | 2024 | 1 | 1 | What does AppleCare actually give customers? |
 | ret-020 | MSFT | 2026 | 7 | 2 | What could limit how fast Microsoft builds out new datacenters for AI? |
 | ret-021 | AMZN | 2024 | 8 | 2 | How does Amazon account for the money it gets from suppliers for marketing and volume discounts? |
 | ret-022 | GOOGL | 2025 | 7 | 1 | What does Alphabet say about IRS audits and how it decides whether its tax reserves are enough? |
