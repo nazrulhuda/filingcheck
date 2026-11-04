@@ -12,7 +12,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `question` | The question exactly as a user would type it |
 | `company` | The ticker the question should resolve to, or `null` when it is ambiguous on purpose |
 | `fiscal_year` | The fiscal year it should resolve to, or `null` |
-| `metric` | One of the 12 metrics below, or `null` for a text question |
+| `metric` | One of the 13 metrics below, or `null` for a text question |
 | `expected_behavior` | `answer`, `clarify` (ask which company or year) or `refuse` (outside the dataset) |
 | `gold_value` | The correct number in raw units as filed (dollars, not millions), or `null` until it is filled in from XBRL |
 | `gold_unit` | `USD`, `USD/shares` or `shares`; required whenever `gold_value` is set |
@@ -34,7 +34,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 
 ## Metrics
 
-`revenue`, `net_income`, `diluted_eps`, `operating_income`, `total_assets`, `total_liabilities`, `stockholders_equity`, `operating_cash_flow`, `capital_expenditures`, `cash_and_equivalents`, `long_term_debt`, `shares_outstanding`
+`revenue`, `net_income`, `diluted_eps`, `operating_income`, `pretax_income`, `total_assets`, `total_liabilities`, `stockholders_equity`, `operating_cash_flow`, `capital_expenditures`, `cash_and_equivalents`, `long_term_debt`, `shares_outstanding`
 
 ## Example
 

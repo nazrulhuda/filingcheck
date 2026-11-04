@@ -12,22 +12,10 @@ from typing import Literal, Self, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from filingcheck.facts.metrics import Metric
 from filingcheck.paths import DATA_DIR, REPO_ROOT
 
-Metric = Literal[
-    "revenue",
-    "net_income",
-    "diluted_eps",
-    "operating_income",
-    "total_assets",
-    "total_liabilities",
-    "stockholders_equity",
-    "operating_cash_flow",
-    "capital_expenditures",
-    "cash_and_equivalents",
-    "long_term_debt",
-    "shares_outstanding",
-]
+# The metric names come from the one metric map (13 metrics, with pretax_income).
 Category = Literal[
     "lookalike_company",  # "Morgan": Morgan Stanley or JPMorgan?
     "wrong_fiscal_year",  # a calendar year that is not the company's fiscal year

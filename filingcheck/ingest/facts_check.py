@@ -15,7 +15,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from filingcheck.ingest.facts_coverage import METRICS
+from filingcheck.facts.metrics import all_candidate_tags
 from filingcheck.paths import REPO_ROOT
 
 STATUSES = ("agree", "disagree", "not in companyfacts", "not in the filing's XBRL")
@@ -101,7 +101,7 @@ def cross_check(
 
 def candidate_tags() -> list[str]:
     """Every candidate tag of the metric map, once, in map order."""
-    return list(dict.fromkeys(tag for metric in METRICS for tag in metric.tags))
+    return all_candidate_tags()
 
 
 def facts_report(
