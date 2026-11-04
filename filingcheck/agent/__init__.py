@@ -9,6 +9,7 @@ from filingcheck.agent.graph import (
     ToolCallRecord,
     build_agent,
     run_agent,
+    run_agent_with_fallbacks,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "ToolCallRecord",
     "build_agent",
     "run_agent",
+    "run_agent_with_fallbacks",
 ]

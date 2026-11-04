@@ -13,7 +13,7 @@ REFUSED = "refused:"  # error codes of requests the API turned away without call
 COLUMNS = (
     "id, created_at, question_hash, question, ticker, fiscal_year, model_used, retriever, "
     "degraded, latency_ms, prompt_tokens, completion_tokens, cost_usd, abstained, error, "
-    "client_ip_hash"
+    "client_ip_hash, mode, tool_calls"
 )
 
 
@@ -36,6 +36,9 @@ class RequestRow(BaseModel):
     abstained: bool | None = None
     error: str | None = None
     client_ip_hash: str
+    mode: str = "baseline"  # "baseline" or "agent"
+    # The agent's tool calls and restarts: {"calls": [...], "restarts": [log codes]}.
+    tool_calls: dict[str, Any] | None = None
 
 
 class CompanyInfo(BaseModel):
@@ -162,6 +165,8 @@ class PostgresStore:
     def log_request(self, row: RequestRow) -> None:
         """Insert one row."""
         values = row.model_dump()
+        if values["tool_calls"] is not None:
+            values["tool_calls"] = Jsonb(values["tool_calls"])
         with self._connect() as conn:
             conn.execute(
                 f"INSERT INTO requests ({COLUMNS}) VALUES ("

@@ -103,7 +103,7 @@ eval:
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload
 
-smoke-live:  # check a deployed API: make smoke-live URL=https://... (makes one model call)
+smoke-live:  # check a deployed API: make smoke-live URL=https://... (asks two questions, one baseline and one agent: 2 toward the daily cap)
 	uv run python -m filingcheck.app.smoke "$(URL)"
 
 docker-build:
