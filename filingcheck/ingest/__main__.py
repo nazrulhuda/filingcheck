@@ -166,6 +166,7 @@ def run_facts(manifest_path: Path, root: Path) -> int:
     print(
         f"{sum(r.parsed for r in results):,} numeric facts parsed, "
         f"{sum(r.duplicates_removed for r in results):,} duplicates removed, "
+        f"{sum(r.rounded_copies_removed for r in results):,} rounded copies removed, "
         f"{sum(r.nil for r in results):,} nil facts skipped"
     )
     print(

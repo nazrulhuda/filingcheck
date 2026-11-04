@@ -11,15 +11,14 @@ import json
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from filingcheck.ingest.facts_coverage import METRICS
 from filingcheck.paths import REPO_ROOT
 
-ROUNDED = "agree, with a rounded copy in the filing"
-STATUSES = ("agree", ROUNDED, "disagree", "not in companyfacts", "not in the filing's XBRL")
+STATUSES = ("agree", "disagree", "not in companyfacts", "not in the filing's XBRL")
 
 
 @dataclass(frozen=True)
@@ -38,14 +37,6 @@ class CrossRow:
 
 def _plain(number: Decimal) -> str:
     return "0" if number == 0 else format(number.normalize(), "f")
-
-
-def rounded_to(value: Decimal, decimals: str | None) -> Decimal:
-    """`value` rounded to an XBRL `decimals` attribute ("-9" is billions; "INF" is exact)."""
-    if decimals in (None, "INF"):
-        return value
-    step = Decimal(1).scaleb(-int(decimals))
-    return (value / step).quantize(Decimal(1), rounding=ROUND_HALF_UP) * step
 
 
 def _concept(tag: str) -> str:
@@ -70,7 +61,6 @@ def cross_check(
         concept = _concept(tag)
         taxonomy, _, name = concept.partition(":")
         ours: dict[tuple[str | None, str], set[Decimal]] = defaultdict(set)
-        precision: dict[tuple[tuple[str | None, str], Decimal], str | None] = {}
         for fact in facts:
             if fact["accession"] != accession or fact["concept"] != concept or fact["dimensions"]:
                 continue
@@ -82,7 +72,6 @@ def cross_check(
             else:
                 continue
             ours[key].add(Decimal(fact["value"]))
-            precision[(key, Decimal(fact["value"]))] = fact.get("decimals")
         theirs: dict[tuple[str | None, str], set[Decimal]] = defaultdict(set)
         entry = companyfacts.get("facts", {}).get(taxonomy, {}).get(name, {})
         for unit_rows in entry.get("units", {}).values():
@@ -93,11 +82,6 @@ def cross_check(
             mine, other = ours.get(key), theirs.get(key)
             if mine and other:
                 status = "agree" if mine == other else "disagree"
-                if status == "disagree" and len(other) == 1 and other <= mine:
-                    # The filing also prints the same number rounded (a table and the text).
-                    [exact] = other
-                    if all(rounded_to(exact, precision[(key, v)]) == v for v in mine - other):
-                        status = ROUNDED
             else:
                 status = "not in companyfacts" if mine else "not in the filing's XBRL"
             rows.append(
@@ -171,14 +155,12 @@ def facts_report(
         f"Candidate tags compared: {len(tags)} ({', '.join(f'`{t}`' for t in tags)}).",
         "",
         f"- Agreements: {status_count['agree']:,}",
-        f"- Agreements where the filing also prints a rounded copy: {status_count[ROUNDED]:,}",
         f"- Disagreements: {status_count['disagree']:,}",
         f"- Not in companyfacts: {status_count['not in companyfacts']:,}",
-        f"- Not in the filing's XBRL: {status_count[STATUSES[4]]:,}",
+        f"- Not in the filing's XBRL: {status_count[STATUSES[3]]:,}",
         "",
-        "| Ticker | FY | Agree | Agree, rounded copy | Disagree | Not in companyfacts | "
-        "Not in the filing's XBRL |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Ticker | FY | Agree | Disagree | Not in companyfacts | Not in the filing's XBRL |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for filing in ordered:
         counted = Counter(r.status for r in rows if r.accession == filing["accession"])
@@ -187,7 +169,7 @@ def facts_report(
             + " | ".join(str(counted[s]) for s in STATUSES)
             + " |"
         )
-    others = [r for r in rows if r.status not in ("agree", ROUNDED)]
+    others = [r for r in rows if r.status != "agree"]
     lines += ["", "Every row that is not an agreement:", ""]
     if others:
         lines += [
@@ -198,25 +180,6 @@ def facts_report(
             f"| {r.ticker} | {r.fiscal_year} | `{r.tag}` | {r.period} | {r.status} | "
             f"{r.ours or '—'} | {r.theirs or '—'} |"
             for r in others
-        ]
-    else:
-        lines.append("None.")
-    rounded = [r for r in rows if r.status == ROUNDED]
-    lines += [
-        "",
-        "Agreements where the filing also prints the same number rounded (for example a table "
-        "and the text): companyfacts holds the exact value, and the other value equals it "
-        "rounded to its own `decimals`:",
-        "",
-    ]
-    if rounded:
-        lines += [
-            "| Ticker | FY | Tag | Period | Filing's XBRL | companyfacts |",
-            "|---|---:|---|---|---:|---:|",
-        ]
-        lines += [
-            f"| {r.ticker} | {r.fiscal_year} | `{r.tag}` | {r.period} | {r.ours} | {r.theirs} |"
-            for r in rounded
         ]
     else:
         lines.append("None.")
@@ -293,7 +256,6 @@ def main(root: Path = REPO_ROOT) -> int:
             and line[2:].split(":")[0]
             in (
                 "Agreements",
-                "Agreements where the filing also prints a rounded copy",
                 "Disagreements",
                 "Not in companyfacts",
                 "Not in the filing's XBRL",

@@ -3,8 +3,9 @@
 The facts are read offline from the saved documents with edgartools' inline-XBRL reader,
 which applies each fact's scale and sign and resolves its period, unit and dimensions.
 Values are kept as exact decimal strings in the unit as filed (dollars, shares, ...); nothing
-is rescaled. A fact printed more than once is kept once; different values for the same
-fact are both kept and marked as a conflict.
+is rescaled. A fact printed more than once is kept once, and a rounded copy of it (the
+same number printed less precisely, as in a table and the text) is removed; any other
+different value for the same fact is kept too and both are marked as a conflict.
 """
 
 import json
@@ -12,7 +13,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -63,10 +64,11 @@ class ParsedDocument:
 
 @dataclass
 class Deduplicated:
-    """Facts kept once each, and how many copies and conflicting groups were found."""
+    """Facts kept once each, and how many copies, rounded copies and conflicts were found."""
 
     facts: list[dict[str, Any]]
     duplicates_removed: int
+    rounded_copies_removed: int
     conflict_groups: int
 
 
@@ -80,6 +82,7 @@ class FilingFacts:
     parsed: int
     nil: int
     duplicates_removed: int
+    rounded_copies_removed: int
     conflict_groups: int
     conflicts: list[list[Fact]] = field(default_factory=list)
 
@@ -154,23 +157,71 @@ def _fact_key(row: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
-def deduplicate(rows: list[dict[str, Any]]) -> Deduplicated:
-    """Keep each fact once (the first printed); mark different values for one fact.
+def rounded_to(value: Decimal, decimals: str | None) -> Decimal:
+    """`value` rounded half-up to an XBRL `decimals` ("-9" is billions; "INF" is exact).
 
-    Two facts are the same when concept, period, unit, dimensions and value are equal.
+    Half-up, as filings round: 1,245 million printed in tens of millions is 1.25 billion.
+    """
+    if decimals in (None, "INF"):
+        return value
+    step = Decimal(1).scaleb(-int(decimals))
+    return (value / step).quantize(Decimal(1), rounding=ROUND_HALF_UP) * step
+
+
+def _precision(decimals: str | None) -> float:
+    return float("inf") if decimals in (None, "INF") else int(decimals)
+
+
+def deduplicate(rows: list[dict[str, Any]]) -> Deduplicated:
+    """Keep each fact once; drop rounded copies; mark only real conflicts.
+
+    Two facts are the same when concept, period, unit, dimensions and value are equal; the
+    most precise copy is kept. Within one concept, period, unit and dimensions, a value that
+    equals the most precise fact's value rounded half-up to its own `decimals` is a rounded
+    copy of it (a table and the text) and is removed. Any other value, or two different
+    values at the same top precision, is a real conflict: all are kept and marked.
     """
     kept: dict[tuple[Any, ...], dict[str, Any]] = {}
-    values: dict[tuple[Any, ...], set[str]] = defaultdict(set)
     for row in rows:
-        key = _fact_key(row)
-        full = (*key, row["value"])
+        full = (*_fact_key(row), row["value"])
         if full not in kept:
             kept[full] = row
-            values[key].add(row["value"])
-    conflicting = {key for key, seen in values.items() if len(seen) > 1}
-    facts = [{**row, "conflict": _fact_key(row) in conflicting} for row in kept.values()]
+        elif _precision(row["decimals"]) > _precision(kept[full]["decimals"]):
+            kept[full] = row  # the same value, written more precisely
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in kept.values():
+        groups[_fact_key(row)].append(row)
+    removed: set[int] = set()
+    conflicting: set[int] = set()
+    conflict_groups = 0
+    for group in groups.values():
+        if len(group) == 1:
+            continue
+        best = max(_precision(r["decimals"]) for r in group)
+        top = [r for r in group if _precision(r["decimals"]) == best]
+        if len(top) > 1:  # different values written with the same precision
+            conflicting.update(id(r) for r in group)
+            conflict_groups += 1
+            continue
+        [precise] = top
+        exact = Decimal(precise["value"])
+        others = [r for r in group if r is not precise]
+        copies = [r for r in others if rounded_to(exact, r["decimals"]) == Decimal(r["value"])]
+        removed.update(id(r) for r in copies)
+        rest = [r for r in others if id(r) not in removed]
+        if rest:
+            conflicting.update(id(r) for r in [precise, *rest])
+            conflict_groups += 1
+    facts = [
+        {**row, "conflict": id(row) in conflicting}
+        for row in kept.values()
+        if id(row) not in removed
+    ]
     return Deduplicated(
-        facts=facts, duplicates_removed=len(rows) - len(kept), conflict_groups=len(conflicting)
+        facts=facts,
+        duplicates_removed=len(rows) - len(kept),
+        rounded_copies_removed=len(removed),
+        conflict_groups=conflict_groups,
     )
 
 
@@ -236,6 +287,7 @@ def filing_facts(filing: Filing, root: Path) -> FilingFacts:
         parsed=len(rows),
         nil=sum(doc.nil for doc in parsed),
         duplicates_removed=result.duplicates_removed,
+        rounded_copies_removed=result.rounded_copies_removed,
         conflict_groups=result.conflict_groups,
         conflicts=list(groups.values()),
     )
