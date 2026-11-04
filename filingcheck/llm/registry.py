@@ -34,6 +34,7 @@ class ModelConfig(BaseModel):
     temperature: float | None = None
     params: dict[str, Any] = Field(default_factory=dict)
     json_schema: bool = False
+    tool_calls: bool = False  # true only once checked with a real tool-calling loop
     source: str
 
 
@@ -80,6 +81,7 @@ def make_chat(
         temperature=settings.temperature,
         params=settings.params,
         json_schema=settings.json_schema,
+        tool_calls=settings.tool_calls,
         mode=mode,
         api_key=api_key,
         transport=transport,

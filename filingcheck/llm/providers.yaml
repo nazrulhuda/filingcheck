@@ -35,6 +35,7 @@ models:
       # Default true. The answer text is all we use; reasoning is not returned.
       include_reasoning: false
     json_schema: false  # not checked yet; checked before anything asks for structured output
+    tool_calls: false  # not checked directly on Groq; the agent calls it through OpenRouter
     source: https://console.groq.com/docs/reasoning
   openrouter:openai/gpt-oss-20b:
     # The same model on the same host as groq:openai/gpt-oss-20b, through prepaid OpenRouter
@@ -52,6 +53,9 @@ models:
         effort: low
         exclude: true
     json_schema: false  # not checked yet
+    # Checked 2026-11-04 with a full loop (decisions.md): standard tools/tool_calls; no
+    # reasoning field with exclude; "refusal": null must not be sent back (Groq answers 400).
+    tool_calls: true
     source: https://openrouter.ai/docs/guides/routing/provider-selection
   gemini:gemini-3.5-flash-lite:
     # No temperature: Google strongly recommends the default 1.0 for Gemini 3 models.
@@ -59,4 +63,7 @@ models:
     temperature: null
     params: {}
     json_schema: false  # not checked yet
+    # Checked 2026-11-04 with a full loop: each tool call carries
+    # extra_content.google.thought_signature, sent back unchanged on the next turn.
+    tool_calls: true
     source: https://ai.google.dev/gemini-api/docs/thinking

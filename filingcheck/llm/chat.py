@@ -7,9 +7,19 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field
 
 Mode = Literal["live", "batch"]
-Message = dict[str, str]  # {"role": "system" | "user" | "assistant", "content": ...}
+# {"role": "system" | "user" | "assistant" | "tool", "content": ...}; an assistant message may
+# carry "tool_calls", and a tool message carries "tool_call_id".
+Message = dict[str, Any]
 CODE_CHARS_RE = re.compile(r"[^A-Za-z0-9_.-]")
 MAX_CODE_CHARS = 60
+
+
+class ToolCall(BaseModel):
+    """One tool call a model asked for; `arguments` is the JSON text as the model wrote it."""
+
+    id: str
+    name: str
+    arguments: str
 
 
 class Completion(BaseModel):
@@ -24,6 +34,10 @@ class Completion(BaseModel):
     finish_reason: str
     rate_limits: dict[str, str] = Field(default_factory=dict)  # the x-ratelimit-* headers
     usage: dict[str, Any] = Field(default_factory=dict)  # the usage object as the provider sent it
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+    # The assistant message exactly as the provider returned it. A tool-calling turn sends it
+    # back unchanged, so provider fields such as Gemini 3's thought signatures survive.
+    message: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatModel(Protocol):
@@ -38,8 +52,13 @@ class ChatModel(Protocol):
         max_tokens: int,
         temperature: float | None = None,
         json_schema: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
     ) -> Completion:
-        """One reply; `temperature=None` means the model's setting from the registry."""
+        """One reply; `temperature=None` means the model's setting from the registry.
+
+        With `tools`, the reply may be tool calls instead of text (`Completion.tool_calls`).
+        """
         ...
 
     def stream(

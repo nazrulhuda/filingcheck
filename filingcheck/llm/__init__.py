@@ -8,9 +8,10 @@ from filingcheck.llm.chat import (
     Mode,
     ProviderError,
     ProviderUnavailable,
+    ToolCall,
     UnknownCostError,
 )
-from filingcheck.llm.fake import FakeChat
+from filingcheck.llm.fake import FakeChat, scripted_tool_calls
 from filingcheck.llm.openai_compatible import OpenAICompatibleChat
 from filingcheck.llm.registry import (
     describe_settings,
@@ -31,9 +32,11 @@ __all__ = [
     "OpenAICompatibleChat",
     "ProviderError",
     "ProviderUnavailable",
+    "ToolCall",
     "UnknownCostError",
     "describe_settings",
     "load_registry",
     "make_chat",
     "router_from_env",
+    "scripted_tool_calls",
 ]

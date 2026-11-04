@@ -23,6 +23,7 @@ from filingcheck.llm.chat import (
     Mode,
     ProviderError,
     ProviderUnavailable,
+    ToolCall,
     UnknownCostError,
 )
 from filingcheck.llm.pricing import chat_cost_usd, require_chat_prices
@@ -57,6 +58,7 @@ class OpenAICompatibleChat:
         temperature: float | None = None,
         params: dict[str, Any] | None = None,
         json_schema: bool = False,
+        tool_calls: bool = False,
         mode: Mode = "batch",
         api_key: str | None = None,
         transport: httpx.BaseTransport | None = None,
@@ -72,6 +74,7 @@ class OpenAICompatibleChat:
         self.temperature = temperature
         self.params = dict(params or {})
         self.json_schema = json_schema
+        self.tool_calls = tool_calls  # checked for tool calling with a real call (registry)
         self.mode = mode
         self.unknown_cost_count = 0  # live replies that came without usage
         self._api_key = api_key
@@ -92,20 +95,39 @@ class OpenAICompatibleChat:
         max_tokens: int,
         temperature: float | None = None,
         json_schema: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
     ) -> Completion:
-        """One reply, retried or failed over according to the mode."""
-        body = self._body(messages, max_tokens, temperature, json_schema)
+        """One reply, retried or failed over according to the mode.
+
+        With `tools`, the standard `tools` and `tool_choice` fields are sent and the reply's
+        `tool_calls` are returned; the assistant message is kept exactly as returned.
+        """
+        body = self._body(messages, max_tokens, temperature, json_schema, tools, tool_choice)
         start = self._clock()
         response = self._send(body, stream=False)
         latency_ms = (self._clock() - start) * 1000
         data = response.json()
         choice = data["choices"][0]
+        message = choice.get("message") or {}
+        calls = [
+            ToolCall(
+                id=str(call.get("id") or ""),
+                name=str((call.get("function") or {}).get("name") or ""),
+                arguments=str((call.get("function") or {}).get("arguments") or "{}"),
+            )
+            for call in message.get("tool_calls") or []
+        ]
         return self._finish(
-            (choice.get("message") or {}).get("content") or "",
+            message.get("content") or "",
             choice.get("finish_reason") or "",
             data.get("usage") or {},
             response.headers,
             latency_ms,
+            tool_calls=calls,
+            # Null fields are left out: Groq rejects the next turn if "refusal": null comes
+            # back. Every other field (Gemini's thought signature) is kept as returned.
+            message={k: v for k, v in message.items() if v is not None or k == "content"},
         )
 
     def stream(
@@ -122,7 +144,7 @@ class OpenAICompatibleChat:
         asked for with `stream_options`; Groq's reference does not say where streamed usage
         appears, so both the standard `usage` and Groq's `x_groq.usage` are read.
         """
-        body = self._body(messages, max_tokens, temperature, None)
+        body = self._body(messages, max_tokens, temperature, None, None, None)
         body |= {"stream": True, "stream_options": {"include_usage": True}}
         start = self._clock()
         response = self._send(body, stream=True)
@@ -227,9 +249,13 @@ class OpenAICompatibleChat:
         max_tokens: int,
         temperature: float | None,
         json_schema: dict[str, Any] | None,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | dict[str, Any] | None,
     ) -> dict[str, Any]:
         if json_schema is not None and not self.json_schema:
             raise ValueError(f"json_schema output is not checked for {self.name} in the registry")
+        if tools and not self.tool_calls:
+            raise ValueError(f"tool calling is not checked for {self.name} in the registry")
         body: dict[str, Any] = {"model": self.model, "messages": messages}
         if self.token_limit_param is not None:
             body[self.token_limit_param] = max_tokens
@@ -241,6 +267,10 @@ class OpenAICompatibleChat:
         body.update(self.params)
         if json_schema is not None:
             body["response_format"] = {"type": "json_schema", "json_schema": json_schema}
+        if tools:
+            body["tools"] = tools
+            if tool_choice is not None:
+                body["tool_choice"] = tool_choice
         return body
 
     def _client(self) -> httpx.Client:
@@ -264,8 +294,15 @@ class OpenAICompatibleChat:
         usage: dict[str, Any],
         headers: httpx.Headers,
         latency_ms: float,
+        *,
+        tool_calls: list[ToolCall] | None = None,
+        message: dict[str, Any] | None = None,
     ) -> Completion:
-        """The completion with its cost; raise if it is incomplete or, in batch, unpriced."""
+        """The completion with its cost; raise if it is incomplete or, in batch, unpriced.
+
+        A reply with tool calls may have no text; one cut off by the token limit is still
+        incomplete, because its arguments may be cut off too.
+        """
         prompt = _int_or_none(usage.get("prompt_tokens"))
         output = _int_or_none(usage.get("completion_tokens"))
         billed_output = output
@@ -283,8 +320,14 @@ class OpenAICompatibleChat:
             finish_reason=finish_reason,
             rate_limits={k: v for k, v in headers.items() if k.lower().startswith("x-ratelimit-")},
             usage=usage,
+            tool_calls=tool_calls or [],
+            message=message if message is not None else {"role": "assistant", "content": text},
         )
-        if not completion.text.strip() or completion.finish_reason != "stop":
+        incomplete = completion.finish_reason == "length" or (
+            not completion.tool_calls
+            and (not completion.text.strip() or completion.finish_reason != "stop")
+        )
+        if incomplete:
             raise IncompleteAnswer(
                 f"{self.name}: incomplete answer (finish_reason={completion.finish_reason!r}, "
                 f"{len(completion.text)} characters, completion_tokens={output})",
