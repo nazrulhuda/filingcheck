@@ -228,6 +228,28 @@ def stray_section_files(root: Path) -> list[str]:
     return problems
 
 
+def stray_section_folders(root: Path) -> list[str]:
+    """Section folders on disk whose filing (or company) the manifest does not list.
+
+    Such a folder is left from a filing a re-pin dropped. Any file in it counts, not only
+    Item files, so the folder itself is reported.
+    """
+    years: dict[str, set[str]] = defaultdict(set)
+    for f in _read_json(root / "data" / "manifest.json")["filings"]:
+        years[f["ticker"]].add(str(f["fiscal_year"]))
+    base = root / "data" / "sections"
+    problems = []
+    for company in sorted(p for p in base.iterdir() if p.is_dir()):
+        if company.name not in years:
+            problems.append(f"{company.name}: {company.relative_to(root).as_posix()}")
+            continue
+        for folder in sorted(p for p in company.iterdir() if p.is_dir()):
+            if folder.name not in years[company.name]:
+                where = folder.relative_to(root).as_posix()
+                problems.append(f"{company.name} FY{folder.name}: {where}")
+    return problems
+
+
 def chunks_outside_summary(rows: list[dict[str, Any]], summary: list[dict[str, Any]]) -> list[str]:
     """Chunks whose Item is not among their filing's Items in the section summary."""
     items = {(row["ticker"], row["fiscal_year"]): set(row["items"]) for row in summary}
@@ -706,6 +728,9 @@ def main(root: Path = REPO_ROOT, write_snapshots: bool = False) -> int:
     duplicates = check_duplicates(rows)
     failures["Chunk texts repeated inside one filing"] = duplicates.failures
     failures["Item files on disk that the section summary does not list"] = stray_section_files(
+        root
+    )
+    failures["Section folders on disk that the manifest does not list"] = stray_section_folders(
         root
     )
     failures["Chunks under an Item that the section summary does not list"] = (
