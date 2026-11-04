@@ -37,10 +37,11 @@ db-reset:
 	uv run python -m filingcheck.db migrate
 
 # The filings are pinned in data/manifest.json, and re-runs reuse them; SEC downloads are cached
-# forever. The manifest is re-pinned once, in November 2026, to add Apple's FY2026 10-K:
+# forever. The manifest was re-pinned once, on 2026-11-03, to add Apple's FY2026 10-K:
 #   uv run python -m filingcheck.ingest filings --reselect     (downloads the filing lists again)
-#   uv run python -m filingcheck.ingest companyfacts --refresh (downloads the XBRL facts again)
-#   then the rest of `make ingest` (sections, chunks, load, report) and `make snapshot`.
+#   then Apple's companyfacts file only (`companyfacts --refresh` would refresh all 25):
+#   uv run python -c "from filingcheck.ingest.companies import load_companies; from filingcheck.ingest.companyfacts import fetch_companyfacts; from filingcheck.ingest.sec_client import SecClient; from filingcheck.paths import REPO_ROOT; apple = next(c for c in load_companies(REPO_ROOT / 'data/companies.yaml') if c.ticker == 'AAPL'); client = SecClient(); print('AAPL', fetch_companyfacts(apple, client, REPO_ROOT, refresh=True), 'us-gaap tags;', client.downloads, 'downloaded')"
+#   then the rest of `make ingest` (companyfacts, sections, chunks, load, report) and `make snapshot`.
 # The same PR updates tests/expected_manifest.json, data/section_snapshot.json and
 # data/chunk_snapshot.json, and its description lists the sections that changed and why.
 # After that the manifest stays frozen for the evaluation.

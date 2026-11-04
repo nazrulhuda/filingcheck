@@ -15,70 +15,35 @@ None.
 
 ## Sections
 
-### AAPL FY2023, Item 1 (edgartools, exact; 15,162 characters)
-
-- Starts: `Item 1. Business Company Background The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accesso`
-- Ends: `o this filing. Further, the Company’s references to website URLs are intended to be inactive textual references only. Apple Inc. | 2023 Form 10-K | 4`
-- Next heading in the source: `Item 1A. Risk Factors`
-- Next Item heading in the source: `Item 1A. Risk Factors`
-
-### AAPL FY2023, Item 1A (edgartools, exact; 67,629 characters)
-
-- Starts: `Item 1A. Risk Factors The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number o`
-- Ends: `the price of the Company’s stock may decline significantly, which could have a material adverse impact on investor confidence and employee retention.`
-- Next heading in the source: `Item 1B. Unresolved Staff Comments`
-- Next Item heading in the source: `Item 1B. Unresolved Staff Comments`
-
-### AAPL FY2023, Item 7 (edgartools, exact; 13,883 characters)
-
-- Starts: `Item 7. Management’s Discussion and Analysis of Financial Condition and Results of Operations The following discussion should be read in conjuncti`
-- Ends: `tters in a manner inconsistent with management’s expectations could have a material impact on the Company’s financial condition and operating results.`
-- Next heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
-- Next Item heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
-
-### AAPL FY2023, Item 7A (edgartools, exact; 2,758 characters)
-
-- Starts: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk The Company is exposed to economic risk from interest rates and foreign exchan`
-- Ends: `uded from the assessment, generally offset changes in the fair values of the Company’s foreign currency derivatives. Apple Inc. | 2023 Form 10-K | 26`
-- Next heading in the source: `Item 8. Financial Statements and Supplementary Data`
-- Next Item heading in the source: `Item 8. Financial Statements and Supplementary Data`
-
-### AAPL FY2023, Item 8 (edgartools, exact; 41,505 characters)
-
-- Starts: `Item 8. Financial Statements and Supplementary Data Index to Consolidated Financial Statements Page Consolidated Statements of Operations for the`
-- Ends: `ions, or that the degree of compliance with the policies or procedures may deteriorate. /s/ Ernst & Young LLP San Jose, California November 2, 2023`
-- Next heading in the source: `San Jose, California`
-- Next Item heading in the source: `Item 9. Changes in and Disagreements with Accountants on Accounting and Financial Disclosure`
-
-### AAPL FY2024, Item 1 (edgartools, exact; 15,767 characters; +4% from FY2023)
+### AAPL FY2024, Item 1 (edgartools, exact; 15,767 characters)
 
 - Starts: `Item 1. Business Company Background The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accesso`
 - Ends: `not incorporated by reference into this filing. Further, the Company’s references to website URLs are intended to be inactive textual references only.`
 - Next heading in the source: `Item 1A. Risk Factors`
 - Next Item heading in the source: `Item 1A. Risk Factors`
 
-### AAPL FY2024, Item 1A (edgartools, exact; 68,484 characters; +1% from FY2023)
+### AAPL FY2024, Item 1A (edgartools, exact; 68,484 characters)
 
 - Starts: `Item 1A. Risk Factors The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number o`
 - Ends: `the price of the Company’s stock may decline significantly, which could have a material adverse impact on investor confidence and employee retention.`
 - Next heading in the source: `Item 1B. Unresolved Staff Comments`
 - Next Item heading in the source: `Item 1B. Unresolved Staff Comments`
 
-### AAPL FY2024, Item 7 (edgartools, exact; 13,818 characters; -0% from FY2023)
+### AAPL FY2024, Item 7 (edgartools, exact; 13,818 characters)
 
 - Starts: `Item 7. Management’s Discussion and Analysis of Financial Condition and Results of Operations The following discussion should be read in conjuncti`
 - Ends: `tters in a manner inconsistent with management’s expectations could have a material impact on the Company’s financial condition and operating results.`
 - Next heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
 - Next Item heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
 
-### AAPL FY2024, Item 7A (edgartools, exact; 2,758 characters; +0% from FY2023)
+### AAPL FY2024, Item 7A (edgartools, exact; 2,758 characters)
 
 - Starts: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk The Company is exposed to economic risk from interest rates and foreign exchan`
 - Ends: `uded from the assessment, generally offset changes in the fair values of the Company’s foreign currency derivatives. Apple Inc. | 2024 Form 10-K | 27`
 - Next heading in the source: `Item 8. Financial Statements and Supplementary Data`
 - Next Item heading in the source: `Item 8. Financial Statements and Supplementary Data`
 
-### AAPL FY2024, Item 8 (edgartools, exact; 40,450 characters; -3% from FY2023)
+### AAPL FY2024, Item 8 (edgartools, exact; 40,450 characters)
 
 - Starts: `Item 8. Financial Statements and Supplementary Data Index to Consolidated Financial Statements Page Consolidated Statements of Operations for the`
 - Ends: `ions, or that the degree of compliance with the policies or procedures may deteriorate. /s/ Ernst & Young LLP San Jose, California November 1, 2024`
@@ -117,6 +82,41 @@ None.
 
 - Starts: `Item 8. Financial Statements and Supplementary Data Index to Consolidated Financial Statements Page Consolidated Statements of Operations for the`
 - Ends: `ions, or that the degree of compliance with the policies or procedures may deteriorate. /s/ Ernst & Young LLP San Jose, California October 31, 2025`
+- Next heading in the source: `San Jose, California`
+- Next Item heading in the source: `Item 9. Changes in and Disagreements with Accountants on Accounting and Financial Disclosure`
+
+### AAPL FY2026, Item 1 (edgartools, exact; 20,800 characters; +30% from FY2025)
+
+- Starts: `Item 1. Business Company Background The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accesso`
+- Ends: `not incorporated by reference into this filing. Further, the Company’s references to website URLs are intended to be inactive textual references only.`
+- Next heading in the source: `Item 1A. Risk Factors`
+- Next Item heading in the source: `Item 1A. Risk Factors`
+
+### AAPL FY2026, Item 1A (edgartools, exact; 86,034 characters; +27% from FY2025)
+
+- Starts: `Item 1A. Risk Factors The following summarizes factors that could have a material adverse effect on the Company’s business, reputation, results of`
+- Ends: `the price of the Company’s stock may decline significantly, which could have a material adverse impact on investor confidence and employee retention.`
+- Next heading in the source: `Item 1B. Unresolved Staff Comments`
+- Next Item heading in the source: `Item 1B. Unresolved Staff Comments`
+
+### AAPL FY2026, Item 7 (edgartools, exact; 16,152 characters; -2% from FY2025)
+
+- Starts: `Item 7. Management’s Discussion and Analysis of Financial Condition and Results of Operations The following discussion should be read in conjuncti`
+- Ends: `s in a manner inconsistent with management’s expectations could have a material impact on the Company’s results of operations and financial condition.`
+- Next heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
+- Next Item heading in the source: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk`
+
+### AAPL FY2026, Item 7A (edgartools, exact; 2,758 characters; +0% from FY2025)
+
+- Starts: `Item 7A. Quantitative and Qualitative Disclosures About Market Risk The Company is exposed to economic risk from interest rates and foreign exchan`
+- Ends: `uded from the assessment, generally offset changes in the fair values of the Company’s foreign currency derivatives. Apple Inc. | 2026 Form 10-K | 30`
+- Next heading in the source: `Item 8. Financial Statements and Supplementary Data`
+- Next Item heading in the source: `Item 8. Financial Statements and Supplementary Data`
+
+### AAPL FY2026, Item 8 (edgartools, exact; 42,307 characters; +2% from FY2025)
+
+- Starts: `Item 8. Financial Statements and Supplementary Data Index to Consolidated Financial Statements Page Consolidated Statements of Operations for the`
+- Ends: `ions, or that the degree of compliance with the policies or procedures may deteriorate. /s/ Ernst & Young LLP San Jose, California November 3, 2026`
 - Next heading in the source: `San Jose, California`
 - Next Item heading in the source: `Item 9. Changes in and Disagreements with Accountants on Accounting and Financial Disclosure`
 

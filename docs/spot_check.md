@@ -4,156 +4,166 @@ A fixed random sample (seed 2028) of the chunks and section starts, to read agai
 
 ## Chunks
 
-### Chunk 1: AAPL FY2023, Item 1A, chunk 13
+### Chunk 1: AAPL FY2024, Item 1A, chunk 13
 
-Source: https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm
+Source: https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm
 
 ```text
-environments and operations, an industrial accident could occur and could result in serious injuries or loss of life, disruption to the Company’s business, and harm to the Company’s reputation. Major public health issues, including pandemics such as the COVID-19 pandemic, have adversely affected, an
+distribution channels, resulting in interruptions to the supply of current products and offering of existing services, and delays in production ramps of new products and development of new services.
+
+Following any interruption to its business, the Company can require substantial recovery time, exper
 ```
 
-### Chunk 2: AMZN FY2023, Item 7, chunk 32
+### Chunk 2: AMZN FY2023, Item 7, chunk 1
 
 Source: https://www.sec.gov/Archives/edgar/data/1018724/000101872424000008/amzn-20231231.htm
 
 ```text
-to isolate and quantify. In addition, changes in fuel, utility, and food costs, interest rates, and economic outlook may impact customer demand and our ability to forecast consumer spending patterns. We also expect the current macroeconomic environment and enterprise customer cost optimization effor
+believes, expects, future, intends, and similar expressions to identify forward-looking statements. Forward-looking statements reflect management’s current expectations and are inherently uncertain. Actual results and outcomes could differ materially for a variety of reasons, including, among others
 ```
 
-### Chunk 3: AXP FY2023, Item 7, chunk 32
+### Chunk 3: AXP FY2023, Item 7, chunk 1
 
 Source: https://www.sec.gov/Archives/edgar/data/4962/000000496224000013/axp-20231231.htm
 
 ```text
-and Net card fees.
+services
 
-Discount revenue increased 10 percent, primarily driven by an increase in U.S. consumer billed business. See Tables 5, 6 and 10 for more details on billed business performance.
+•Other fee services, including fraud prevention services and the design and operation of customer loyalty programs
 
-Net card fees increased 21 percent, primarily driven by growth in our premium card portfolios.
+•Expense management products and services
 
-Servic
+•Travel and lifestyle services
+
+Our various products and services are offered globally to diverse customer groups, including consum
 ```
 
-### Chunk 4: COST FY2026, Item 1A, chunk 15
+### Chunk 4: COST FY2026, Item 1, chunk 11
 
 Source: https://www.sec.gov/Archives/edgar/data/909832/000090983226000093/cost-20260830.htm
 
 ```text
-our financial condition and results of operations. Insufficient IT capacity could also impact our capacity for timely, complete and accurate financial and non-financial reporting required by law.
+have expired and not renewed within the 12 months prior to the reporting date. These expired memberships make up a small percentage of membership counts, and many of them are subsequently renewed.
 
-We are required to maintain the privacy and security of personal and business information amidst multip
+Paid members, in most countries, are eligible to upgrade to an Executive membership for an additional
 ```
 
-### Chunk 5: GOOGL FY2025, Item 1A, chunk 91
+### Chunk 5: GOOGL FY2025, Item 1A, chunk 60
 
 Source: https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm
 
 ```text
-proceedings could also result in legal costs, diversion of management resources, and negative publicity, all of which could harm our business, reputation, financial condition, and operating results.
+sector customers (including federal, state, and local governments). Geopolitical tensions or armed conflicts, such as the ongoing conflict in the Middle East and Ukraine, may increase these risks.
 
-Estimating liabilities for our pending proceedings is a complex, fact-specific, and speculative proc
+We may experience security and privacy issues, whether due to employee or insider error or malfeasance
 ```
 
-### Chunk 6: GS FY2023, Item 1A, chunk 132
+### Chunk 6: GS FY2023, Item 1A, chunk 101
 
 Source: https://www.sec.gov/Archives/edgar/data/886982/000088698224000006/gs-20231231.htm
 
 ```text
-or alleged failure, to comply with laws and regulations has subjected and may in the future subject us and our personnel not only to civil actions, but also criminal actions and other sanctions. We are also subject to the enhanced risk that transactions we structure might not be legally enforceable
+in all jurisdictions in which we conduct our businesses. In many cases, our activities have been and may continue to be subject to overlapping and divergent regulation in different jurisdictions. Among other things, as a result of law enforcement authorities, regulators or private parties challengin
 ```
 
-### Chunk 7: IBM FY2025, Item 8, chunk 29
+### Chunk 7: IBM FY2025, Item 7, chunk 173
 
 Source: https://www.sec.gov/Archives/edgar/data/51143/000005114326000010/ibm-20251231_d2.htm
 
 ```text
-promise for the single performance obligation.
+Organizations of the Treadway Commission (COSO). Based on this evaluation, management concluded that the company’s internal control over financial reporting was effective as of December 31, 2025.
 
-The revenue policies in the Services, Hardware and/or Software sections below are applied to each performance obligation, as applicable.
-
-Services
-
-The company’s services offerings include Strategy and Technology and Intelligent Operations reported wit
+PricewaterhouseCoopers LLP, an independent registered public accounting firm, is retained to audit IBM’
 ```
 
-### Chunk 8: JPM FY2024, Item 1A, chunk 51
+### Chunk 8: JPM FY2024, Item 1A, chunk 20
 
 Source: https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm
 
 ```text
-if the outflows create the need for the fund to dispose of fund assets at disadvantageous times or prices, and could lead to further withdrawals based on the weaker investment performance.
+regulatory investigations can subject JPMorganChase to significant penalties and collateral consequences, and could result in higher compliance costs or restrictions on its operations.
 
-An adverse change in market conditions in particular segments of the economy, such as a sudden and severe down
+JPMorganChase is subject to heightened oversight and scrutiny from regulatory authorities in many jurisdictions. J
 ```
 
-### Chunk 9: KO FY2024, Item 1, chunk 65
+### Chunk 9: KO FY2024, Item 1, chunk 34
 
 Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-data protection and data residency laws are often uncertain and are expanding in the United States and internationally, including in the European Union, Brazil, China and other jurisdictions. We monitor pending and proposed legislation and regulatory initiatives to ascertain their relevance to and p
+authorized bottlers) and some fountain retailers. These wholesalers in turn sell the syrups, or deliver them on our behalf, to restaurants and other retailers.
+
+Promotional and Marketing Programs
+
+In addition to conducting our own independent advertising and marketing activities, we may provide prom
 ```
 
-### Chunk 10: KO FY2024, Item 1A, chunk 19
+### Chunk 10: KO FY2024, Item 1, chunk 66
 
 Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-of our supply chain, including increased commodity, raw material, packaging, energy, transportation and other input costs, may adversely affect our financial condition or results of operations.
+legal and regulatory constraints and obligations or meet consumer expectations.
 
-At times, we have experienced, and could continue to experience, disruptions in our manufacturing operati
+For additional information, refer to Part I, “Item IA. Risk Factors” of this report.
+
+Human Capital Management
+
+Our people and culture strategies are critical business priorities. The board of directors of the Company (
 ```
 
-### Chunk 11: KO FY2024, Item 8, chunk 172
+### Chunk 11: KO FY2024, Item 8, chunk 141
 
 Source: https://www.sec.gov/Archives/edgar/data/21344/000002134425000011/ko-20241231.htm
 
 ```text
-31, 2024, the carrying value of these investments was $41 million. The Company expects to fulfill $123 million of unfunded commitments related to these investments in the first quarter of 2025.
+less the present value of the expected dividends not received during the performance period. The performance share unit awards will generally vest at the end of the respective performance period.
 
-Our effective tax rate reflects the tax benefits of having significant operations outside the United Stat
+For performance share unit awards, in the event the certified results equal the predefined performance
 ```
 
-### Chunk 12: KO FY2025, Item 8, chunk 206
+### Chunk 12: KO FY2025, Item 8, chunk 175
 
 Source: https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm
 
 ```text
-macroeconomic conditions. These charges were recorded in the line item other operating charges in our consolidated statements of income. The remaining carrying value of the trademark is $42 million.
+Reform Act. The 2024 amount does not include $6.0 billion paid in relation to invoices the IRS issued for the 2007 through 2009 tax years resulting from the Tax Court’s decision. Refer to Note 12.
 
-3During the years ended December 31, 2025 and 2024, the Company recorded asset impairment charges of
+In 2025, the Company invested $306 million in limited partnerships that receive tax credits and other
 ```
 
-### Chunk 13: NVDA FY2024, Item 8, chunk 95
+### Chunk 13: NVDA FY2024, Item 8, chunk 64
 
 Source: https://www.sec.gov/Archives/edgar/data/1045810/000104581024000029/nvda-20240128.htm
 
 ```text
-tax benefits is as follows:
+our annual qualitative impairment tests and concluded that goodwill was not impaired.
 
-Included in the balance of unrecognized tax benefits as of January 28, 2024 are $1.0 billion of tax benefits that would affect our effective tax rate if recognized.
+Note 7 - Amortizable Intangible Assets
 
-We classify an unrecognized tax benefit as a current liability, or amount refundable, to the extent that
+The components of our amortizable intangible assets are as follows:
+
+(1) During the first quarter of fiscal year 2023, we commenced amortization of a $630 million in-process
 ```
 
-### Chunk 14: VZ FY2023, Item 7, chunk 38
+### Chunk 14: VZ FY2023, Item 7, chunk 7
 
 Source: https://www.sec.gov/Archives/edgar/data/732712/000073271224000010/vz-20231231.htm
 
 ```text
-insurance or regulatory fees. Wireless retail postpaid ARPA in each period presented is calculated by dividing retail postpaid service revenue by the average retail postpaid accounts in the period.
-
-Wireless retail postpaid accounts are wireless retail customers that are directly served and managed
+the world. The Business segment's operating revenues for the year ended December 31, 2023 totaled $30.1 billion, a decrease of $950 million, or 3.1%, compared to the year ended December 31, 2022. See "Segment Results of Operations" for additional information regarding our Business segment’s operatin
 ```
 
-### Chunk 15: VZ FY2024, Item 8, chunk 125
+### Chunk 15: VZ FY2024, Item 8, chunk 94
 
 Source: https://www.sec.gov/Archives/edgar/data/732712/000073271225000006/vz-20241231.htm
 
 ```text
-billion in October 2024 and borrowed an additional $650 million in December 2024. The aggregate outstanding balance under the 2021 ABS Financing Facility was $8.0 billion as of December 31, 2024.
+received net cash proceeds of $248 million for the final settlement of working capital, which was included in our consideration as of the Acquisition Date.
 
-Under the loan agreement outstanding in connection with the ABS Financing Facility originally entered i
+Frontier Communications Parent, Inc.
+
+On September 4, 2024, Verizon entered into an Agreement and Plan of Merger (the Merger Agreement) to acqu
 ```
 
 ## Section starts
