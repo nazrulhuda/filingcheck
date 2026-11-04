@@ -79,6 +79,7 @@ def test_loading_100_chunks_round_trips(db: psycopg.Connection, tmp_path: Path) 
         "chunks": 100,
         "table_chunks": 0,
         "section_sources": 0,
+        "facts": 0,
         "embeddings_restored": 0,
     }
     rows = db.execute(
@@ -191,6 +192,7 @@ def test_number_tables_load_into_their_own_table_not_chunks(
         "chunks": 2,
         "table_chunks": 2,
         "section_sources": 0,
+        "facts": 0,
         "embeddings_restored": 0,
     }
     rows = db.execute(
