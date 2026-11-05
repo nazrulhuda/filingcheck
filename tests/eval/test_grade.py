@@ -219,3 +219,11 @@ def test_a_loss_written_as_a_positive_amount_matches_a_negative_gold_value() -> 
 def test_an_answer_question_without_a_gold_value_is_not_graded() -> None:
     q = question(gold_value=None)
     assert grade(row("In fiscal 2025 sales were $416.2 billion."), q).outcome == "not_graded"
+
+
+def test_narrow_and_no_break_spaces_between_digit_groups_are_thousands_separators() -> None:
+    for space in (0x202F, 0x00A0, 0x2009):  # narrow no-break, no-break, thin
+        text = "Revenue was $680" + chr(space) + "985" + chr(space) + "000" + chr(space) + "000."
+        assert values(text) == [Decimal("680985000000")], hex(space)
+    # A plain space still separates two numbers.
+    assert values("Segments 680 985 were listed.") == [Decimal("680"), Decimal("985")]
