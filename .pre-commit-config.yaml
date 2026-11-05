@@ -12,8 +12,12 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: detect-private-key
-  # Blocks API keys and other secrets from being committed (the repo is public).
+  # Blocks API keys and other secrets from being committed (the repo is public). The scanner
+  # runs in a Docker container (image pinned to the same version as `rev`), so committing
+  # needs Docker running; the Go binary the plain `gitleaks` hook builds is blocked by
+  # Windows Smart App Control on the development machine.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
-      - id: gitleaks
+      - id: gitleaks-docker
+        entry: zricethezav/gitleaks:v8.30.1 git --pre-commit --redact --staged --verbose
