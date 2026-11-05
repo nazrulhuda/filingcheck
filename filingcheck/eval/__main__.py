@@ -36,7 +36,7 @@ def run_main(args: argparse.Namespace) -> int:
     from filingcheck.answer.batch import BatchFileError
     from filingcheck.answer.run import hybrid_retriever, settings_line
     from filingcheck.db import connect
-    from filingcheck.eval.run import results_path, run_eval
+    from filingcheck.eval.run import choose_results_path, read_questions, results_path, run_eval
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.llm import router_from_env
     from filingcheck.tools import ToolDeps
@@ -45,8 +45,16 @@ def run_main(args: argparse.Namespace) -> int:
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
-    day = args.date or datetime.now(UTC).date().isoformat()
-    out = REPO_ROOT / results_path(args.set, args.mode, day)
+    if args.date:
+        out = REPO_ROOT / results_path(args.set, args.mode, args.date)
+    else:
+        today = datetime.now(UTC).date().isoformat()
+        expected = len(read_questions(questions)) * args.repeats
+        out = choose_results_path(
+            REPO_ROOT, args.set, args.mode, expected_rows=expected, today=today
+        )
+        if not out.name.startswith(today):
+            print(f"resuming the unfinished {out.relative_to(REPO_ROOT)}")
     out.parent.mkdir(parents=True, exist_ok=True)
     router = router_from_env("batch")
     settings = settings_line(router.primary.name, filters="question text only, no filters")
@@ -82,7 +90,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--set", required=True, help="a question file in eval/questions/, no .jsonl")
     run.add_argument("--mode", choices=["baseline", "agent"], required=True)
     run.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
-    run.add_argument("--date", help="the date in the results file name (default today, UTC)")
+    run.add_argument(
+        "--date", help="the results file date (default: an unfinished file's, else today UTC)"
+    )
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")

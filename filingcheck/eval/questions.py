@@ -62,6 +62,9 @@ class Question(BaseModel):
     gold_period_start: date | None = None
     gold_period_end: date | None = None
     gold_instant: date | None = None
+    # The same metric for the company's other pinned years, so the grader can tell a
+    # number from another year (other_year_number) from a wrong one.
+    gold_other_years: dict[int, int | float] | None = None
     tolerance_pct: float = Field(default=1.0, ge=0)
     gold_text: str | None = None
     trap_note: str | None = None

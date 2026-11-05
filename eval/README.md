@@ -8,10 +8,20 @@ make eval SET=examples MODE=baseline REPEATS=3
 ```
 
 - **What it does:** runs `eval/questions/<SET>.jsonl` through the batch runner in one mode, asks each question `REPEATS` times (default 1), grades every answer with the deterministic number grader (`filingcheck/eval/grade.py`), and writes `eval/results/<date>_<SET>_<MODE>.jsonl` (every batch row with its `grade`) and a `.md` file next to it with a one-table summary.
-- **Resumable:** run the same command again (same date, or `DATE=YYYY-MM-DD`) and only the missing (question, repeat) pairs are asked; every row is graded again.
+- **Resumable:** run the same command again and only the missing (question, repeat) pairs are asked; every row is graded again. Without `DATE`, the newest file of the same set and mode is resumed if it is unfinished (so a run resumed after midnight UTC goes on in its own file); otherwise the run gets today's date (UTC).
+- **Stale rows:** a row whose question is no longer in the question file is kept in the results file with `grade: null` and left out of the summary, which says how many there are.
 - **Grades:**
-  - **A number question** (`expected_behavior: answer`) is `correct` when one number in the answer, in raw units, is within `tolerance_pct` of `gold_value` and the fiscal year is stated. It is `wrong_year` when the number matches but the year is not stated, `wrong_number` when no number matches, and `abstained` for the abstain sentence.
-  - **A `clarify` or `refuse` question** is `correct` when the answer has no number and asks or declines (keyword rules), and `answered_when_should_ask` otherwise.
+  - **A number question** (`expected_behavior: answer`):
+    - `correct`: one number in the answer, in raw units, is within `tolerance_pct` of `gold_value`, and the fiscal year is stated;
+    - `year_not_stated`: the number matches but the year is not stated;
+    - `other_year_number`: the number matches the same metric for another pinned year of the company (`gold_other_years`), and `other_year` says which;
+    - `wrong_number`: no number matches anything;
+    - `asked_when_should_answer`: no amount, and the answer asks the user a question;
+    - `abstained`: the abstain sentence.
+  - **Matching:** a number goes to whichever value (the gold year's or another year's) it is closest to, because two years can be inside each other's tolerance. Coca-Cola's net income was 10,714 million in FY2023 and 10,631 million in FY2024, 0.8% apart.
+  - **The fiscal year is stated** by an explicit phrase ("fiscal 2025", "fiscal year 2025", "FY2025", "FY25", "fiscal '25"), which wins. Without one, it is stated by a period-end date ("the year ended January 31, 2025", "as of June 30, 2025", "... to 2025-01-31") or a year standing on its own. A year inside any other date ("filed on February 25, 2026") counts for nothing. In all 75 pinned filings the fiscal year is the calendar year of the period end.
+  - **A `clarify` or `refuse` question** is `correct` when the answer gives no amount and asks or declines (keyword rules), and `answered_when_should_ask` otherwise. Small counts ("3 months", "25 companies"), dates and footnote markers are not amounts; a currency sign, a scale, a percent sign, digit groups, decimals or a value of 1,000 or more make one.
+  - **Numbers:** a minus sign, an amount in parentheses, or a loss ("a net loss of $10.6 billion") makes a number negative. In a range ("$680.9-681.0 billion", "10-12%") both numbers are positive and take the second one's scale.
   - **Other outcomes:** `error` for a row with no answer; `not_graded` for a number question with no gold value.
 
 ## The batch runner
@@ -55,7 +65,7 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 
 The baseline writes the same fields, with empty `fact_citations`, `tool_calls` and `facts_used`.
 
-`make eval` adds a `grade` to each row: `outcome`, `numbers` (every number found, raw units, percentages ending in `%`), `matched` (the number that matched the gold value) and `year_stated`.
+`make eval` adds a `grade` to each row: `outcome`, `numbers` (every number found, raw units, percentages ending in `%`), `matched` (the number that matched the gold value or another year's value), `year_stated` and `other_year`.
 
 A row with an `error` has `answer: null` and no citations; `usage`, `cost_usd`, `latency_ms` and `model_calls` cover every model call the question made, the cut-off one included, and for the agent `tool_calls` and `facts_used` hold the calls made before it.
 
@@ -63,6 +73,8 @@ A row with an `error` has `answer: null` and no citations; `usage`, `cost_usd`, 
 
 A number question's gold value is filled from the `facts` table through the same lookup the agent's `get_financial_fact` tool uses: the pinned filing's own XBRL fact for that company, fiscal year and metric (`python -m filingcheck.eval gold`, from Week 3 Day 20).
 - **Hand-set values:** a value set by a person is marked `gold_source: "hand"` and is never overwritten.
+- **Only number questions** (`expected_behavior: answer`) get a gold value; a clarify or refuse question has none.
+- **Other years:** the same metric's value for each other pinned year of the company is recorded in `gold_other_years`, so the grader can tell another year's number from a wrong one.
 - **Checking the facts:** the facts themselves are checked separately. Four golden facts were read by hand from the printed statements (`tests/golden_facts.yaml`), and every company total on a report's year-end date is compared with the SEC's companyfacts (`docs/facts_report.md`).
 
 ## What the evaluation therefore measures
