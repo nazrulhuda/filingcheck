@@ -68,7 +68,7 @@ def test_an_eval_run_writes_graded_rows_and_a_summary(tmp_path: Path) -> None:
     assert rows[0]["grade"]["matched"] == "416161000000"
     assert summary == out.with_suffix(".md")
     table = summary.read_text(encoding="utf-8")
-    assert "| **All** | 4 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |" in table
+    assert "| **All** | 4 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |" in table
     assert "agent" in table and "fake settings" in table
 
 
@@ -176,3 +176,48 @@ def test_resuming_without_a_date_takes_the_date_of_the_unfinished_file(tmp_path:
     (results / "2026-11-03_examples_baseline.jsonl").write_text('{"id": "q-1"}\n', encoding="utf-8")
     pick = choose_results_path(tmp_path, "examples", "agent", expected_rows=4, today="2026-11-05")
     assert pick == results / "2026-11-05_examples_agent.jsonl"
+
+
+def test_a_blank_line_in_a_results_file_is_skipped(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    questions = questions_file(tmp_path)
+    run_eval(
+        questions,
+        mode="agent",
+        repeats=1,
+        model=FakeChat(replies()[:3]),
+        deps=apple_deps(),
+        out=out,
+        settings="s",
+    )
+    out.write_text(out.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    summary = run_eval(
+        questions,
+        mode="agent",
+        repeats=1,
+        model=FakeChat([]),
+        deps=apple_deps(),
+        out=out,
+        settings="s",
+    )
+    assert "| **All** | 2 |" in summary.read_text(encoding="utf-8")
+
+
+def test_stale_rows_do_not_make_an_unfinished_file_look_finished(tmp_path: Path) -> None:
+    from filingcheck.eval.run import choose_results_path
+
+    results = tmp_path / "eval" / "results"
+    results.mkdir(parents=True)
+    old = results / "2026-11-04_examples_agent.jsonl"
+    old.write_text(
+        '{"id": "gone-001", "repeat": 1}\n{"id": "control-001", "repeat": 1}\n', encoding="utf-8"
+    )
+    pick = choose_results_path(
+        tmp_path,
+        "examples",
+        "agent",
+        expected_rows=2,
+        today="2026-11-05",
+        question_ids={"control-001", "trap-001"},
+    )
+    assert pick == old  # only one of its two rows belongs to a current question

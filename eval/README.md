@@ -15,13 +15,14 @@ make eval SET=examples MODE=baseline REPEATS=3
     - `correct`: one number in the answer, in raw units, is within `tolerance_pct` of `gold_value`, and the fiscal year is stated;
     - `year_not_stated`: the number matches but the year is not stated;
     - `other_year_number`: the number matches the same metric for another pinned year of the company (`gold_other_years`), and `other_year` says which;
-    - `wrong_number`: no number matches anything;
+    - `wrong_number`: a number is given but matches nothing;
+    - `no_number`: no amount is given, and the answer neither declines nor asks;
     - `asked_when_should_answer`: no amount, and the answer asks the user a question;
-    - `abstained`: the abstain sentence.
+    - `abstained`: the abstain sentence, or a decline in other words with no amount.
   - **Matching:** a number goes to whichever value (the gold year's or another year's) it is closest to, because two years can be inside each other's tolerance. Coca-Cola's net income was 10,714 million in FY2023 and 10,631 million in FY2024, 0.8% apart.
   - **The fiscal year is stated** by an explicit phrase ("fiscal 2025", "fiscal year 2025", "FY2025", "FY25", "fiscal '25"), which wins. Without one, it is stated by a period-end date ("the year ended January 31, 2025", "as of June 30, 2025", "... to 2025-01-31") or a year standing on its own. A year inside any other date ("filed on February 25, 2026") counts for nothing. In all 75 pinned filings the fiscal year is the calendar year of the period end.
   - **A `clarify` or `refuse` question** is `correct` when the answer gives no amount and asks or declines (keyword rules), and `answered_when_should_ask` otherwise. Small counts ("3 months", "25 companies"), dates and footnote markers are not amounts; a currency sign, a scale, a percent sign, digit groups, decimals or a value of 1,000 or more make one.
-  - **Numbers:** a minus sign, an amount in parentheses, or a loss ("a net loss of $10.6 billion") makes a number negative. In a range ("$680.9-681.0 billion", "10-12%") both numbers are positive and take the second one's scale.
+  - **Numbers:** a minus sign attached to the number, an amount in parentheses, or a loss ("a net loss of $10.6 billion") makes a number negative; a dash with a space after it ("revenue - $681 billion", a subtraction) does not, and neither does the "(loss)" of a label. In a range ("$680.9-681.0 billion", "10-12%") both numbers are positive and take the second one's scale.
   - **Other outcomes:** `error` for a row with no answer; `not_graded` for a number question with no gold value.
 
 ## The batch runner
@@ -58,7 +59,7 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `latency_ms` | the time the question took |
 | `finish_reason` | the last model call's finish reason |
 | `abstained` | true when the answer is the abstain sentence |
-| `has_uncited_claims` | true when a sentence states a figure without a citation (a heuristic) |
+| `has_uncited_claims` | true when a sentence states a figure without a citation (a heuristic); a mark that points to no passage or fact, such as `[9]` among 4 passages or `[F3]` among 1 fact, is no citation |
 | `model_calls` | how many model calls the answer took (1 for the baseline) |
 | `stopped_by` | agent only: `model_calls` or `tool_calls` when a limit ended the run, else `null` |
 | `error` | `null`, or a short code such as `openrouter - incomplete_length` |

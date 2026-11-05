@@ -203,10 +203,10 @@ def test_the_summary_table_counts_each_outcome_per_question_and_in_total() -> No
     ]
     graded = [(r, grade(r, q)) for r in rows]
     table = summary_table(graded, mode="agent")
-    # Correct, year not stated, other year, wrong number, asked back, answered when it
-    # should have asked, abstained, errors, not graded.
-    assert "| control-001 | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
-    assert "| **All** | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
+    # Correct, year not stated, other year, wrong number, no number, asked back, answered
+    # when it should have asked, abstained, errors, not graded.
+    assert "| control-001 | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
+    assert "| **All** | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
     assert "$0.000600" in table
 
 
@@ -411,3 +411,95 @@ def test_a_number_goes_to_the_years_value_it_is_closest_to() -> None:
     assert result.outcome == "correct"
     result = grade(row("Coca-Cola's fiscal 2024 net income was $10.6 billion."), q)
     assert result.outcome == "correct"
+
+
+# ---------------------------------------------------------------- fixes after the second review
+
+
+def test_no_number_and_a_decline_in_other_words_are_their_own_outcomes() -> None:
+    q = question(**NVDA_2026)
+    assert (
+        grade(row("Nvidia reports its net income in Item 8 of its 10-K [1]."), q).outcome
+        == "no_number"
+    )
+    assert (
+        grade(row("I couldn't find Nvidia's net income in the filings I have."), q).outcome
+        == "abstained"
+    )
+    assert (
+        grade(row("That figure isn't available in the filings I have."), q).outcome == "abstained"
+    )
+
+
+def test_a_spaced_dash_is_not_a_minus_sign() -> None:
+    assert values(f"Total revenues {EN_DASH} $681.0 billion [2]") == [Decimal("681000000000")]
+    assert values("Walmart fiscal 2025 revenue - $681.0 billion.") == [Decimal("681000000000")]
+    assert values(f"$680.9 {EN_DASH} $681.0 billion") == [
+        Decimal("680900000000"),
+        Decimal("681000000000"),
+    ]
+    assert [str(n.value) for n in find_numbers("5% - 6%")] == ["5", "6"]
+    assert values("(713,163,000,000 - 680,985,000,000) / 680,985,000,000") == [
+        Decimal("713163000000"),
+        Decimal("680985000000"),
+        Decimal("680985000000"),
+    ]
+    assert values("Net loss was -$1.2 billion.") == [
+        Decimal("-1200000000")
+    ]  # attached: still a sign
+
+
+def test_each_number_goes_to_its_own_nearest_year() -> None:
+    q = question(
+        id="trap-002",
+        company="WMT",
+        fiscal_year=2025,
+        gold_value=680985000000,
+        gold_other_years={"2024": 648125000000, "2026": 713163000000},
+    )
+    text = "Fiscal 2025 revenue was $681.0 billion, up from $648,125 million in fiscal 2024."
+    assert grade(row(text), q).outcome == "correct"
+    q = question(**NVDA_2026)
+    text = (
+        "Nvidia's net income was $120.1 billion in fiscal 2026, up from $72.9 billion in "
+        "fiscal 2025."
+    )
+    assert grade(row(text), q).outcome == "correct"
+    assert (
+        grade(row("Nvidia's fiscal 2025 net income was $72.9 billion."), q).outcome
+        == "other_year_number"
+    )
+
+
+def test_the_loss_label_and_other_clauses_do_not_flip_a_sign() -> None:
+    assert values("Net income (loss) was $5.0 billion.") == [Decimal("5000000000")]
+    assert values("Operating income (loss): $5 billion.") == [Decimal("5000000000")]
+    assert values("Despite the loss, net income was $5 billion.") == [Decimal("5000000000")]
+    assert values("Income before losses was $4 billion.") == [Decimal("4000000000")]
+    assert values("Loss before income taxes of $3 billion.") == [Decimal("-3000000000")]
+    assert values("The net loss for fiscal 2025 was $45 million.") == [Decimal("-45000000")]
+
+
+def test_more_fiscal_year_phrasings() -> None:
+    assert states_year("Revenue in fiscal years 2024 and 2025 was $648B and $681B.", 2025)
+    assert states_year(f"Revenue in fiscal 2024{EN_DASH}2025 rose.", 2025)
+    assert states_year(
+        "Revenue for the fiscal 52-week year ended January 31, 2025 was $681B.", 2025
+    )
+    assert not states_year(
+        "The fiscal 52-week year ended January 31, 2025 had sales of $681B.", 2052
+    )
+    assert states_year("Total assets on June 30, 2025 were $619B.", 2025)
+    assert not states_year("The 10-K filed on February 25, 2026 reports $120B.", 2026)
+    assert states_year("Net income for 2024-01-29 " + chr(0x2014) + " 2025-01-26 was $72.9B.", 2025)
+
+
+def test_more_ways_of_declining() -> None:
+    for text in (
+        "I could not find a quarterly figure in the filings.",
+        "That figure isn't available in the 10-K filings I have.",
+        "I can't help with quarterly figures.",
+        "The dataset does not include quarterly reports.",
+        "The filings I have don't cover the third quarter.",
+    ):
+        assert asks_or_declines(text), text

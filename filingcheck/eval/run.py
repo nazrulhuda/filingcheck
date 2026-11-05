@@ -26,11 +26,18 @@ def results_path(set_name: str, mode: str, day: str) -> Path:
 
 
 def choose_results_path(
-    root: Path, set_name: str, mode: str, *, expected_rows: int, today: str
+    root: Path,
+    set_name: str,
+    mode: str,
+    *,
+    expected_rows: int,
+    today: str,
+    question_ids: set[str] | None = None,
 ) -> Path:
     """Today's results file, unless the newest earlier file of this set and mode is unfinished.
 
     A run resumed after midnight UTC then goes on in its own file instead of starting again.
+    With `question_ids`, only rows of current questions count toward `expected_rows`.
     """
     todays = root / results_path(set_name, mode, today)
     if todays.exists():
@@ -38,8 +45,14 @@ def choose_results_path(
     earlier = sorted((root / "eval" / "results").glob(f"{DATED}_{set_name}_{mode}.jsonl"))
     if earlier:
         newest = earlier[-1]
-        lines = newest.read_text(encoding="utf-8").splitlines()
-        if sum(1 for line in lines if line.strip()) < expected_rows:
+        rows = [
+            json.loads(line)
+            for line in newest.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        if question_ids is not None:
+            rows = [r for r in rows if r.get("id") in question_ids]
+        if len(rows) < expected_rows:
             return newest
     return todays
 
@@ -77,7 +90,9 @@ def run_eval(
         retriever=retriever,
         repeats=repeats,
     )
-    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    rows = [
+        json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     grades = {i: grade(row, by_id[row["id"]]) for i, row in enumerate(rows) if row["id"] in by_id}
     graded = [(rows[i], result) for i, result in grades.items()]
     stale = len(rows) - len(graded)

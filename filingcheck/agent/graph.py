@@ -516,7 +516,8 @@ def _answer(state: AgentState, start: float) -> AgentAnswer:
         cost_usd=cost,
         finish_reason=final.finish_reason,
         abstained=abstained,
-        has_uncited_claims=not abstained and has_uncited_claims(text),
+        has_uncited_claims=not abstained
+        and has_uncited_claims(text, passages=len(passages), facts=len(facts)),
         degraded=state["degraded"],
         tool_calls=state["tool_records"],
         facts_used=facts,

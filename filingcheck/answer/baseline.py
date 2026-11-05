@@ -127,6 +127,7 @@ def _answer(completion: Completion, result: SearchResult, start: float) -> Answe
         cost_usd=completion.cost_usd,
         finish_reason=completion.finish_reason,
         abstained=abstained,
-        has_uncited_claims=not abstained and has_uncited_claims(completion.text),
+        has_uncited_claims=not abstained
+        and has_uncited_claims(completion.text, passages=len(result.hits)),
         degraded=result.degraded,
     )

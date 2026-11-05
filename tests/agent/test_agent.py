@@ -452,3 +452,14 @@ def test_a_failure_another_model_would_not_fix_is_recorded_and_raised_at_once() 
         )
     assert [a.log_code for a in failed] == ["fake 400 invalid"]
     assert fallback.calls == []
+
+
+def test_a_fact_citation_that_points_to_no_fact_leaves_the_figure_uncited() -> None:
+    chat = FakeChat(
+        [
+            fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"),
+            "Sales were $416,161 million [F3].",
+        ]
+    )
+    answer = run_agent("Sales?", model=chat, deps=apple_deps())
+    assert answer.fact_citations == [] and answer.has_uncited_claims

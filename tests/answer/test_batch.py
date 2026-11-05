@@ -257,3 +257,9 @@ def test_a_row_written_before_repeats_counts_as_repeat_1(tmp_path: Path) -> None
     out = tmp_path / "run.jsonl"
     out.write_text('{"id": "q-1"}\n', encoding="utf-8")
     assert read_done(out) == {("q-1", 1)}
+
+
+def test_a_blank_line_in_a_results_file_is_skipped_not_corrupt(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    out.write_text('{"id": "q-1", "repeat": 1}\n\n{"id": "q-2", "repeat": 1}\n', encoding="utf-8")
+    assert read_done(out) == {("q-1", 1), ("q-2", 1)}

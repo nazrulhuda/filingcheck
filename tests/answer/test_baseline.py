@@ -466,3 +466,13 @@ def test_the_shared_citation_cases_give_the_same_numbers(case: dict[str, Any]) -
 def test_each_citation_carries_the_number_it_has_in_the_answer() -> None:
     citations = parse_citations(f"Risk [4] and [2] and {OPEN}4{CLOSE}.", HITS)
     assert [(c.number, c.chunk_id) for c in citations] == [(4, 104), (2, 102)]
+
+
+def test_a_citation_that_points_to_no_passage_leaves_the_figure_uncited() -> None:
+    assert has_uncited_claims("Sales were $416.2 billion [9].", passages=4)
+    assert not has_uncited_claims("Sales were $416.2 billion [4].", passages=4)
+    assert has_uncited_claims("Sales were $416.2 billion [F3].", facts=1)
+    assert not has_uncited_claims("Sales were $416.2 billion [F1].", facts=1)
+    assert not has_uncited_claims("Sales were $416.2 billion [9].")  # without counts: as before
+    answer = ask("Peso swings cost $1.3 billion [9].")
+    assert answer.citations == [] and answer.has_uncited_claims
