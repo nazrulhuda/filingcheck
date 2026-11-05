@@ -117,6 +117,7 @@ def batch_main(argv: list[str]) -> int:
     parser.add_argument("--mode", choices=["baseline", "agent"], required=True)
     parser.add_argument("--questions", type=Path, required=True, help="a .jsonl question file")
     parser.add_argument("--out", type=Path, required=True, help="the .jsonl results file")
+    parser.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -135,12 +136,19 @@ def batch_main(argv: list[str]) -> int:
         deps = ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn))
         try:
             written = run_batch(
-                questions, mode=args.mode, out=args.out, model=router, deps=deps, settings=settings
+                questions,
+                mode=args.mode,
+                out=args.out,
+                model=router,
+                deps=deps,
+                settings=settings,
+                repeats=args.repeats,
             )
         except BatchFileError as exc:
             print(f"ERROR: {exc}")
             return 1
-    print(f"{written} questions answered; {len(questions) - written} already in {args.out}")
+    total = len(questions) * args.repeats
+    print(f"{written} answers written; {total - written} already in {args.out}")
     return 0
 
 

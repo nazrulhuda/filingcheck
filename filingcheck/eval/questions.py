@@ -7,6 +7,7 @@ Question files live in `eval/questions/*.jsonl`, one question per line. Run
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Literal, Self, get_args
 
@@ -30,6 +31,9 @@ QuestionSet = Literal["trap", "control"]
 # FinanceBench's three question styles; control questions are written in one of them.
 Style = Literal["metrics-generated", "domain-relevant", "novel-generated"]
 Behavior = Literal["answer", "clarify", "refuse"]
+# Where a gold value came from: the filing's XBRL facts through the lookup
+# (`python -m filingcheck.eval gold`), or a person; a person's value is never overwritten.
+GoldSource = Literal["facts", "hand"]
 
 METRICS: tuple[str, ...] = get_args(Metric)
 CATEGORIES: tuple[str, ...] = get_args(Category)
@@ -51,6 +55,13 @@ class Question(BaseModel):
     expected_behavior: Behavior
     gold_value: int | float | None = None  # raw units, as filed (dollars, not millions)
     gold_unit: str | None = None
+    gold_source: GoldSource | None = None
+    # Filled with a value from the facts: the fact's tag, filing and period.
+    gold_concept: str | None = None
+    gold_accession: str | None = None
+    gold_period_start: date | None = None
+    gold_period_end: date | None = None
+    gold_instant: date | None = None
     tolerance_pct: float = Field(default=1.0, ge=0)
     gold_text: str | None = None
     trap_note: str | None = None
@@ -60,6 +71,8 @@ class Question(BaseModel):
     def _consistent(self) -> Self:
         if self.gold_value is not None and not self.gold_unit:
             raise ValueError("gold_unit is required when gold_value is set")
+        if self.gold_source is not None and self.gold_value is None:
+            raise ValueError("gold_source is set but gold_value is not")
         if (self.category == "control") != (self.set == "control"):
             raise ValueError("a control question has set 'control' and category 'control'")
         if (self.style is not None) != (self.set == "control"):

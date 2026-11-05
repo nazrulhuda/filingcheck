@@ -16,6 +16,9 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `expected_behavior` | `answer`, `clarify` (ask which company or year) or `refuse` (outside the dataset) |
 | `gold_value` | The correct number in raw units as filed (dollars, not millions), or `null` until it is filled in from XBRL |
 | `gold_unit` | `USD`, `USD/shares` or `shares`; required whenever `gold_value` is set |
+| `gold_source` | Where `gold_value` came from: `facts` (filled by `python -m filingcheck.eval gold` from the facts table, through the same lookup as the agent's `get_financial_fact`) or `hand` (set by a person, never overwritten). A value with no `gold_source` is never overwritten either |
+| `gold_concept`, `gold_accession` | For a value from the facts: the XBRL tag and the filing it came from |
+| `gold_period_start`, `gold_period_end`, `gold_instant` | For a value from the facts: its period (start and end for an amount over the year, `gold_instant` for a balance) |
 | `tolerance_pct` | How far a number may be from `gold_value` and still count as right; default 1.0 |
 | `gold_text` | For text answers: what a correct answer must say |
 | `trap_note` | Why the question is tricky and what a good answer does |
