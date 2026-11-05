@@ -109,3 +109,62 @@ def test_the_question_format_requires_a_value_for_a_facts_source() -> None:
 
     with pytest.raises(ValidationError, match="gold_source"):
         Question.model_validate(row(gold_source="facts"))
+
+
+class TwoYears:
+    """Apple's FY2024 and FY2025 filings, each with its own revenue fact."""
+
+    def __init__(self) -> None:
+        from dataclasses import replace
+
+        from tests.facts.test_lookup import duration
+
+        self.refs = {
+            2025: APPLE,
+            2024: replace(
+                APPLE,
+                fiscal_year=2024,
+                accession="0000320193-24-000123",
+                period_of_report=date(2024, 9, 28),
+            ),
+        }
+        tag = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+        self.by_accession = {
+            APPLE.accession: [duration(tag, "416161000000", date(2024, 9, 29), date(2025, 9, 27))],
+            "0000320193-24-000123": [
+                duration(tag, "391035000000", date(2023, 10, 1), date(2024, 9, 28))
+            ],
+        }
+
+    def filing(self, ticker: str, fiscal_year: int) -> Any:
+        return self.refs.get(fiscal_year) if ticker == "AAPL" else None
+
+    def facts(self, accession: str, concepts: Any) -> Any:
+        return [f for f in self.by_accession.get(accession, []) if f.concept in concepts]
+
+
+def test_the_same_metric_for_the_companys_other_pinned_years_is_recorded() -> None:
+    [filled], _ = fill_gold([row()], TwoYears())
+    assert filled["gold_value"] == 416161000000
+    assert filled["gold_other_years"] == {"2024": 391035000000}
+    assert Question.model_validate(filled).gold_other_years == {2024: 391035000000}
+
+
+def test_a_clarify_or_refuse_question_gets_no_gold_value() -> None:
+    refuse = row(
+        id="trap-005",
+        set="trap",
+        category="metric_not_supported",
+        expected_behavior="refuse",
+        style=None,
+    )
+    [kept], report = fill_gold([refuse], apple_deps().facts)
+    assert kept["gold_value"] is None and report[0][1] == "skipped: a refuse question"
+    # A value filled from the facts before is cleared.
+    [filled], _ = fill_gold([row()], apple_deps().facts)
+    [cleared], _ = fill_gold([{**filled, "expected_behavior": "clarify"}], apple_deps().facts)
+    assert cleared["gold_value"] is None and cleared["gold_source"] is None
+    assert cleared["gold_other_years"] is None
+    # A value set by hand stays, as always.
+    hand = {**refuse, "gold_value": 1, "gold_source": "hand"}
+    assert fill_gold([hand], apple_deps().facts)[0] == [hand]

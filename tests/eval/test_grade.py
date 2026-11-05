@@ -119,7 +119,7 @@ def test_a_number_within_the_tolerance_and_the_year_stated_is_correct() -> None:
     )
     assert grade(row("In fiscal 2025 sales were $412.5 billion."), q).outcome == "correct"  # 0.9%
     assert grade(row("In fiscal 2025 sales were $410 billion."), q).outcome == "wrong_number"
-    assert grade(row("Sales were $416.2 billion [F1]."), q).outcome == "wrong_year"
+    assert grade(row("Sales were $416.2 billion [F1]."), q).outcome == "year_not_stated"
     assert grade(row("Sales grew 6.4% in fiscal 2025."), q).outcome == "wrong_number"
 
 
@@ -203,8 +203,10 @@ def test_the_summary_table_counts_each_outcome_per_question_and_in_total() -> No
     ]
     graded = [(r, grade(r, q)) for r in rows]
     table = summary_table(graded, mode="agent")
-    assert "| control-001 | 3 | 1 | 0 | 1 | 0 | 1 | 0 |" in table
-    assert "| **All** | 3 | 1 | 0 | 1 | 0 | 1 | 0 |" in table
+    # Correct, year not stated, other year, wrong number, asked back, answered when it
+    # should have asked, abstained, errors, not graded.
+    assert "| control-001 | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
+    assert "| **All** | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
     assert "$0.000600" in table
 
 
@@ -227,3 +229,185 @@ def test_narrow_and_no_break_spaces_between_digit_groups_are_thousands_separator
         assert values(text) == [Decimal("680985000000")], hex(space)
     # A plain space still separates two numbers.
     assert values("Segments 680 985 were listed.") == [Decimal("680"), Decimal("985")]
+
+
+# ---------------------------------------------------------------- fixes after the Day 20 review
+
+EN_DASH = chr(0x2013)
+KO = {"id": "control-001", "company": "KO", "fiscal_year": 2024, "metric": "net_income"}
+NVDA_2026 = {
+    "id": "trap-003",
+    "set": "trap",
+    "category": "relative_year",
+    "question": "What was Nvidia's net income last year?",
+    "company": "NVDA",
+    "fiscal_year": 2026,
+    "metric": "net_income",
+    "gold_value": 120067000000,
+    "gold_other_years": {"2024": 29760000000, "2025": 72880000000},
+    "style": None,
+}
+CLARIFY = {
+    "id": "trap-001",
+    "set": "trap",
+    "category": "lookalike_company",
+    "company": None,
+    "fiscal_year": None,
+    "expected_behavior": "clarify",
+    "gold_value": None,
+    "style": None,
+}
+REFUSE = {
+    "id": "trap-005",
+    "set": "trap",
+    "category": "metric_not_supported",
+    "company": "GS",
+    "expected_behavior": "refuse",
+    "gold_value": None,
+    "style": None,
+}
+
+
+def test_a_wrong_sign_is_not_the_positive_gold_value() -> None:
+    q = question(**KO, gold_value=10631000000)
+    assert grade(
+        row("Coca-Cola reported a net loss of $10.6 billion in fiscal 2024."), q
+    ).outcome == ("wrong_number")
+    assert grade(row("Coca-Cola's fiscal 2024 net income was ($10,631 million)."), q).outcome == (
+        "wrong_number"
+    )
+    assert grade(row("Coca-Cola's fiscal 2024 net income was $10.6 billion."), q).outcome == (
+        "correct"
+    )
+
+
+def test_an_amount_in_parentheses_keeps_its_minus_sign() -> None:
+    assert values("($1.2 billion)") == [Decimal("-1200000000")]
+    assert values("($10,631 million)") == [Decimal("-10631000000")]
+    q = question(metric="net_income", gold_value=-1200000000)
+    assert grade(row("Net income in fiscal 2025 was ($1.2 billion)."), q).outcome == "correct"
+
+
+def test_a_range_is_two_positive_numbers_with_the_scale_of_the_second() -> None:
+    assert values("$680.9" + EN_DASH + "681.0 billion") == [
+        Decimal("680900000000"),
+        Decimal("681000000000"),
+    ]
+    assert [(n.value, n.percent) for n in find_numbers("Margins were 10-12%.")] == [
+        (Decimal("10"), True),
+        (Decimal("12"), True),
+    ]
+    q = question(id="trap-002", company="WMT", fiscal_year=2025, gold_value=680985000000)
+    text = "Walmart's fiscal 2025 revenue was $680.9" + EN_DASH + "681.0 billion."
+    assert grade(row(text), q).outcome == "correct"
+
+
+def test_an_explicit_fiscal_year_phrase_wins_over_a_period_end_date() -> None:
+    q = question(**NVDA_2026)
+    text = (
+        "Nvidia's net income for fiscal 2025 (the year ended January 25, 2026) was $120.1 billion."
+    )
+    assert grade(row(text), q).outcome == "year_not_stated"
+    assert not states_year(text, 2026)
+    assert states_year("Net income for fiscal 2026 was $120.1 billion.", 2026)
+    assert states_year("Net income for fiscal '26 was $120.1 billion.", 2026)
+
+
+def test_a_period_end_date_counts_when_no_fiscal_phrase_contradicts_it() -> None:
+    assert states_year("Net income for the year ended January 25, 2026 was $120.1 billion.", 2026)
+    assert states_year("Total assets as of June 30, 2025 were $619,003 million.", 2025)
+    assert states_year("For the period 2025-01-27 to 2026-01-25 net income was $120.1B.", 2026)
+    # The same date with a fiscal phrase that agrees still counts.
+    assert states_year("Fiscal 2026 (ended January 25, 2026) net income was $120.1B.", 2026)
+
+
+def test_a_bare_year_inside_any_other_date_counts_for_nothing() -> None:
+    assert not states_year("In its 10-K filed in February 2026, net income was $120.1B.", 2026)
+    assert not states_year("In its 10-K filed on February 25, 2026, net income was $120.1B.", 2026)
+    assert not states_year("From January 27, 2025, net income was $120.1B.", 2025)
+
+
+def test_harmless_numbers_do_not_spoil_a_clarify_or_refuse_answer() -> None:
+    refuse = question(**REFUSE)
+    for text in (
+        "I can't answer that: the 3 months ended September 30, 2025 are in a 10-Q filing, "
+        "which is not loaded.",
+        "I can't give a quarter: the fiscal year ended Dec. 31, 2025, and quarterly figures are "
+        "in 10-Q filings.",
+    ):
+        assert grade(row(text), refuse).outcome == "correct", text
+    clarify = question(**CLARIFY)
+    for text in (
+        "Did you mean Morgan Stanley or JPMorgan Chase? Both are among the 25 companies covered.",
+        "Do you mean Morgan Stanley (1) or JPMorgan Chase (2)?",
+    ):
+        assert grade(row(text), clarify).outcome == "correct", text
+    # An amount still spoils it, a per-share figure included.
+    assert grade(row("I can't answer, but diluted EPS was 8.98."), refuse).outcome == (
+        "answered_when_should_ask"
+    )
+
+
+def test_a_footnote_marker_is_not_a_negative_number() -> None:
+    assert values("Revenue grew (1).") == [Decimal("1")]
+
+
+def test_cannot_in_an_ordinary_sentence_is_not_declining() -> None:
+    text = "Morgan's net revenue grew strongly last year, though segments cannot be compared."
+    assert not asks_or_declines(text)
+    assert grade(row(text), question(**CLARIFY)).outcome == "answered_when_should_ask"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Revenue was $681.0 B.", Decimal("681000000000")),
+        ("Revenue was $681.0b.", Decimal("681000000000")),
+        ("The fee was $416k.", Decimal("416000")),
+        ("Revenue was $416 mm.", Decimal("416000000")),
+        ("Revenue was $681-billion.", Decimal("681000000000")),
+        ("Revenue was $.5 billion.", Decimal("500000000")),
+        ("Revenue was $416.2\nbillion.", Decimal("416200000000")),
+    ],
+)
+def test_more_ways_of_writing_a_scale_are_read(text: str, expected: Decimal) -> None:
+    assert values(text) == [expected]
+
+
+def test_a_question_asked_back_on_a_number_question_is_its_own_outcome() -> None:
+    rsq = chr(0x2019)  # the curly apostrophe gpt-oss writes
+    text = (
+        f"I{rsq}m not sure which fiscal year you{rsq}re referring to. Could you specify the year "
+        "(e.g., 2024, 2023, etc.)?"
+    )
+    assert grade(row(text), question(**NVDA_2026)).outcome == "asked_when_should_answer"
+    assert grade(row(ABSTAIN), question(**NVDA_2026)).outcome == "abstained"
+
+
+def test_another_pinned_years_value_is_its_own_outcome() -> None:
+    q = question(**NVDA_2026)
+    # The stored agent answer, with its curly apostrophe and lenticular citation brackets.
+    text = f"Nvidia{chr(0x2019)}s net income for fiscal 2025 was **$72,880,000,000**"
+    text += chr(0x3010) + "F1" + chr(0x3011) + "."
+    result = grade(row(text), q)
+    assert (result.outcome, result.other_year, result.matched) == (
+        "other_year_number",
+        2025,
+        "72880000000",
+    )
+    assert grade(row("Fiscal 2024 net income was $114 million."), q).outcome == "wrong_number"
+    # The gold year wins when a number fits both.
+    both = question(**{**NVDA_2026, "gold_other_years": {"2025": 120000000000}})
+    assert grade(row("Fiscal 2026 net income was $120.1 billion."), both).outcome == "correct"
+
+
+def test_a_number_goes_to_the_years_value_it_is_closest_to() -> None:
+    # Coca-Cola's net income: FY2024 10,631 million (gold), FY2023 10,714 million, 0.8% apart,
+    # so both are inside the 1% tolerance of the other.
+    q = question(**KO, gold_value=10631000000, gold_other_years={"2023": 10714000000})
+    result = grade(row("Coca-Cola's fiscal 2023 net income was $10,714 million."), q)
+    assert (result.outcome, result.other_year) == ("other_year_number", 2023)
+    result = grade(row("Coca-Cola's fiscal 2024 net income was $10,631 million."), q)
+    assert result.outcome == "correct"
+    result = grade(row("Coca-Cola's fiscal 2024 net income was $10.6 billion."), q)
+    assert result.outcome == "correct"

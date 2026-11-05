@@ -1,11 +1,22 @@
 """The deterministic number grader (Week 3; the LLM grader is Week 5).
 
-A number question is correct when one of the numbers in the answer, converted to raw units,
-is within `tolerance_pct` of the gold value and the fiscal year is stated. A question that
-should be clarified or refused is correct when the answer has no number and asks or declines
-(keyword rules). Every answer gets one outcome: correct, wrong_number, wrong_year,
-answered_when_should_ask (for a refuse question: answered when it should have declined),
-abstained, error (no answer), or not_graded (no gold value to grade against).
+Outcomes for a number question (`expected_behavior: answer`):
+- correct: a number within `tolerance_pct` of the gold value, and the fiscal year stated;
+- year_not_stated: the number matches but the answer does not state the fiscal year;
+- other_year_number: the number matches the same metric for another pinned year of the
+  company (`gold_other_years`), not the year asked about;
+- wrong_number: no number matches anything;
+- asked_when_should_answer: no number, and the answer asks the user a question instead;
+- abstained: the abstain sentence.
+A clarify or refuse question is correct when the answer gives no amount and asks or declines
+(keyword rules), else answered_when_should_ask. Rows with no answer are error; a number
+question with no gold value is not_graded.
+
+The fiscal year is stated by an explicit phrase ("fiscal 2025", "fiscal year 2025", "FY2025",
+"FY25", "fiscal '25"), which wins; without one, by a period-end date ("the year ended
+January 31, 2025", "as of June 30, 2025", "... to 2025-01-31") or a year standing on its own.
+A year inside any other date ("filed on February 25, 2026", "from January 27, 2025") counts
+for nothing. In all 75 pinned filings the fiscal year is the calendar year of the period end.
 """
 
 import re
@@ -16,13 +27,15 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from filingcheck.answer.baseline import ABSTAIN, is_abstain
-from filingcheck.answer.citations import NOT_FIGURES, normalize_text, sentences
+from filingcheck.answer.citations import MONTH, NOT_FIGURES, normalize_text, sentences
 from filingcheck.eval.questions import Question
 
 Outcome = Literal[
     "correct",
+    "year_not_stated",
+    "other_year_number",
     "wrong_number",
-    "wrong_year",
+    "asked_when_should_answer",
     "answered_when_should_ask",
     "abstained",
     "error",
@@ -30,56 +43,92 @@ Outcome = Literal[
 ]
 OUTCOMES: tuple[Outcome, ...] = (
     "correct",
+    "year_not_stated",
+    "other_year_number",
     "wrong_number",
-    "wrong_year",
+    "asked_when_should_answer",
     "answered_when_should_ask",
     "abstained",
     "error",
     "not_graded",
 )
 
-SCALES = {
+SCALE_WORDS = {
     "thousand": 10**3,
     "million": 10**6,
     "mn": 10**6,
+    "mm": 10**6,
+    "mln": 10**6,
     "billion": 10**9,
     "bn": 10**9,
+    "bln": 10**9,
     "trillion": 10**12,
-    "K": 10**3,
-    "M": 10**6,
-    "B": 10**9,
-    "T": 10**12,
 }
-# A number with its sign, currency, parentheses, percent sign or scale word. A minus counts as
-# a sign only when no word, digit or closing bracket is right before it ("2024-25" is no sign).
+SCALE_LETTERS = {"k": 10**3, "m": 10**6, "b": 10**9, "t": 10**12}
+SCALE_WORD_PATTERN = "|".join(SCALE_WORDS)
+# A minus is a sign only when no word, digit or closing bracket is right before it, so the
+# dash of a range ("$10-12 billion", "680.9-681.0") or of "2024-25" is no sign.
+NOT_AFTER_WORD = r"(?<![\w)\]])"
 NUMBER_RE = re.compile(
-    r"(?P<sign>(?<![\w)\]])-\s?)?"
-    r"(?P<open>\()?\s?(?P<cur>\$)?\s?(?P<sign2>-)?(?P<open2>\()?"
-    r"(?P<num>(?<![\w.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.,])\d+(?:\.\d+)?)(?![\d,]\d)"
+    r"(?P<sign>" + NOT_AFTER_WORD + r"-\s?)?"
+    r"(?P<open>\()?\s?(?P<cur>\$)?\s?(?P<sign2>" + NOT_AFTER_WORD + r"-)?(?P<open2>\()?"
+    r"(?P<num>(?<![\w.,])(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+))(?![\d,]\d)"
     r"(?P<close>\))?"
     r"(?:\s?(?P<pct>%|(?i:percent)\b)"
-    r"|\s?(?P<scale>(?i:thousand|million|billion|trillion|bn|mn))\b"
-    r"|(?P<letter>[KMBT])\b)?"
+    r"|(?:\s+|-)?(?P<scale>(?i:" + SCALE_WORD_PATTERN + r"))\b"
+    r"|(?P<letter>\s?[KMBTkmbt])\b)?"
+    r"(?P<close2>\))?"
 )
-# Words that make a positive amount in the same sentence a negative one ("a net loss of $1.2B").
+# The text between the two numbers of a range: "$10-12 billion", "10 to 12%".
+RANGE_GAP_RE = re.compile(r"\s*(?:-|to)\s*")
+# A number stated as a loss: "a net loss of $10.6 billion", "losses were $2 billion".
+LOSS_BEFORE_RE = re.compile(r"\b(?:loss|losses|deficit)\b[^\d$]{0,20}$", re.IGNORECASE)
 RIGHT_QUOTE = chr(0x2019)
 # A narrow no-break, no-break or thin space between digit groups is a thousands separator
 # ("680 985 000 000" with U+202F); a plain space is not.
 GROUP_SPACE_RE = re.compile(
     r"(?<=\d)[" + chr(0x202F) + chr(0x00A0) + chr(0x2009) + r"](?=\d{3}(?!\d))"
 )
-LOSS_RE = re.compile(r"\b(?:loss|losses|negative|deficit|outflow|used in)\b", re.IGNORECASE)
-ASK_RE = re.compile(
-    r"\?|\b(?:did you mean|do you mean|could you (?:clarify|specify|confirm)"
+# A number on one line and its scale word on the next.
+SPLIT_SCALE_RE = re.compile(r"(\d)[ \t]*\n\s*(?=(?:" + SCALE_WORD_PATTERN + r")\b)", re.IGNORECASE)
+# Dates, removed before numbers are read: long, day-first, month-and-year, ISO and slashed.
+DATE_RE = re.compile(
+    r"\b" + MONTH + r"\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b"
+    r"|\b\d{1,2}\s+" + MONTH + r"\.?,?\s+\d{4}\b"
+    r"|\b" + MONTH + r"\.?\s+\d{4}\b"
+    r"|\b\d{4}-\d{2}-\d{2}\b"
+    r"|\b\d{1,2}/\d{1,2}/\d{2,4}\b"
+)
+# The words before a date that make it a period's end ("the year ended", "through", "as of").
+PERIOD_END_BEFORE_RE = re.compile(
+    r"(?:\bended|\bending|\bend(?:ed)?\s+on|\bthrough|\bthru|\bto|\buntil|\bas\s+of|\bat|-)"
+    r"\s*(?:on\s+)?$",
+    re.IGNORECASE,
+)
+FISCAL_PHRASE_RE = re.compile(
+    r"\b(?:fiscal(?:\s+years?)?|FY)\s*'?\s*(\d{4}|\d{2})(?!\d)", re.IGNORECASE
+)
+YEAR_ALONE_RE = re.compile(r"(?<![\d$.,])(?:19|20)\d{2}(?![\d%]|[.,]\d)")
+# Asking: one of these phrases, or a question to the user ("...you...?" or "Which ...?").
+ASK_PHRASE_RE = re.compile(
+    r"\b(?:did you mean|do you mean|could you (?:clarify|specify|confirm|tell)"
     r"|can you (?:clarify|specify|confirm)|please (?:clarify|specify|confirm)|ambiguous)\b",
     re.IGNORECASE,
 )
+QUESTION_TO_USER_RE = re.compile(
+    r"\byou\b|^\W*(?:which|did|do|does|could|can|would|should|are|is|was|were)\b", re.IGNORECASE
+)
+# Declining: saying it cannot answer, or that the data is not there.
 DECLINE_RE = re.compile(
-    r"\b(?:can't|cannot|can not|unable|not able|don't have|do not have|not available"
-    r"|unavailable|not (?:included|loaded|covered)|only (?:annual|10-K)|10-Q)\b"
+    r"\b(?:can't|cannot|can not|unable to|not able to|won't be able to)\s+(?:\w+\s+){0,2}?"
+    r"(?:answer|find|provide|give|determine|locate|report|say|tell|confirm|access|see|identify)\b"
+    r"|\b(?:don't|do not)\s+have\b"
+    r"|\bnot\s+(?:available|included|loaded|covered)\b|\bunavailable\b"
+    r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b"
     r"|" + re.escape(ABSTAIN),
     re.IGNORECASE,
 )
+PLACEHOLDER = " _"  # what removed text becomes, so a dash after it is no sign
 
 
 class Number(BaseModel):
@@ -87,7 +136,9 @@ class Number(BaseModel):
 
     value: Decimal
     percent: bool = False
-    loss_word: bool = False  # its sentence speaks of a loss, so a positive amount may be one
+    # An amount, not a small count: a currency sign, a scale, a percent sign, digit groups,
+    # decimals or at least 1,000. "3 months", "25 companies" and a footnote "(1)" are not.
+    amount: bool = True
 
 
 class Grade(BaseModel):
@@ -95,49 +146,122 @@ class Grade(BaseModel):
 
     outcome: Outcome
     numbers: list[str]  # every number found, raw units; percentages end in "%"
-    matched: str | None  # the number that matched the gold value, if any
+    matched: str | None  # the number that matched the gold value or another year's value
     year_stated: bool
+    other_year: int | None = None  # for other_year_number: the year whose value it matched
 
 
 def _plain(value: Decimal) -> str:
     return "0" if value == 0 else format(value.normalize(), "f")
 
 
+def _prepare(text: str) -> str:
+    text = GROUP_SPACE_RE.sub(",", text)
+    text = normalize_text(text).replace(RIGHT_QUOTE, "'")
+    return SPLIT_SCALE_RE.sub(r"\1 ", text)
+
+
+def _scale(match: re.Match[str]) -> int | None:
+    if match["scale"]:
+        return SCALE_WORDS[match["scale"].lower()]
+    letter = (match["letter"] or "").strip()
+    if not letter:
+        return None
+    # A single letter is a scale only after a currency sign, or attached and in capitals.
+    if match["cur"] or (letter.isupper() and not match["letter"].startswith(" ")):
+        return SCALE_LETTERS[letter.lower()]
+    return None
+
+
 def find_numbers(text: str) -> list[Number]:
     """Every figure in the text in raw units; years, dates, citations and labels are skipped."""
+    text = DATE_RE.sub(PLACEHOLDER, _prepare(text))
     numbers: list[Number] = []
-    text = GROUP_SPACE_RE.sub(",", text)
-    for sentence in sentences(normalize_text(text)):
-        loss = bool(LOSS_RE.search(sentence))
+    for sentence in sentences(text):
         for pattern in NOT_FIGURES:
-            sentence = pattern.sub(" ", sentence)
-        for match in NUMBER_RE.finditer(sentence):
-            value = Decimal(match["num"].replace(",", ""))
-            wrapped = (match["open"] or match["open2"]) and match["close"]
-            if match["sign"] or match["sign2"] or wrapped:
+            sentence = pattern.sub(PLACEHOLDER, sentence)
+        matches = list(NUMBER_RE.finditer(sentence))
+        scales = [_scale(m) for m in matches]
+        percents = [bool(m["pct"]) for m in matches]
+        for i in range(len(matches) - 1):  # the first number of a range takes the second's unit
+            gap = sentence[matches[i].end() : matches[i + 1].start()]
+            if scales[i] is None and not percents[i] and RANGE_GAP_RE.fullmatch(gap):
+                scales[i], percents[i] = scales[i + 1], percents[i + 1]
+        for match, scale, percent in zip(matches, scales, percents, strict=True):
+            digits = match["num"]
+            value = Decimal(digits.replace(",", ""))
+            amount = bool(
+                match["cur"] or scale or percent or "," in digits or "." in digits or value >= 1000
+            )
+            wrapped = (match["open"] or match["open2"]) and (match["close"] or match["close2"])
+            loss = LOSS_BEFORE_RE.search(sentence[: match.start()]) is not None
+            if match["sign"] or match["sign2"] or (wrapped and amount) or loss:
                 value = -value
-            scale = match["scale"] or match["letter"]
             if scale:
-                value *= SCALES[scale if scale in SCALES else scale.lower()]
-            numbers.append(Number(value=value, percent=bool(match["pct"]), loss_word=loss))
+                value *= scale
+            numbers.append(Number(value=value, percent=percent, amount=amount))
     return numbers
 
 
+def _year(digits: str) -> int:
+    return int(digits) if len(digits) == 4 else 2000 + int(digits)
+
+
 def states_year(text: str, fiscal_year: int) -> bool:
-    """True if the answer names the fiscal year: 2025, FY2025 or FY25."""
-    short = str(fiscal_year)[-2:]
-    pattern = rf"(?<!\d){fiscal_year}(?!\d)|\bFY\s?'?{short}(?!\d)"
-    return re.search(pattern, normalize_text(text), re.IGNORECASE) is not None
+    """True if the answer states the fiscal year (see the module docstring for the rule)."""
+    text = _prepare(text)
+    phrases = {_year(m.group(1)) for m in FISCAL_PHRASE_RE.finditer(text)}
+    if phrases:
+        return fiscal_year in phrases
+    period_ends: set[int] = set()
+    for match in DATE_RE.finditer(text):
+        if PERIOD_END_BEFORE_RE.search(text[: match.start()]):
+            found = re.findall(r"\d{4}", match.group(0)) or [match.group(0)[-2:]]
+            period_ends.add(_year(found[-1]))
+    alone = {int(y) for y in YEAR_ALONE_RE.findall(DATE_RE.sub(PLACEHOLDER, text))}
+    return fiscal_year in period_ends or fiscal_year in alone
+
+
+def asks(text: str) -> bool:
+    """True if the answer asks the user which company or year is meant."""
+    text = _prepare(text)
+    if ASK_PHRASE_RE.search(text):
+        return True
+    for sentence in sentences(text):
+        if sentence.rstrip(" \"')]*").endswith("?") and QUESTION_TO_USER_RE.search(sentence):
+            return True
+    return False
 
 
 def asks_or_declines(text: str) -> bool:
     """True if the answer asks which company or year is meant, or declines to answer."""
-    text = normalize_text(text).replace(RIGHT_QUOTE, "'")  # a curly apostrophe reads as plain
-    return bool(ASK_RE.search(text) or DECLINE_RE.search(text))
+    return asks(text) or DECLINE_RE.search(_prepare(text)) is not None
 
 
 def _within(found: Decimal, gold: Decimal, tolerance_pct: float) -> bool:
     return abs(found - gold) <= abs(gold) * Decimal(str(tolerance_pct)) / 100
+
+
+def _closest(
+    numbers: list[Number], targets: list[tuple[int | None, Decimal]], tolerance_pct: float
+) -> tuple[int | None, str] | None:
+    """The (year, number) pair closest to each other within the tolerance; None for the gold year.
+
+    Two years' values can be inside the tolerance of each other (Coca-Cola's net income was
+    10,714 million in FY2023 and 10,631 million in FY2024), so a number goes to the value it is
+    closest to; on a tie the gold year wins (it is first in `targets`).
+    """
+    best: tuple[Decimal, int, int | None, str] | None = None
+    for number in numbers:
+        if number.percent:
+            continue
+        for order, (year, target) in enumerate(targets):
+            if not _within(number.value, target, tolerance_pct):
+                continue
+            distance = abs(number.value - target) / abs(target) if target else Decimal(0)
+            if best is None or (distance, order) < best[:2]:
+                best = (distance, order, year, _plain(number.value))
+    return None if best is None else (best[2], best[3])
 
 
 def grade(row: dict[str, Any], question: Question) -> Grade:
@@ -148,35 +272,39 @@ def grade(row: dict[str, Any], question: Question) -> Grade:
     numbers = find_numbers(text)
     shown = [_plain(n.value) + ("%" if n.percent else "") for n in numbers]
     year = question.fiscal_year is not None and states_year(text, question.fiscal_year)
+
+    def result(outcome: Outcome, matched: str | None = None, other: int | None = None) -> Grade:
+        return Grade(
+            outcome=outcome, numbers=shown, matched=matched, year_stated=year, other_year=other
+        )
+
+    amounts = [n for n in numbers if n.amount]
     if question.expected_behavior in ("clarify", "refuse"):
-        ok = not numbers and asks_or_declines(text)
-        outcome: Outcome = "correct" if ok else "answered_when_should_ask"
-        return Grade(outcome=outcome, numbers=shown, matched=None, year_stated=year)
+        ok = not amounts and asks_or_declines(text)
+        return result("correct" if ok else "answered_when_should_ask")
     if row.get("abstained") or is_abstain(text):
-        return Grade(outcome="abstained", numbers=shown, matched=None, year_stated=year)
+        return result("abstained")
+    if not amounts and asks(text):
+        return result("asked_when_should_answer")
     if question.gold_value is None:
-        return Grade(outcome="not_graded", numbers=shown, matched=None, year_stated=year)
-    gold = Decimal(str(question.gold_value))
-    matched = None
-    for number in numbers:
-        if number.percent:
-            continue
-        candidates = [number.value]
-        if gold < 0 < number.value and number.loss_word:
-            candidates.append(-number.value)
-        if any(_within(c, gold, question.tolerance_pct) for c in candidates):
-            matched = _plain(number.value)
-            break
-    if matched is None:
-        return Grade(outcome="wrong_number", numbers=shown, matched=None, year_stated=year)
-    outcome = "correct" if year else "wrong_year"
-    return Grade(outcome=outcome, numbers=shown, matched=matched, year_stated=year)
+        return result("not_graded")
+    targets: list[tuple[int | None, Decimal]] = [(None, Decimal(str(question.gold_value)))]
+    targets += [(y, Decimal(str(v))) for y, v in sorted((question.gold_other_years or {}).items())]
+    found = _closest(numbers, targets, question.tolerance_pct)
+    if found is None:
+        return result("wrong_number")
+    other_year, matched = found
+    if other_year is None:
+        return result("correct" if year else "year_not_stated", matched)
+    return result("other_year_number", matched, other_year)
 
 
 LABELS = {
     "correct": "Correct",
+    "year_not_stated": "Year not stated",
+    "other_year_number": "Other year's number",
     "wrong_number": "Wrong number",
-    "wrong_year": "Wrong year",
+    "asked_when_should_answer": "Asked when it should have answered",
     "answered_when_should_ask": "Answered when it should have asked",
     "abstained": "Abstained",
     "error": "Errors",
