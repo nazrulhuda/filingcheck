@@ -115,8 +115,11 @@ METRICS: dict[str, MetricSpec] = {
             "long_term_debt",
             _us(
                 "LongTermDebtNoncurrent",
-                "LongTermDebt",
+                # The balance-sheet line before LongTermDebt: Alphabet FY2023 tags its
+                # balance-sheet "Long-term debt" this way and uses LongTermDebt for the debt
+                # note's total, which includes the part due within a year.
                 "LongTermDebtAndCapitalLeaseObligations",
+                "LongTermDebt",
                 "UnsecuredLongTermDebt",
                 "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
             ),

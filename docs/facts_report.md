@@ -1,6 +1,6 @@
 # XBRL facts report
 
-The numeric facts of each pinned filing, read from the filing's own inline XBRL (`data/facts.jsonl`), and a cross-check against the SEC's companyfacts files. For every filing and every candidate tag of the metric map, the company totals (facts with no dimensions) that end on the filing's period of report are compared with the companyfacts rows of the same accession, tag and period. companyfacts is only a cross-check; the numbers come from the filings. Written by `make verify-facts`; do not edit by hand.
+The numeric facts of each pinned filing, read from the filing's own inline XBRL (`data/facts.jsonl`), and a cross-check against the SEC's companyfacts files. For every filing and every candidate tag of the metric map, the company totals (facts with no dimensions) that end on the filing's period of report are compared with the companyfacts rows of the same accession, tag and period. The cover-page share count (`dei:EntityCommonStockSharesOutstanding`) is dated a few weeks after the year ends, so it is compared on its own date. companyfacts is only a cross-check; the numbers come from the filings. Written by `make verify-facts`; do not edit by hand.
 
 ## Facts per filing
 
@@ -85,95 +85,96 @@ The numeric facts of each pinned filing, read from the filing's own inline XBRL 
 
 ## Cross-check with companyfacts
 
-Candidate tags compared: 27 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax`, `us-gaap:RevenuesNetOfInterestExpense`, `us-gaap:SalesRevenueNet`, `us-gaap:NetIncomeLoss`, `us-gaap:ProfitLoss`, `us-gaap:EarningsPerShareDiluted`, `us-gaap:OperatingIncomeLoss`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments`, `us-gaap:Assets`, `us-gaap:Liabilities`, `us-gaap:StockholdersEquity`, `us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`, `us-gaap:NetCashProvidedByUsedInOperatingActivities`, `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment`, `us-gaap:PaymentsToAcquireProductiveAssets`, `us-gaap:PaymentsToAcquireOtherProductiveAssets`, `us-gaap:CashAndCashEquivalentsAtCarryingValue`, `us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, `us-gaap:LongTermDebtNoncurrent`, `us-gaap:LongTermDebt`, `us-gaap:LongTermDebtAndCapitalLeaseObligations`, `us-gaap:UnsecuredLongTermDebt`, `us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, `us-gaap:CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`).
+Candidate tags compared: 27 (`us-gaap:Revenues`, `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax`, `us-gaap:RevenuesNetOfInterestExpense`, `us-gaap:SalesRevenueNet`, `us-gaap:NetIncomeLoss`, `us-gaap:ProfitLoss`, `us-gaap:EarningsPerShareDiluted`, `us-gaap:OperatingIncomeLoss`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest`, `us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments`, `us-gaap:Assets`, `us-gaap:Liabilities`, `us-gaap:StockholdersEquity`, `us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`, `us-gaap:NetCashProvidedByUsedInOperatingActivities`, `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment`, `us-gaap:PaymentsToAcquireProductiveAssets`, `us-gaap:PaymentsToAcquireOtherProductiveAssets`, `us-gaap:CashAndCashEquivalentsAtCarryingValue`, `us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, `us-gaap:LongTermDebtNoncurrent`, `us-gaap:LongTermDebtAndCapitalLeaseObligations`, `us-gaap:LongTermDebt`, `us-gaap:UnsecuredLongTermDebt`, `us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, `us-gaap:CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`).
 
-- Agreements: 1,067
+- Agreements: 1,123
 - Disagreements: 0
-- Not in companyfacts: 17
+- Not in companyfacts: 18
 - Not in the filing's XBRL: 0
 
 | Ticker | FY | Agree | Disagree | Not in companyfacts | Not in the filing's XBRL |
 |---|---:|---:|---:|---:|---:|
-| AAPL | 2024 | 15 | 0 | 0 | 0 |
-| AAPL | 2025 | 15 | 0 | 0 | 0 |
-| AAPL | 2026 | 15 | 0 | 0 | 0 |
-| AMZN | 2023 | 14 | 0 | 0 | 0 |
-| AMZN | 2024 | 14 | 0 | 0 | 0 |
-| AMZN | 2025 | 14 | 0 | 0 | 0 |
-| AXP | 2023 | 13 | 0 | 0 | 0 |
-| AXP | 2024 | 13 | 0 | 0 | 0 |
-| AXP | 2025 | 13 | 0 | 0 | 0 |
-| C | 2023 | 13 | 0 | 0 | 0 |
-| C | 2024 | 13 | 0 | 0 | 0 |
-| C | 2025 | 13 | 0 | 0 | 0 |
-| COF | 2023 | 13 | 0 | 0 | 0 |
-| COF | 2024 | 13 | 0 | 0 | 0 |
-| COF | 2025 | 13 | 0 | 0 | 0 |
-| COST | 2024 | 17 | 0 | 0 | 0 |
-| COST | 2025 | 17 | 0 | 0 | 0 |
-| COST | 2026 | 14 | 0 | 0 | 0 |
+| AAPL | 2024 | 16 | 0 | 0 | 0 |
+| AAPL | 2025 | 16 | 0 | 0 | 0 |
+| AAPL | 2026 | 16 | 0 | 0 | 0 |
+| AMZN | 2023 | 15 | 0 | 0 | 0 |
+| AMZN | 2024 | 15 | 0 | 0 | 0 |
+| AMZN | 2025 | 15 | 0 | 0 | 0 |
+| AXP | 2023 | 14 | 0 | 0 | 0 |
+| AXP | 2024 | 14 | 0 | 0 | 0 |
+| AXP | 2025 | 14 | 0 | 0 | 0 |
+| C | 2023 | 14 | 0 | 0 | 0 |
+| C | 2024 | 14 | 0 | 0 | 0 |
+| C | 2025 | 14 | 0 | 0 | 0 |
+| COF | 2023 | 14 | 0 | 0 | 0 |
+| COF | 2024 | 14 | 0 | 0 | 0 |
+| COF | 2025 | 14 | 0 | 0 | 0 |
+| COST | 2024 | 18 | 0 | 0 | 0 |
+| COST | 2025 | 18 | 0 | 0 | 0 |
+| COST | 2026 | 15 | 0 | 0 | 0 |
 | GOOGL | 2023 | 16 | 0 | 0 | 0 |
 | GOOGL | 2024 | 16 | 0 | 0 | 0 |
 | GOOGL | 2025 | 15 | 0 | 0 | 0 |
-| GS | 2023 | 13 | 0 | 0 | 0 |
-| GS | 2024 | 13 | 0 | 0 | 0 |
-| GS | 2025 | 13 | 0 | 0 | 0 |
-| IBM | 2023 | 16 | 0 | 0 | 0 |
-| IBM | 2024 | 16 | 0 | 0 | 0 |
-| IBM | 2025 | 16 | 0 | 0 | 0 |
-| JNJ | 2023 | 17 | 0 | 0 | 0 |
-| JNJ | 2024 | 13 | 0 | 0 | 0 |
-| JNJ | 2025 | 13 | 0 | 0 | 0 |
-| JPM | 2023 | 12 | 0 | 0 | 0 |
-| JPM | 2024 | 12 | 0 | 0 | 0 |
-| JPM | 2025 | 12 | 0 | 0 | 0 |
-| KO | 2023 | 15 | 0 | 0 | 0 |
-| KO | 2024 | 15 | 0 | 0 | 0 |
-| KO | 2025 | 15 | 0 | 0 | 0 |
+| GS | 2023 | 14 | 0 | 0 | 0 |
+| GS | 2024 | 14 | 0 | 0 | 0 |
+| GS | 2025 | 14 | 0 | 0 | 0 |
+| IBM | 2023 | 17 | 0 | 0 | 0 |
+| IBM | 2024 | 17 | 0 | 0 | 0 |
+| IBM | 2025 | 17 | 0 | 0 | 0 |
+| JNJ | 2023 | 18 | 0 | 0 | 0 |
+| JNJ | 2024 | 14 | 0 | 0 | 0 |
+| JNJ | 2025 | 14 | 0 | 0 | 0 |
+| JPM | 2023 | 13 | 0 | 0 | 0 |
+| JPM | 2024 | 13 | 0 | 0 | 0 |
+| JPM | 2025 | 13 | 0 | 0 | 0 |
+| KO | 2023 | 16 | 0 | 0 | 0 |
+| KO | 2024 | 16 | 0 | 0 | 0 |
+| KO | 2025 | 16 | 0 | 0 | 0 |
 | MA | 2023 | 14 | 0 | 0 | 0 |
 | MA | 2024 | 14 | 0 | 0 | 0 |
 | MA | 2025 | 14 | 0 | 0 | 0 |
-| MCO | 2023 | 16 | 0 | 0 | 0 |
-| MCO | 2024 | 16 | 0 | 0 | 0 |
-| MCO | 2025 | 16 | 0 | 0 | 0 |
+| MCO | 2023 | 17 | 0 | 0 | 0 |
+| MCO | 2024 | 17 | 0 | 0 | 0 |
+| MCO | 2025 | 17 | 0 | 0 | 0 |
 | META | 2023 | 14 | 0 | 0 | 0 |
 | META | 2024 | 14 | 0 | 0 | 0 |
 | META | 2025 | 14 | 0 | 0 | 0 |
-| MS | 2023 | 14 | 0 | 0 | 0 |
-| MS | 2024 | 14 | 0 | 0 | 0 |
-| MS | 2025 | 14 | 0 | 0 | 0 |
-| MSFT | 2024 | 15 | 0 | 0 | 0 |
-| MSFT | 2025 | 15 | 0 | 0 | 0 |
-| MSFT | 2026 | 15 | 0 | 0 | 0 |
-| NFLX | 2023 | 15 | 0 | 0 | 0 |
-| NFLX | 2024 | 15 | 0 | 0 | 0 |
-| NFLX | 2025 | 15 | 0 | 0 | 0 |
+| MS | 2023 | 15 | 0 | 0 | 0 |
+| MS | 2024 | 15 | 0 | 0 | 0 |
+| MS | 2025 | 15 | 0 | 0 | 0 |
+| MSFT | 2024 | 16 | 0 | 0 | 0 |
+| MSFT | 2025 | 16 | 0 | 0 | 0 |
+| MSFT | 2026 | 16 | 0 | 0 | 0 |
+| NFLX | 2023 | 14 | 0 | 0 | 0 |
+| NFLX | 2024 | 14 | 0 | 0 | 0 |
+| NFLX | 2025 | 14 | 0 | 0 | 0 |
 | NKE | 2024 | 12 | 0 | 0 | 0 |
 | NKE | 2025 | 12 | 0 | 0 | 0 |
 | NKE | 2026 | 12 | 0 | 0 | 0 |
-| NVDA | 2024 | 15 | 0 | 0 | 0 |
-| NVDA | 2025 | 15 | 0 | 0 | 0 |
-| NVDA | 2026 | 15 | 0 | 0 | 0 |
-| PFE | 2023 | 15 | 0 | 0 | 0 |
-| PFE | 2024 | 14 | 0 | 0 | 0 |
-| PFE | 2025 | 14 | 0 | 0 | 0 |
-| SPGI | 2023 | 17 | 0 | 0 | 0 |
-| SPGI | 2024 | 0 | 0 | 17 | 0 |
-| SPGI | 2025 | 17 | 0 | 0 | 0 |
-| UNH | 2023 | 15 | 0 | 0 | 0 |
-| UNH | 2024 | 15 | 0 | 0 | 0 |
-| UNH | 2025 | 15 | 0 | 0 | 0 |
-| VZ | 2023 | 14 | 0 | 0 | 0 |
-| VZ | 2024 | 14 | 0 | 0 | 0 |
-| VZ | 2025 | 14 | 0 | 0 | 0 |
-| WMT | 2024 | 16 | 0 | 0 | 0 |
-| WMT | 2025 | 16 | 0 | 0 | 0 |
-| WMT | 2026 | 16 | 0 | 0 | 0 |
+| NVDA | 2024 | 16 | 0 | 0 | 0 |
+| NVDA | 2025 | 16 | 0 | 0 | 0 |
+| NVDA | 2026 | 16 | 0 | 0 | 0 |
+| PFE | 2023 | 16 | 0 | 0 | 0 |
+| PFE | 2024 | 15 | 0 | 0 | 0 |
+| PFE | 2025 | 15 | 0 | 0 | 0 |
+| SPGI | 2023 | 18 | 0 | 0 | 0 |
+| SPGI | 2024 | 0 | 0 | 18 | 0 |
+| SPGI | 2025 | 18 | 0 | 0 | 0 |
+| UNH | 2023 | 16 | 0 | 0 | 0 |
+| UNH | 2024 | 16 | 0 | 0 | 0 |
+| UNH | 2025 | 16 | 0 | 0 | 0 |
+| VZ | 2023 | 15 | 0 | 0 | 0 |
+| VZ | 2024 | 15 | 0 | 0 | 0 |
+| VZ | 2025 | 15 | 0 | 0 | 0 |
+| WMT | 2024 | 17 | 0 | 0 | 0 |
+| WMT | 2025 | 17 | 0 | 0 | 0 |
+| WMT | 2026 | 17 | 0 | 0 | 0 |
 
 Every row that is not an agreement:
 
 | Ticker | FY | Tag | Period | Status | Filing's XBRL | companyfacts |
 |---|---:|---|---|---|---:|---:|
+| SPGI | 2024 | `dei:EntityCommonStockSharesOutstanding` | 2025-01-31 | not in companyfacts | 307800000 | — |
 | SPGI | 2024 | `us-gaap:Assets` | 2024-12-31 | not in companyfacts | 60221000000 | — |
 | SPGI | 2024 | `us-gaap:CashAndCashEquivalentsAtCarryingValue` | 2024-12-31 | not in companyfacts | 1666000000 | — |
 | SPGI | 2024 | `us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | 2024-12-31 | not in companyfacts | 1666000000 | — |

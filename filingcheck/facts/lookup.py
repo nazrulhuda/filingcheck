@@ -135,7 +135,8 @@ def lookup(source: FactsSource, ticker: str, fiscal_year: int, metric: str) -> F
         if cover:
             note = (
                 f"cover-page share count dated {fact.instant}, after the fiscal year ended "
-                f"{filing.period_of_report}; the filing reports no count dated at year end"
+                f"{filing.period_of_report}; the filing has no year-end count for the company "
+                "as a whole (counts by class of stock are not added up)"
             )
         return FactResult(
             ticker=filing.ticker,

@@ -95,7 +95,7 @@ validate-questions:
 	uv run python -m filingcheck.eval.questions validate
 
 eval-smoke:
-	@echo "not built yet (week 3)"
+	@echo "not built yet (week 4)"
 
 eval:
 	@echo "not built yet (week 5)"

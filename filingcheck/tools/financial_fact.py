@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.facts.lookup import FactResult, FactsSource, lookup
 from filingcheck.facts.metrics import Metric
-from filingcheck.tools.inputs import Ticker
+from filingcheck.tools.inputs import Ticker, WholeNumber
 
 
 class GetFinancialFactInput(BaseModel):
@@ -15,7 +15,7 @@ class GetFinancialFactInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ticker: Ticker = Field(description="The company's ticker, one of the 25 companies.")
-    fiscal_year: int = Field(
+    fiscal_year: WholeNumber = Field(
         description=(
             "The company's own fiscal year, as its 10-K names it (for example Walmart's fiscal "
             "2026 ended January 31, 2026)."
@@ -35,7 +35,7 @@ class FactUnavailable(BaseModel):
     """Why there is no fact."""
 
     status: Literal["unavailable"] = "unavailable"
-    reason: Literal["no_filing", "not_reported"]
+    reason: Literal["no_filing", "not_reported", "conflicting_values"]
     message: str
 
 
@@ -49,7 +49,13 @@ def get_financial_fact(
             reason="no_filing",
             message=f"No 10-K for {ticker} fiscal year {year} is in the dataset.",
         )
-    result = lookup(facts, ticker, year, metric)
+    try:
+        result = lookup(facts, ticker, year, metric)
+    except LookupError as exc:  # two different values for the answer: never choose one
+        return FactUnavailable(
+            reason="conflicting_values",
+            message=f"The 10-K reports more than one value: {exc}.",
+        )
     if result is None:
         return FactUnavailable(
             reason="not_reported",

@@ -1,17 +1,20 @@
 """The batch runner: a question file through the baseline or the agent, one JSON line each.
 
 Resumable: questions already in the output file are skipped, and a last line cut off by a
-crash is dropped before the run goes on. A cut-off or empty answer is written with its error
-code; any other provider failure stops the run (batch mode never falls back), so it can be
-resumed later. This is the runner the evaluation uses; eval/README.md documents the format.
+crash is dropped before the run goes on; any other line that is not a complete result stops
+the run with its line number. A cut-off or empty answer is written with its error code and
+what the run spent; any other provider failure stops the run (batch mode never falls back),
+so it can be resumed later. This is the runner the evaluation uses; eval/README.md documents
+the format.
 """
 
 import json
+import time
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from filingcheck.agent import run_agent
+from filingcheck.agent import RunLog, run_agent, total_usage
 from filingcheck.answer.baseline import Answer, answer_question
 from filingcheck.llm import ChatModel, IncompleteAnswer
 from filingcheck.retrieval import Retriever
@@ -40,23 +43,36 @@ BATCH_FIELDS = (
 )
 
 
+class BatchFileError(ValueError):
+    """A results file has a line that is neither a complete result nor a cut-off last line."""
+
+
 def read_done(out: Path) -> set[str]:
-    """The ids already answered in `out`; a last line cut off by a crash is removed."""
+    """The ids already answered in `out`.
+
+    A last line with no line end was cut off by a crash: it is removed and that question is
+    asked again. Any other line that is not a JSON object with an `id` stops the run with its
+    line number, and the file is left as it is for a person to look at.
+    """
     if not out.exists():
         return set()
     lines = out.read_text(encoding="utf-8").splitlines(keepends=True)
-    kept: list[str] = []
-    for line in lines:
-        try:
-            json.loads(line)
-        except json.JSONDecodeError:
-            break  # only the last line can be cut off; nothing after it is trusted
-        if not line.endswith("\n"):
+    done: set[str] = set()
+    for number, line in enumerate(lines, start=1):
+        if number == len(lines) and not line.endswith("\n"):
+            out.write_text("".join(lines[:-1]), encoding="utf-8", newline="")
             break
-        kept.append(line)
-    if len(kept) != len(lines):
-        out.write_text("".join(kept), encoding="utf-8", newline="")
-    return {json.loads(line)["id"] for line in kept}
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            row = None
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            raise BatchFileError(
+                f"{out}, line {number}: not a complete result line; fix or remove it, then "
+                "run the same command again"
+            )
+        done.add(row["id"])
+    return done
 
 
 def _row(qid: str, mode: str, question: str, settings: str) -> dict[str, Any]:
@@ -95,25 +111,34 @@ def run_batch(
             continue
         row = _row(qid, mode, question, settings)
         answer: Answer
+        run_log = RunLog()
+        started = time.perf_counter()
         try:
             if mode == "agent":
-                answer = run_agent(question, model=model, deps=deps)
+                answer = run_agent(question, model=model, deps=deps, run_log=run_log)
             else:
                 answer = answer_question(
                     question, retriever=retriever or deps.retriever, model=model
                 )
         except IncompleteAnswer as exc:
             completion = exc.completion
+            # Everything the run spent: for the agent every model call before the cut-off one.
+            completions = run_log.completions if mode == "agent" else [completion]
+            usage, cost = total_usage(completions)
             row |= {
                 "model": completion.model,
                 "error": exc.log_code,
                 "finish_reason": completion.finish_reason,
-                "usage": {
-                    "prompt_tokens": completion.prompt_tokens,
-                    "completion_tokens": completion.completion_tokens,
-                },
-                "cost_usd": completion.cost_usd,
+                "usage": usage,
+                "cost_usd": cost,
+                "latency_ms": (time.perf_counter() - started) * 1000,
+                "model_calls": len(completions),
             }
+            if mode == "agent":
+                row |= {
+                    "tool_calls": [json.loads(r.model_dump_json()) for r in run_log.tool_calls],
+                    "facts_used": [json.loads(f.model_dump_json()) for f in run_log.facts],
+                }
         else:
             data = json.loads(answer.model_dump_json())
             row |= {

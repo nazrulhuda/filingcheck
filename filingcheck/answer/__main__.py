@@ -78,15 +78,19 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _ask_agent(args: argparse.Namespace, router: ModelRouter, conn: psycopg.Connection) -> int:
-    """Run the agent, printing each tool call as it happens, then the answer."""
-    from filingcheck.agent import run_agent
+    """Run the agent, printing each tool call as it happens, then the answer.
+
+    With --live, a provider failure restarts the question with the next model, as the API
+    does; a run is never handed half-finished to another model.
+    """
+    from filingcheck.agent import run_agent_with_fallbacks
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.tools import ToolDeps
 
     try:
-        answer = run_agent(
+        answer = run_agent_with_fallbacks(
             args.question,
-            model=router,
+            models=router.in_turn(),
             deps=ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn)),
             ticker=args.ticker,
             fiscal_year=args.year,
@@ -105,7 +109,7 @@ def batch_main(argv: list[str]) -> int:
     """Run a question file through one mode in batch mode, resumably."""
     import json
 
-    from filingcheck.answer.batch import run_batch
+    from filingcheck.answer.batch import BatchFileError, run_batch
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.tools import ToolDeps
 
@@ -129,9 +133,13 @@ def batch_main(argv: list[str]) -> int:
     print(f"mode: batch, {args.mode}; {settings}")
     with connect() as conn:
         deps = ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn))
-        written = run_batch(
-            questions, mode=args.mode, out=args.out, model=router, deps=deps, settings=settings
-        )
+        try:
+            written = run_batch(
+                questions, mode=args.mode, out=args.out, model=router, deps=deps, settings=settings
+            )
+        except BatchFileError as exc:
+            print(f"ERROR: {exc}")
+            return 1
     print(f"{written} questions answered; {len(questions) - written} already in {args.out}")
     return 0
 

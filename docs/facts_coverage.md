@@ -1,6 +1,6 @@
 # XBRL facts coverage
 
-For each company and pinned fiscal year, what the lookup returns for each metric from the filing's own XBRL facts: the tag it used, or "unavailable" when the filing reports the metric under none of the candidate tags. Only company totals (facts with no dimensions) count; amounts over a period must end on the filing's period of report and cover a whole fiscal year (350 to 380 days), and balances must fall on that date. The cover-page share count is the one exception: it is dated a few weeks after the year ends and is used only when the filing has no count dated at year end. Nothing is derived. Written by `make verify-facts`; do not edit by hand.
+For each company and pinned fiscal year, what the lookup returns for each metric from the filing's own XBRL facts: the tag it used, or "unavailable" when the filing reports the metric under none of the candidate tags. Only company totals (facts with no dimensions) count; amounts over a period must end on the filing's period of report and cover a whole fiscal year (350 to 380 days), and balances must fall on that date. The cover-page share count is the one exception: it is dated a few weeks after the year ends and is used only when the filing has no year-end count for the company as a whole (counts by class of stock are not added up). Nothing is derived. Written by `make verify-facts`; do not edit by hand.
 
 ## Totals
 
@@ -17,7 +17,7 @@ For each company and pinned fiscal year, what the lookup returns for each metric
 | operating_cash_flow | 75 of 75 | `NetCashProvidedByUsedInOperatingActivities` 75 |
 | capital_expenditures | 69 of 75 | `PaymentsToAcquirePropertyPlantAndEquipment` 57, `PaymentsToAcquireProductiveAssets` 9, `PaymentsToAcquireOtherProductiveAssets` 3 |
 | cash_and_equivalents | 75 of 75 | `CashAndCashEquivalentsAtCarryingValue` 63, `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` 12 |
-| long_term_debt | 75 of 75 | `LongTermDebtNoncurrent` 51, `LongTermDebt` 10, `LongTermDebtAndCapitalLeaseObligations` 8, `UnsecuredLongTermDebt` 3, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` 3 |
+| long_term_debt | 75 of 75 | `LongTermDebtNoncurrent` 51, `LongTermDebt` 9, `LongTermDebtAndCapitalLeaseObligations` 9, `UnsecuredLongTermDebt` 3, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` 3 |
 | shares_outstanding | 66 of 75 | `CommonStockSharesOutstanding` 45, `dei:EntityCommonStockSharesOutstanding` 21 |
 
 Candidate tags, in the order they are tried:
@@ -33,7 +33,7 @@ Candidate tags, in the order they are tried:
 - operating_cash_flow: `NetCashProvidedByUsedInOperatingActivities`
 - capital_expenditures: `PaymentsToAcquirePropertyPlantAndEquipment`, `PaymentsToAcquireProductiveAssets`, `PaymentsToAcquireOtherProductiveAssets`
 - cash_and_equivalents: `CashAndCashEquivalentsAtCarryingValue`, `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`
-- long_term_debt: `LongTermDebtNoncurrent`, `LongTermDebt`, `LongTermDebtAndCapitalLeaseObligations`, `UnsecuredLongTermDebt`, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`
+- long_term_debt: `LongTermDebtNoncurrent`, `LongTermDebtAndCapitalLeaseObligations`, `LongTermDebt`, `UnsecuredLongTermDebt`, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`
 - shares_outstanding: `CommonStockSharesOutstanding`, `dei:EntityCommonStockSharesOutstanding`
 - revenue, for companies with `revenue_rule: bank`: `RevenuesNetOfInterestExpense`, `Revenues`
 
@@ -167,7 +167,7 @@ Candidate tags, in the order they are tried:
 | operating_cash_flow | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` | found: `NetCashProvidedByUsedInOperatingActivities` |
 | capital_expenditures | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` | found: `PaymentsToAcquirePropertyPlantAndEquipment` |
 | cash_and_equivalents | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` | found: `CashAndCashEquivalentsAtCarryingValue` |
-| long_term_debt | found: `LongTermDebt` | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` |
+| long_term_debt | found: `LongTermDebtAndCapitalLeaseObligations` | found: `LongTermDebtNoncurrent` | found: `LongTermDebtNoncurrent` |
 | shares_outstanding | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` | found: `CommonStockSharesOutstanding` |
 
 ## GS

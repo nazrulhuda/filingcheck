@@ -9,8 +9,9 @@
 # source_url document, fetched from sec.gov: the visible table row and the statement's own
 # units line ("in millions"), not the XBRL tags, so they cannot share a bug with the XBRL code.
 #
-# Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code
-# (tests/test_golden_facts.py enforces the format now; the fact check is added with that code).
+# Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code:
+# tests/test_golden_facts.py checks the format and the value in data/facts.jsonl, and
+# tests/facts/test_lookup_data.py checks it through the lookup.
 
 facts:
   - id: jpm-fy2023-total-net-revenue

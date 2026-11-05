@@ -2,8 +2,10 @@
 
 For every pinned filing and every candidate tag of the metric map, the company-total facts
 (no dimensions) that end on the filing's period of report are compared with the
-companyfacts rows of the same accession, tag and period. companyfacts is only a cross-check:
-the numbers come from the filing. Writes `docs/facts_report.md`.
+companyfacts rows of the same accession, tag and period. The cover-page share count is
+dated after the year ends, so it is compared on its own date: every company-total cover-page
+count dated after the period of report. companyfacts is only a cross-check: the numbers come
+from the filing. Writes `docs/facts_report.md`.
 """
 
 import hashlib
@@ -15,7 +17,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from filingcheck.facts.metrics import all_candidate_tags
+from filingcheck.facts.metrics import COVER_PAGE_SHARES, all_candidate_tags
 from filingcheck.paths import REPO_ROOT
 
 STATUSES = ("agree", "disagree", "not in companyfacts", "not in the filing's XBRL")
@@ -60,12 +62,17 @@ def cross_check(
     for tag in tags:
         concept = _concept(tag)
         taxonomy, _, name = concept.partition(":")
+        cover = concept == COVER_PAGE_SHARES
         ours: dict[tuple[str | None, str], set[Decimal]] = defaultdict(set)
         for fact in facts:
             if fact["accession"] != accession or fact["concept"] != concept or fact["dimensions"]:
                 continue
             key: tuple[str | None, str]
-            if fact["instant"] == end:
+            if cover:
+                if not fact["instant"] or fact["instant"] <= end:
+                    continue
+                key = (None, fact["instant"])
+            elif fact["instant"] == end:
                 key = (None, end)
             elif fact["period_end"] == end:
                 key = (fact["period_start"], end)
@@ -76,8 +83,12 @@ def cross_check(
         entry = companyfacts.get("facts", {}).get(taxonomy, {}).get(name, {})
         for unit_rows in entry.get("units", {}).values():
             for row in unit_rows:
-                if row.get("accn") == accession and row.get("end") == end:
+                if row.get("accn") != accession:
+                    continue
+                if row.get("end") == end and not cover:
                     theirs[(row.get("start"), end)].add(Decimal(str(row["val"])))
+                elif cover and str(row.get("end")) > end:
+                    theirs[(None, str(row["end"]))].add(Decimal(str(row["val"])))
         for key in sorted(set(ours) | set(theirs), key=lambda k: (k[0] or "", k[1])):
             mine, other = ours.get(key), theirs.get(key)
             if mine and other:
@@ -128,9 +139,10 @@ def facts_report(
         "(`data/facts.jsonl`), and a cross-check against the SEC's companyfacts files. For "
         "every filing and every candidate tag of the metric map, the company totals (facts "
         "with no dimensions) that end on the filing's period of report are compared with the "
-        "companyfacts rows of the same accession, tag and period. companyfacts is only a "
-        "cross-check; the numbers come from the filings. Written by `make verify-facts`; do "
-        "not edit by hand.",
+        "companyfacts rows of the same accession, tag and period. The cover-page share count "
+        "(`dei:EntityCommonStockSharesOutstanding`) is dated a few weeks after the year ends, "
+        "so it is compared on its own date. companyfacts is only a cross-check; the numbers "
+        "come from the filings. Written by `make verify-facts`; do not edit by hand.",
         "",
         "## Facts per filing",
         "",

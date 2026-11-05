@@ -6,10 +6,13 @@ from filingcheck.agent.graph import (
     SYSTEM_PROMPT,
     AgentAnswer,
     FactCitation,
+    FailedAttempt,
+    RunLog,
     ToolCallRecord,
     build_agent,
     run_agent,
     run_agent_with_fallbacks,
+    total_usage,
 )
 
 __all__ = [
@@ -18,8 +21,11 @@ __all__ = [
     "SYSTEM_PROMPT",
     "AgentAnswer",
     "FactCitation",
+    "FailedAttempt",
+    "RunLog",
     "ToolCallRecord",
     "build_agent",
     "run_agent",
     "run_agent_with_fallbacks",
+    "total_usage",
 ]

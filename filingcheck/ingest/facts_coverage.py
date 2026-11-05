@@ -63,8 +63,9 @@ def build_coverage(companies: list[Company], filings: list[Filing], source: Fact
         "no dimensions) count; amounts over a period must end on the filing's period of report "
         "and cover a whole fiscal year (350 to 380 days), and balances must fall on that date. "
         "The cover-page share count is the one exception: it is dated a few weeks after the "
-        "year ends and is used only when the filing has no count dated at year end. Nothing "
-        "is derived. Written by `make verify-facts`; do not edit by hand.",
+        "year ends and is used only when the filing has no year-end count for the company as "
+        "a whole (counts by class of stock are not added up). Nothing is derived. Written by "
+        "`make verify-facts`; do not edit by hand.",
         "",
         "## Totals",
         "",
