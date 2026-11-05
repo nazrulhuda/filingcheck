@@ -399,3 +399,15 @@ def test_another_pinned_years_value_is_its_own_outcome() -> None:
     # The gold year wins when a number fits both.
     both = question(**{**NVDA_2026, "gold_other_years": {"2025": 120000000000}})
     assert grade(row("Fiscal 2026 net income was $120.1 billion."), both).outcome == "correct"
+
+
+def test_a_number_goes_to_the_years_value_it_is_closest_to() -> None:
+    # Coca-Cola's net income: FY2024 10,631 million (gold), FY2023 10,714 million, 0.8% apart,
+    # so both are inside the 1% tolerance of the other.
+    q = question(**KO, gold_value=10631000000, gold_other_years={"2023": 10714000000})
+    result = grade(row("Coca-Cola's fiscal 2023 net income was $10,714 million."), q)
+    assert (result.outcome, result.other_year) == ("other_year_number", 2023)
+    result = grade(row("Coca-Cola's fiscal 2024 net income was $10,631 million."), q)
+    assert result.outcome == "correct"
+    result = grade(row("Coca-Cola's fiscal 2024 net income was $10.6 billion."), q)
+    assert result.outcome == "correct"
