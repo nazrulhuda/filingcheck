@@ -89,8 +89,8 @@ jobs:
         run: npm run build
 
   smoke-eval:
-    # Placeholder for the 20-question cached eval gate. Enabled in week 3.
-    name: Smoke eval gate (week 3)
+    # Placeholder for the 20-question cached eval gate. Enabled in week 4.
+    name: Smoke eval gate (week 4)
     runs-on: ubuntu-latest
     if: ${{ false }}
     steps:
