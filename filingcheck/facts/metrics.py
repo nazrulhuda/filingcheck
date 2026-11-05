@@ -155,7 +155,7 @@ LABELS: dict[str, str] = {
         "Income before income taxes"
     ),
     "us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments": (  # noqa: E501 (an XBRL tag name)
-        "Income before income taxes and equity-method income"
+        "Income before income taxes"  # the printed line in every filing that uses this tag
     ),
     "us-gaap:Assets": "Total assets",
     "us-gaap:Liabilities": "Total liabilities",
@@ -186,11 +186,41 @@ LABELS: dict[str, str] = {
     COVER_PAGE_SHARES: "Common shares outstanding (cover page)",
 }
 
+_CONTRACT_REVENUE = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+_PRETAX_EQUITY_METHOD = (
+    "us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+    "MinorityInterestAndIncomeLossFromEquityMethodInvestments"
+)
+_CAPEX = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
+_CASH_WITH_RESTRICTED = "us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
 COMPANY_LABELS: dict[tuple[str, str], str] = {
-    ("us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax", "AAPL"): "Total net sales",
+    (_CONTRACT_REVENUE, "AAPL"): "Total net sales",
+    (_CONTRACT_REVENUE, "AMZN"): "Total net sales",
+    (_CONTRACT_REVENUE, "COST"): "Total revenue",
+    ("us-gaap:Revenues", "COST"): "Total revenue",
+    (_CONTRACT_REVENUE, "MSFT"): "Total revenue",
+    (_CONTRACT_REVENUE, "GOOGL"): "Revenues",
+    (_CONTRACT_REVENUE, "JNJ"): "Sales to customers",
+    (_CONTRACT_REVENUE, "NKE"): "Revenues",
     ("us-gaap:Revenues", "WMT"): "Total revenues",
     ("us-gaap:RevenuesNetOfInterestExpense", "JPM"): "Total net revenue",
     ("us-gaap:RevenuesNetOfInterestExpense", "AXP"): "Total revenues net of interest expense",
+    # Amazon prints "Income (loss) before income taxes" in FY2023-24 and "Income before income
+    # taxes" in FY2025, so it keeps the generic label.
+    ("us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "JNJ"): (
+        "Total shareholders' equity"
+    ),
+    (_CAPEX, "AXP"): "Purchase of premises and equipment, net of sales",
+    (_CAPEX, "C"): "Capital expenditures on premises and equipment and capitalized software",
+    (_CAPEX, "UNH"): "Purchases of property, equipment and capitalized software",
+    (_CAPEX, "COF"): "Changes in premises and equipment",
+    # The banks' cash is the cash-flow statement's total, deposits with banks included.
+    (_CASH_WITH_RESTRICTED, "JPM"): (
+        "Cash and due from banks and deposits with banks at the end of the period"
+    ),
+    (_CASH_WITH_RESTRICTED, "C"): "Cash, due from banks and deposits with banks at end of year",
+    (_CASH_WITH_RESTRICTED, "AXP"): "Cash and cash equivalents at end of year",
+    ("us-gaap:LongTermDebt", "MS"): "Borrowings with original maturities greater than one year",
     ("us-gaap:PaymentsToAcquireProductiveAssets", "AMZN"): "Purchases of property and equipment",
     ("us-gaap:PaymentsToAcquireProductiveAssets", "SPGI"): "Capital expenditures",
     ("us-gaap:PaymentsToAcquireProductiveAssets", "NVDA"): (
