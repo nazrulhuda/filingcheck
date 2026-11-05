@@ -384,3 +384,83 @@ def test_the_cover_page_note_says_only_what_is_true_of_the_filing() -> None:
     assert result is not None and result.note is not None
     assert "reports no count dated at year end" not in result.note
     assert "no year-end count for the company as a whole" in result.note
+
+
+# ---------------------------------------------------------------- labels as the filings print them
+
+PRETAX_EQUITY_METHOD_TAG = (
+    "us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+    "MinorityInterestAndIncomeLossFromEquityMethodInvestments"
+)
+CONTRACT_REVENUE_TAG = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+CAPEX_TAG = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
+CASH_WITH_RESTRICTED_TAG = "us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+
+
+@pytest.mark.parametrize(
+    ("tag", "ticker", "expected"),
+    [
+        # The printed line in every filing that uses this tag is "Income before income taxes".
+        (PRETAX_EQUITY_METHOD_TAG, "MA", "Income before income taxes"),
+        # Amazon prints "Income (loss) before income taxes" in two years and "Income before
+        # income taxes" in the third, so it keeps the generic label.
+        (PRETAX_EQUITY_METHOD_TAG, "AMZN", "Income before income taxes"),
+        (PRETAX_EQUITY_METHOD_TAG, "EXMP", "Income before income taxes"),
+        ("us-gaap:LongTermDebt", "MS", "Borrowings with original maturities greater than one year"),
+        ("us-gaap:LongTermDebt", "AXP", "Long-term debt"),
+        (
+            "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            "JNJ",
+            "Total shareholders' equity",
+        ),
+        (CONTRACT_REVENUE_TAG, "AMZN", "Total net sales"),
+        (CONTRACT_REVENUE_TAG, "COST", "Total revenue"),
+        ("us-gaap:Revenues", "COST", "Total revenue"),
+        (CONTRACT_REVENUE_TAG, "MSFT", "Total revenue"),
+        (CONTRACT_REVENUE_TAG, "GOOGL", "Revenues"),
+        (CONTRACT_REVENUE_TAG, "JNJ", "Sales to customers"),
+        (CONTRACT_REVENUE_TAG, "NKE", "Revenues"),
+        (CONTRACT_REVENUE_TAG, "EXMP", "Revenue from contracts with customers"),
+        (CAPEX_TAG, "AXP", "Purchase of premises and equipment, net of sales"),
+        (CAPEX_TAG, "C", "Capital expenditures on premises and equipment and capitalized software"),
+        (CAPEX_TAG, "UNH", "Purchases of property, equipment and capitalized software"),
+        (CAPEX_TAG, "COF", "Changes in premises and equipment"),
+        (CAPEX_TAG, "EXMP", "Purchases of property, plant and equipment"),
+        (
+            CASH_WITH_RESTRICTED_TAG,
+            "JPM",
+            "Cash and due from banks and deposits with banks at the end of the period",
+        ),
+        (
+            CASH_WITH_RESTRICTED_TAG,
+            "C",
+            "Cash, due from banks and deposits with banks at end of year",
+        ),
+        (CASH_WITH_RESTRICTED_TAG, "AXP", "Cash and cash equivalents at end of year"),
+        (CASH_WITH_RESTRICTED_TAG, "EXMP", "Cash, cash equivalents and restricted cash"),
+    ],
+)
+def test_labels_follow_the_printed_line_where_it_differs(
+    tag: str, ticker: str, expected: str
+) -> None:
+    from filingcheck.facts.metrics import line_label
+
+    assert line_label(tag, ticker) == expected
+
+
+def test_the_lookup_carries_the_banks_cash_label() -> None:
+    jpm = FilingRef(
+        ticker="JPM",
+        fiscal_year=2025,
+        accession="0000019617-26-000001",
+        period_of_report=date(2025, 12, 31),
+        source_url=URL,
+        revenue_rule="bank",
+    )
+    cash = instant(CASH_WITH_RESTRICTED_TAG, "343338000000", on=date(2025, 12, 31))
+    result = lookup(FakeFacts([cash], filing=jpm), "JPM", 2025, "cash_and_equivalents")
+    assert result is not None
+    assert (
+        result.line_label
+        == "Cash and due from banks and deposits with banks at the end of the period"
+    )
