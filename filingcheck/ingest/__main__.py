@@ -202,10 +202,16 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path, only: str | 
     from filingcheck.ingest.filings import load_manifest
 
     facts_path = root / FACTS_FILE
-    facts_in_file = 0
-    if facts_path.exists():
-        with facts_path.open(encoding="utf-8") as handle:
-            facts_in_file = sum(1 for line in handle if line.strip())
+    if not facts_path.exists():
+        # A full load empties the facts table with the filings, so loading without the
+        # file would leave the agent with no numbers; stop before touching the database.
+        print(
+            f"ERROR: {FACTS_FILE} is missing; run `make ingest` (the facts stage) first. "
+            "Nothing was loaded."
+        )
+        return 1
+    with facts_path.open(encoding="utf-8") as handle:
+        facts_in_file = sum(1 for line in handle if line.strip())
     if only == "facts":
         with connect() as conn:
             applied = migrate(conn)
@@ -226,7 +232,7 @@ def run_load(companies_path: Path, manifest_path: Path, root: Path, only: str | 
             chunks_path,
             tables_path if tables_path.exists() else None,
             summary if summary.exists() else None,
-            facts_path=facts_path if facts_path.exists() else None,
+            facts_path=facts_path,
         )
     with chunks_path.open(encoding="utf-8") as handle:
         in_file = sum(1 for line in handle if line.strip())

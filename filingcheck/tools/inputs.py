@@ -1,6 +1,9 @@
-"""The values a tool argument may take: the 25 companies and the saved Items."""
+"""The values a tool argument may take: the 25 companies, the saved Items, whole numbers."""
 
-from typing import Literal
+import re
+from typing import Annotated, Literal
+
+from pydantic import BeforeValidator, Strict
 
 # The 25 companies of data/companies.yaml (a test keeps the two equal). Written out here
 # because the live app's image holds the code but not the data folder.
@@ -35,3 +38,18 @@ Ticker = Literal[
 # The saved 10-K Items; "1-7A" is the merged section of the banks that map Items to pages.
 Item = Literal["1", "1A", "7", "7A", "8", "1-7A"]
 ITEMS: tuple[str, ...] = ("1", "1A", "7", "7A", "8", "1-7A")
+
+
+_DIGITS = re.compile(r"-?[0-9]+")
+
+
+def _whole_number_text(value: object) -> object:
+    """A whole number written as text ("2025") is the same argument; nothing else is changed."""
+    if isinstance(value, str) and _DIGITS.fullmatch(value):
+        return int(value)
+    return value
+
+
+# An integer argument: a JSON integer, or the same digits written as text. Everything else
+# (2025.0, true, "2025.0", "FY2025", " 2025") is refused with a type error for the model.
+WholeNumber = Annotated[int, Strict(), BeforeValidator(_whole_number_text)]

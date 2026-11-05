@@ -10,8 +10,8 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 - **Mode and input:** it runs every question of a question file through one mode (`baseline`: plain RAG; `agent`: the agent with its three tools) in **batch mode**. Batch mode means waiting out rate limits, never falling back to another model, and stopping on a provider failure.
 - **Questions:** each is asked as its text only, with no company or year filter.
 - **Output:** one JSON line per question.
-- **Resumable:** a question whose `id` is already in the output file is skipped. A last line cut off by a crash is dropped and that question is asked again. Run the same command again to continue.
-- **Failures:** a cut-off or empty answer is written with its error code. Any other provider failure stops the run, so no question is answered by another model.
+- **Resumable:** a question whose `id` is already in the output file is skipped. A last line cut off by a crash (no line end) is dropped and that question is asked again. Any other line that is not a JSON object with an `id` stops the run with its line number, and the file is left as it is. Run the same command again to continue.
+- **Failures:** a cut-off or empty answer is written with its error code and what the run spent up to it (see below). Any other provider failure stops the run, so no question is answered by another model.
 
 ## Output format (one JSON object per line)
 
@@ -38,6 +38,8 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `error` | `null`, or a short code such as `openrouter - incomplete_length` |
 
 The baseline writes the same fields, with empty `fact_citations`, `tool_calls` and `facts_used`.
+
+A row with an `error` has `answer: null` and no citations; `usage`, `cost_usd`, `latency_ms` and `model_calls` cover every model call the question made, the cut-off one included, and for the agent `tool_calls` and `facts_used` hold the calls made before it.
 
 ## Where the gold values come from
 

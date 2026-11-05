@@ -37,6 +37,14 @@ class ModelRouter:
         self.last_completion: Completion | None = None  # tokens and rate-limit headers
         self.fallbacks_used = 0  # live answers that came from a fallback
 
+    def in_turn(self) -> list[ChatModel]:
+        """The models a whole run may use, primary first: the fallbacks too in live mode only.
+
+        For the agent, which restarts a failed run with the next model instead of handing a
+        half-finished conversation to it (see `run_agent_with_fallbacks`).
+        """
+        return [self.primary] if self.mode == "batch" else [self.primary, *self.fallbacks]
+
     def complete(
         self,
         messages: list[Message],

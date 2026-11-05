@@ -299,3 +299,156 @@ def test_no_tracing_variable_is_set_in_the_public_config() -> None:
     for name in (".env.example", "render.yaml"):
         text = (REPO_ROOT / name).read_text(encoding="utf-8")
         assert "LANGSMITH" not in text and "LANGCHAIN" not in text, name
+
+
+# ---------------------------------------------------------------- audit fixes
+
+
+def test_passage_and_fact_numbers_in_one_bracket_are_each_read_as_written() -> None:
+    from filingcheck.answer.citations import cited_numbers
+
+    assert parse_fact_citations("Sales [F1, 2].", facts=3) == [1]
+    assert cited_numbers("Sales [F1, 2].", passages=3) == [2]
+    assert parse_fact_citations("Sales [1, F2].", facts=3) == [2]
+    assert cited_numbers("Sales [1, F2].", passages=3) == [1]
+    assert cited_numbers("Risks [1-3, F1].", passages=5) == [1, 2, 3]
+    assert not has_uncited_claims("Sales were $416.2 billion [1, F2].")
+    assert not has_uncited_claims("Sales were $416.2 billion [F1, 2].")
+
+
+def test_an_explicit_null_is_filled_from_the_selection_like_a_left_out_argument() -> None:
+    chat = FakeChat(
+        [
+            fact_call(ticker=None, fiscal_year=None, metric="revenue"),
+            "Revenue was $416,161 million in fiscal 2025 [F1].",
+        ]
+    )
+    answer = run_agent(
+        "What was revenue?", model=chat, deps=apple_deps(), ticker="AAPL", fiscal_year=2025
+    )
+    [record] = answer.tool_calls
+    assert record.arguments == {"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"}
+    assert record.defaults_applied == ["ticker", "fiscal_year"] and record.status == "ok"
+
+
+def test_the_answer_is_degraded_when_a_search_fell_back_to_keywords() -> None:
+    chat = FakeChat([scripted_tool_calls(("search_filings", {"query": "risks"})), "Risks [1]."])
+    deps = ToolDeps(retriever=FakeRetriever(degraded=True), facts=FakeFacts([], filing=APPLE))
+    assert run_agent("Risks?", model=chat, deps=deps).degraded
+    chat = FakeChat([scripted_tool_calls(("search_filings", {"query": "risks"})), "Risks [1]."])
+    assert not run_agent("Risks?", model=chat, deps=apple_deps()).degraded
+
+
+def failing_model(*after: Any) -> FakeChat:
+    from filingcheck.llm import ProviderUnavailable
+
+    down = ProviderUnavailable("primary down", provider="fake", status=503, code="busy")
+    return FakeChat(
+        [fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), *after, down],
+        name="fake:primary",
+    )
+
+
+def test_a_restart_keeps_the_failed_attempts_cost_and_tool_calls() -> None:
+    from filingcheck.agent import run_agent_with_fallbacks
+
+    fallback = FakeChat(
+        [fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), "Sales [F1]."],
+        name="fake:fallback",
+    )
+    answer = run_agent_with_fallbacks(
+        "Sales?", models=[failing_model(), fallback], deps=apple_deps()
+    )
+    assert answer.restarts == ["fake 503 busy"]
+    [attempt] = answer.failed_attempts
+    assert (attempt.model, attempt.log_code, attempt.model_calls) == (
+        "fake:primary",
+        "fake 503 busy",
+        1,
+    )
+    assert attempt.usage == {"prompt_tokens": 100, "completion_tokens": 20}
+    assert [r.name for r in attempt.tool_calls] == ["get_financial_fact"]
+    # The answer's own run: two calls and one tool call; its totals include the failed one.
+    assert (answer.model_calls, len(answer.tool_calls)) == (2, 1)
+    assert answer.usage == {"prompt_tokens": 300, "completion_tokens": 60}
+    assert answer.cost_usd == 0.0
+
+
+def cut_off(prompt_tokens: int = 7, completion_tokens: int = 3) -> Any:
+    from filingcheck.llm import Completion, IncompleteAnswer
+
+    return IncompleteAnswer(
+        "fake: cut off",
+        Completion(
+            text="Sales were",
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            model="fake:primary",
+            latency_ms=0.0,
+            cost_usd=0.001,
+            finish_reason="length",
+        ),
+        provider="fake",
+        code="incomplete_length",
+    )
+
+
+def test_a_cut_off_reply_is_counted_in_the_failed_attempt() -> None:
+    from filingcheck.agent import run_agent_with_fallbacks
+
+    primary = FakeChat(
+        [fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), cut_off()],
+        name="fake:primary",
+    )
+    fallback = FakeChat(["I can't find this in the filings I have."], name="fake:fallback")
+    answer = run_agent_with_fallbacks("Sales?", models=[primary, fallback], deps=apple_deps())
+    [attempt] = answer.failed_attempts
+    assert attempt.model_calls == 2
+    assert attempt.usage == {"prompt_tokens": 107, "completion_tokens": 23}
+    assert attempt.cost_usd == pytest.approx(0.001)
+    assert answer.usage == {"prompt_tokens": 207, "completion_tokens": 43}
+
+
+def test_when_every_model_fails_the_caller_still_gets_every_attempt() -> None:
+    from filingcheck.agent import FailedAttempt, run_agent_with_fallbacks
+    from filingcheck.llm import ProviderUnavailable
+
+    failed: list[FailedAttempt] = []
+    with pytest.raises(ProviderUnavailable):
+        run_agent_with_fallbacks(
+            "Sales?", models=[failing_model(), failing_model()], deps=apple_deps(), failed=failed
+        )
+    assert [a.log_code for a in failed] == ["fake 503 busy", "fake 503 busy"]
+    assert [len(a.tool_calls) for a in failed] == [1, 1]
+
+
+def test_a_run_log_keeps_what_a_failed_run_spent() -> None:
+    from filingcheck.agent import RunLog
+    from filingcheck.llm import IncompleteAnswer
+
+    log = RunLog()
+    chat = FakeChat([fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), cut_off()])
+    with pytest.raises(IncompleteAnswer):
+        run_agent("Sales?", model=chat, deps=apple_deps(), run_log=log)
+    assert [c.prompt_tokens for c in log.completions] == [100, 7]
+    assert [r.name for r in log.tool_calls] == ["get_financial_fact"]
+    assert [f.value for f in log.facts] == [Decimal("416161000000")]
+
+
+def test_a_failure_another_model_would_not_fix_is_recorded_and_raised_at_once() -> None:
+    from filingcheck.agent import FailedAttempt, run_agent_with_fallbacks
+    from filingcheck.llm import ProviderError
+
+    bad_request = ProviderError("bad request", provider="fake", status=400, code="invalid")
+    primary = FakeChat(
+        [fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), bad_request],
+        name="fake:primary",
+    )
+    fallback = FakeChat(["never asked"], name="fake:fallback")
+    failed: list[FailedAttempt] = []
+    with pytest.raises(ProviderError):
+        run_agent_with_fallbacks(
+            "Sales?", models=[primary, fallback], deps=apple_deps(), failed=failed
+        )
+    assert [a.log_code for a in failed] == ["fake 400 invalid"]
+    assert fallback.calls == []

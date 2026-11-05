@@ -9,6 +9,7 @@ checks: a wrong tool argument comes back to the model as the tool's error, nothi
 import json
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Any, Literal, TypedDict
@@ -25,7 +26,14 @@ from filingcheck.answer.citations import (
     parse_fact_citations,
 )
 from filingcheck.facts.lookup import FactResult
-from filingcheck.llm import ChatModel, Completion, IncompleteAnswer, Message, ProviderUnavailable
+from filingcheck.llm import (
+    ChatModel,
+    Completion,
+    IncompleteAnswer,
+    Message,
+    ProviderError,
+    ProviderUnavailable,
+)
 from filingcheck.tools import ToolDeps, run_tool, tool_schemas
 
 MAX_MODEL_CALLS = 6
@@ -73,8 +81,61 @@ class FactCitation(BaseModel):
     source_url: str
 
 
+class FailedAttempt(BaseModel):
+    """One model's run that failed before it answered; its model calls were still paid for."""
+
+    model: str  # provider:model
+    log_code: str
+    model_calls: int
+    usage: dict[str, int | None]
+    cost_usd: float | None
+    tool_calls: list[ToolCallRecord]
+
+
+@dataclass
+class RunLog:
+    """What one run has done so far, filled in as it goes, so a failed run's cost is kept.
+
+    `completions` includes a reply that was cut off (its tokens were paid for); a provider
+    that did not answer at all adds nothing.
+    """
+
+    completions: list[Completion] = field(default_factory=list)
+    tool_calls: list[ToolCallRecord] = field(default_factory=list)
+    facts: list[FactResult] = field(default_factory=list)
+
+
+def total_usage(completions: Sequence[Completion]) -> tuple[dict[str, int | None], float | None]:
+    """Prompt and completion tokens and cost summed over model calls (None if any is unknown)."""
+    prompt = [c.prompt_tokens for c in completions]
+    output = [c.completion_tokens for c in completions]
+    costs = [c.cost_usd for c in completions]
+    usage = {
+        "prompt_tokens": None if None in prompt else sum(p for p in prompt if p is not None),
+        "completion_tokens": None if None in output else sum(o for o in output if o is not None),
+    }
+    return usage, None if None in costs else sum(c for c in costs if c is not None)
+
+
+def _add(
+    a: tuple[dict[str, int | None], float | None], b: tuple[dict[str, int | None], float | None]
+) -> tuple[dict[str, int | None], float | None]:
+    def plus(x: float | int | None, y: float | int | None) -> Any:
+        return None if x is None or y is None else x + y
+
+    usage = {
+        key: plus(a[0].get(key), b[0].get(key)) for key in ("prompt_tokens", "completion_tokens")
+    }
+    return usage, plus(a[1], b[1])
+
+
 class AgentAnswer(Answer):
-    """A baseline `Answer` plus what the agent did: its tool calls and the facts it used."""
+    """A baseline `Answer` plus what the agent did: its tool calls and the facts it used.
+
+    After a restart, `usage`, `cost_usd` and `latency_ms` cover the whole question, failed
+    attempts included; `model_calls`, `tool_calls` and the citations are the answering run's,
+    and each failed run is in `failed_attempts`.
+    """
 
     mode: Literal["agent"] = "agent"
     tool_calls: list[ToolCallRecord]
@@ -85,6 +146,7 @@ class AgentAnswer(Answer):
     # Log codes of models that failed before this one answered; each restart began the
     # question again from an empty message list.
     restarts: list[str] = Field(default_factory=list)
+    failed_attempts: list[FailedAttempt] = Field(default_factory=list)
 
 
 class _Passage(BaseModel):
@@ -109,6 +171,7 @@ class AgentState(TypedDict):
     facts: list[FactResult]  # numbered across the whole run: [F1] is facts[0]
     completions: list[Completion]
     stopped_by: str | None
+    degraded: bool  # a search fell back to keywords
     final: Completion | None
 
 
@@ -172,8 +235,13 @@ def build_agent(
     *,
     max_tokens: int = MAX_TOKENS,
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
+    run_log: RunLog | None = None,
 ) -> Any:
-    """The compiled graph; `on_tool_call` sees each tool call as it finishes."""
+    """The compiled graph; `on_tool_call` sees each tool call as it finishes.
+
+    `run_log`, when given, is filled in as the run goes (see RunLog).
+    """
+    log = run_log if run_log is not None else RunLog()
     tools = tool_schemas()
 
     def model_node(state: AgentState) -> dict[str, Any]:
@@ -181,12 +249,17 @@ def build_agent(
         stopped = state["stopped_by"]
         if stopped is None and used == MAX_MODEL_CALLS - 1:
             stopped = "model_calls"
-        completion = model.complete(
-            state["messages"],
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_choice="none" if stopped else "auto",
-        )
+        try:
+            completion = model.complete(
+                state["messages"],
+                max_tokens=max_tokens,
+                tools=tools,
+                tool_choice="none" if stopped else "auto",
+            )
+        except IncompleteAnswer as exc:
+            log.completions.append(exc.completion)  # cut off, but paid for
+            raise
+        log.completions.append(completion)
         return {"completions": [*state["completions"], completion], "stopped_by": stopped}
 
     def route(state: AgentState) -> str:
@@ -202,6 +275,7 @@ def build_agent(
         passages = list(state["passages"])
         facts = list(state["facts"])
         stopped = state["stopped_by"]
+        degraded = state["degraded"]
         for call in last.tool_calls:
             start = time.perf_counter()
             ran = sum(1 for r in records if r.status != "skipped")
@@ -215,7 +289,7 @@ def build_agent(
                     ("ticker", state["ticker"]),
                     ("fiscal_year", state["fiscal_year"]),
                 ):
-                    if value is not None and key not in arguments:
+                    if value is not None and arguments.get(key) is None:
                         arguments[key] = value
                         defaults.append(key)
             if ran >= MAX_TOOL_CALLS:
@@ -233,6 +307,7 @@ def build_agent(
                 status = "error" if "error" in result else "ok"
                 if status == "ok" and call.name == "search_filings":
                     _number_passages(result, passages)
+                    degraded = degraded or bool(result.get("degraded"))
                 if status == "ok" and call.name == "get_financial_fact":
                     _cite_fact(result, facts)
             record = ToolCallRecord(
@@ -244,6 +319,7 @@ def build_agent(
                 duration_ms=(time.perf_counter() - start) * 1000,
             )
             records.append(record)
+            log.tool_calls.append(record)
             if on_tool_call is not None:
                 on_tool_call(record)
             messages.append(
@@ -251,12 +327,14 @@ def build_agent(
             )
         if stopped is None and sum(1 for r in records if r.status != "skipped") >= MAX_TOOL_CALLS:
             stopped = "tool_calls"
+        log.facts[:] = facts
         return {
             "messages": messages,
             "tool_records": records,
             "passages": passages,
             "facts": facts,
             "stopped_by": stopped,
+            "degraded": degraded,
         }
 
     def answer_node(state: AgentState) -> dict[str, Any]:
@@ -282,10 +360,16 @@ def run_agent(
     fiscal_year: int | None = None,
     max_tokens: int = MAX_TOKENS,
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
+    run_log: RunLog | None = None,
 ) -> AgentAnswer:
-    """Answer one question with the agent and return what it said and did."""
+    """Answer one question with the agent and return what it said and did.
+
+    `run_log`, when given, keeps what the run spent even if a provider failure is raised.
+    """
     start = time.perf_counter()
-    agent = build_agent(model, deps, max_tokens=max_tokens, on_tool_call=on_tool_call)
+    agent = build_agent(
+        model, deps, max_tokens=max_tokens, on_tool_call=on_tool_call, run_log=run_log
+    )
     state: AgentState = {
         "question": question,
         "ticker": ticker,
@@ -299,6 +383,7 @@ def run_agent(
         "facts": [],
         "completions": [],
         "stopped_by": None,
+        "degraded": False,
         "final": None,
     }
     final_state = agent.invoke(state, config={"recursion_limit": 4 * MAX_MODEL_CALLS + 4})
@@ -315,15 +400,20 @@ def run_agent_with_fallbacks(
     max_tokens: int = MAX_TOKENS,
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     on_restart: Callable[[str], None] | None = None,
+    failed: list[FailedAttempt] | None = None,
 ) -> AgentAnswer:
     """The agent with each model in turn: if one fails mid-run, the next starts again.
 
     A run is never continued by another model, whose tool calls would follow a
     conversation it did not have; the next model gets the question from the beginning.
-    The last model's failure is raised.
+    The last model's failure, or any failure another model would not fix, is raised. Each
+    failed run is appended to `failed` as it happens, so a caller has them (and what they
+    cost) even when the question fails; the last entry is the failure that was raised.
     """
-    restarts: list[str] = []
+    start = time.perf_counter()
+    attempts: list[FailedAttempt] = failed if failed is not None else []
     for i, model in enumerate(models):
+        run_log = RunLog()
         try:
             answer = run_agent(
                 question,
@@ -333,15 +423,41 @@ def run_agent_with_fallbacks(
                 fiscal_year=fiscal_year,
                 max_tokens=max_tokens,
                 on_tool_call=on_tool_call,
+                run_log=run_log,
             )
-        except (ProviderUnavailable, IncompleteAnswer) as exc:
-            if i == len(models) - 1:
+        except ProviderError as exc:
+            # Every provider failure is recorded; only these two move on to the next model.
+            usage, cost = total_usage(run_log.completions)
+            attempts.append(
+                FailedAttempt(
+                    model=model.name,
+                    log_code=exc.log_code,
+                    model_calls=len(run_log.completions),
+                    usage=usage,
+                    cost_usd=cost,
+                    tool_calls=run_log.tool_calls,
+                )
+            )
+            restartable = isinstance(exc, ProviderUnavailable | IncompleteAnswer)
+            if not restartable or i == len(models) - 1:
                 raise
-            restarts.append(exc.log_code)
             if on_restart is not None:
                 on_restart(exc.log_code)
             continue
-        return answer.model_copy(update={"restarts": restarts})
+        if not attempts:
+            return answer
+        usage, cost = (answer.usage, answer.cost_usd)
+        for attempt in attempts:
+            usage, cost = _add((usage, cost), (attempt.usage, attempt.cost_usd))
+        return answer.model_copy(
+            update={
+                "restarts": [a.log_code for a in attempts],
+                "failed_attempts": list(attempts),
+                "usage": usage,
+                "cost_usd": cost,
+                "latency_ms": (time.perf_counter() - start) * 1000,
+            }
+        )
     raise ValueError("no models to run the agent with")
 
 
@@ -389,26 +505,19 @@ def _answer(state: AgentState, start: float) -> AgentAnswer:
             for n in parse_fact_citations(text, len(facts))
         ]
     )
-    prompt = [c.prompt_tokens for c in completions]
-    output = [c.completion_tokens for c in completions]
-    costs = [c.cost_usd for c in completions]
+    usage, cost = total_usage(completions)
     return AgentAnswer(
         text=text,
         citations=citations,
         model_used=final.model,
         retriever_name="hybrid",
-        usage={
-            "prompt_tokens": None if None in prompt else sum(p for p in prompt if p is not None),
-            "completion_tokens": None
-            if None in output
-            else sum(o for o in output if o is not None),
-        },
+        usage=usage,
         latency_ms=(time.perf_counter() - start) * 1000,
-        cost_usd=None if None in costs else sum(c for c in costs if c is not None),
+        cost_usd=cost,
         finish_reason=final.finish_reason,
         abstained=abstained,
         has_uncited_claims=not abstained and has_uncited_claims(text),
-        degraded=False,
+        degraded=state["degraded"],
         tool_calls=state["tool_records"],
         facts_used=facts,
         fact_citations=fact_citations,

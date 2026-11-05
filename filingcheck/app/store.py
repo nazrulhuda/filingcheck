@@ -37,7 +37,8 @@ class RequestRow(BaseModel):
     error: str | None = None
     client_ip_hash: str
     mode: str = "baseline"  # "baseline" or "agent"
-    # The agent's tool calls and restarts: {"calls": [...], "restarts": [log codes]}.
+    # The agent's tool calls, restarts and failed runs:
+    # {"calls": [...], "restarts": [log codes], "failed_attempts": [...]}.
     tool_calls: dict[str, Any] | None = None
 
 

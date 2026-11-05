@@ -26,7 +26,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from filingcheck.agent import AgentAnswer, ToolCallRecord, run_agent_with_fallbacks
+from filingcheck.agent import (
+    AgentAnswer,
+    FailedAttempt,
+    ToolCallRecord,
+    run_agent_with_fallbacks,
+)
 from filingcheck.answer.baseline import Answer, answer_question, stream_answer
 from filingcheck.app.limits import BodySizeLimit, TokenBucket, client_ip, hash_ip, nearest_example
 from filingcheck.app.settings import MAX_QUESTION_CHARS, Settings
@@ -114,7 +119,7 @@ def default_services() -> Services:
         retriever=retriever,
         settings=Settings.from_env(),
         model_ready=lambda: bool(os.environ.get(key_env, "").strip()),
-        agent_models=[router.primary, *router.fallbacks],
+        agent_models=router.in_turn(),
         tools=tools,
     )
 
@@ -135,6 +140,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     )
 
     def new_row(request_id: str, body: AskRequest, ip_hash: str, **fields: Any) -> RequestRow:
+        fields.setdefault("mode", body.mode)  # a refusal is logged with the mode asked for
         return RequestRow(
             id=request_id,
             created_at=datetime.now(UTC),
@@ -160,15 +166,46 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     def agent_fields(answer: AgentAnswer) -> dict[str, Any]:
         calls = [json.loads(record.model_dump_json()) for record in answer.tool_calls]
+        attempts = [json.loads(a.model_dump_json()) for a in answer.failed_attempts]
         return {
             **answer_fields(answer),
             "mode": "agent",
-            "tool_calls": {"calls": calls, "restarts": answer.restarts},
+            "tool_calls": {
+                "calls": calls,
+                "restarts": answer.restarts,
+                "failed_attempts": attempts,
+            },
+        }
+
+    def failure_fields(failed: list[FailedAttempt]) -> dict[str, Any]:
+        """The question failed: the row still holds each attempt and what it cost.
+
+        The last attempt is the failure that was raised; the ones before it were restarts.
+        With no attempt recorded (the agent itself broke) tokens and cost stay unknown.
+        """
+        if not failed:
+            return {"mode": "agent"}
+        prompt = [a.usage.get("prompt_tokens") for a in failed]
+        output = [a.usage.get("completion_tokens") for a in failed]
+        costs = [a.cost_usd for a in failed]
+        return {
+            "mode": "agent",
+            "prompt_tokens": None if None in prompt else sum(p for p in prompt if p is not None),
+            "completion_tokens": None
+            if None in output
+            else sum(o for o in output if o is not None),
+            "cost_usd": None if None in costs else sum(c for c in costs if c is not None),
+            "tool_calls": {
+                "calls": [],
+                "restarts": [a.log_code for a in failed[:-1]],
+                "failed_attempts": [json.loads(a.model_dump_json()) for a in failed],
+            },
         }
 
     def run_agent_for(
         body: AskRequest,
         deps: ToolDeps,
+        failed: list[FailedAttempt],
         on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     ) -> AgentAnswer:
         return run_agent_with_fallbacks(
@@ -178,6 +215,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             ticker=body.ticker,
             fiscal_year=body.fiscal_year,
             on_tool_call=on_tool_call,
+            failed=failed,
         )
 
     def tools() -> AbstractContextManager[ToolDeps]:
@@ -245,9 +283,10 @@ def create_app(services: Services | None = None) -> FastAPI:
             }
         start = datetime.now(UTC)
         if body.mode == "agent":
+            failed: list[FailedAttempt] = []
             try:
                 with tools() as deps:
-                    agent_answer = run_agent_for(body, deps)
+                    agent_answer = run_agent_for(body, deps, failed)
             except ProviderError as exc:
                 latency = (datetime.now(UTC) - start).total_seconds() * 1000
                 save(
@@ -257,7 +296,7 @@ def create_app(services: Services | None = None) -> FastAPI:
                         ip_hash,
                         error=exc.log_code,
                         latency_ms=latency,
-                        mode="agent",
+                        **failure_fields(failed),
                     )
                 )
                 return JSONResponse(
@@ -369,12 +408,16 @@ def create_app(services: Services | None = None) -> FastAPI:
         the final answer's text is sent as tokens.
         """
         events_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
+        failed: list[FailedAttempt] = []  # filled by the worker before it reports a failure
 
         def work() -> None:
             try:
                 with tools() as deps:
                     result = run_agent_for(
-                        body, deps, on_tool_call=lambda r: events_queue.put(("tool", r))
+                        body,
+                        deps,
+                        failed,
+                        on_tool_call=lambda r: events_queue.put(("tool", r)),
                     )
                 events_queue.put(("answer", result))
             except ProviderError as exc:
@@ -416,7 +459,14 @@ def create_app(services: Services | None = None) -> FastAPI:
                 logged = True
                 code = item.log_code if kind == "error" else "agent_crash"
                 save(
-                    new_row(request_id, body, ip_hash, error=code, latency_ms=latency, mode="agent")
+                    new_row(
+                        request_id,
+                        body,
+                        ip_hash,
+                        error=code,
+                        latency_ms=latency,
+                        **failure_fields(failed),
+                    )
                 )
                 detail = CUT_OFF if isinstance(item, IncompleteAnswer) else UNAVAILABLE
                 yield sse("error", {"request_id": request_id, "detail": detail})

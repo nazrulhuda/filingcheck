@@ -201,3 +201,68 @@ def test_calculate_returns_the_exact_result_or_an_error() -> None:
     ].startswith("4.7252")
     assert "division by zero" in call("calculate", {"expression": "1 / 0"})["error"]
     assert "error" in call("calculate", {"expression": "import os"})
+
+
+# ---------------------------------------------------------------- argument types
+
+
+def test_a_whole_number_written_as_text_is_the_same_argument() -> None:
+    from tests.agent.test_agent import apple_deps
+
+    fact = {"ticker": "AAPL", "metric": "revenue"}
+    as_text = call("get_financial_fact", {**fact, "fiscal_year": "2025"}, apple_deps())
+    as_number = call("get_financial_fact", {**fact, "fiscal_year": 2025}, apple_deps())
+    assert as_text == as_number and as_text["status"] == "found"
+    tool_deps = deps()
+    call("search_filings", {"query": "risks", "fiscal_year": "2025", "k": "3"}, tool_deps)
+    retriever = tool_deps.retriever
+    assert isinstance(retriever, FakeRetriever)
+    assert (retriever.calls[0]["fiscal_year"], retriever.calls[0]["k"]) == (2025, 3)
+
+
+def test_every_other_non_integer_number_is_still_rejected() -> None:
+    full_width = "".join(chr(0xFF10 + int(d)) for d in "2025")  # 2025 in full-width digits
+    for year in (2025.0, True, "2025.0", "FY2025", " 2025", full_width):
+        result = call(
+            "get_financial_fact", {"ticker": "WMT", "fiscal_year": year, "metric": "revenue"}
+        )
+        assert "fiscal_year" in result["error"], year
+    for k in (5.0, True, "5.0"):
+        assert "k" in call("search_filings", {"query": "risks", "k": k})["error"], k
+
+
+def test_the_schemas_still_say_integer() -> None:
+    schemas = {s["function"]["name"]: s["function"]["parameters"] for s in tool_schemas()}
+    assert schemas["get_financial_fact"]["properties"]["fiscal_year"]["type"] == "integer"
+    assert schemas["search_filings"]["properties"]["fiscal_year"]["type"] == "integer"
+    assert schemas["search_filings"]["properties"]["k"]["type"] == "integer"
+
+
+# ---------------------------------------------------------------- failures inside a tool
+
+
+class BrokenRetriever(FakeRetriever):
+    def search(self, query: str, **kwargs: Any) -> Any:
+        raise RuntimeError("server closed the connection unexpectedly")
+
+
+def test_a_failure_inside_a_tool_is_an_error_result_not_an_exception() -> None:
+    broken = ToolDeps(retriever=BrokenRetriever(), facts=FakeFacts([]))
+    result = call("search_filings", {"query": "risks"}, broken)
+    assert "search_filings failed" in result["error"]
+    # The exception's own text (it may name a host or a table) is not passed to the model.
+    assert "server closed" not in result["error"]
+
+
+def test_two_values_for_one_fact_are_unavailable_with_the_reason() -> None:
+    from tests.agent.test_agent import APPLE, YEAR
+
+    tag = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+    two = [duration(tag, "1", *YEAR), duration(tag, "2", *YEAR)]
+    result = call(
+        "get_financial_fact",
+        {"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"},
+        ToolDeps(retriever=FakeRetriever(), facts=FakeFacts(two, filing=APPLE)),
+    )
+    assert (result["status"], result["reason"]) == ("unavailable", "conflicting_values")
+    assert "1" in result["message"] and "2" in result["message"]

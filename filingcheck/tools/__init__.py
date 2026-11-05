@@ -2,10 +2,12 @@
 
 `run_tool(name, arguments_json, deps)` validates the arguments with the tool's input model,
 runs the tool and returns its result as JSON text. A wrong argument, unknown tool or failed
-calculation comes back as `{"error": "..."}` for the model to read; nothing is repaired.
+calculation comes back as `{"error": "..."}` for the model to read; nothing is repaired. A
+failure inside a tool (the database, the search) is an error result too, never an exception.
 """
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -17,6 +19,8 @@ from filingcheck.retrieval.models import Retriever
 from filingcheck.tools.calculate import CalculateInput, CalculationError, calculate
 from filingcheck.tools.financial_fact import GetFinancialFactInput, get_financial_fact
 from filingcheck.tools.search_filings import SearchFilingsInput, search_filings
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -137,6 +141,12 @@ def run_tool(name: str, arguments_json: str, deps: ToolDeps) -> str:
         result = tool.run(arguments, deps)
     except CalculationError as exc:
         return json.dumps({"error": str(exc)})
+    except Exception:  # a database or search failure: the model is told, the run goes on
+        # The exception's text can name a host or a table, so it goes to the log only.
+        log.exception("tool %s failed", name)
+        return json.dumps(
+            {"error": f"{name} failed inside the tool; try again or answer without it"}
+        )
     return result.model_dump_json()
 
 

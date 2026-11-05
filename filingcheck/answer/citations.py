@@ -17,11 +17,26 @@ NORMALIZE = str.maketrans(
     | dict.fromkeys((0x2014, 0x00A0, 0x2007, 0x2009, 0x202F), " ")
     | {0x3010: "[", 0x3011: "]"}
 )
-# [1], [1, 3], [1-3]; [1][3] is two matches.
-CITATION_RE = re.compile(r"\[\s*(\d+(?:\s*[,-]\s*\d+)*)\s*\]")
+# One citation bracket: passages as [1], [1, 3] or [1-3], and the agent's facts from
+# get_financial_fact as [F1] or [F1, F2]; one bracket may hold both ([1, F2]), and each part
+# is read as written, so in [F1, 2] the 2 is passage 2. [1][3] is two matches.
+_PART = r"F?\d+(?:\s*-\s*\d+)?"
+CITATION_RE = re.compile(r"\[\s*(" + _PART + r"(?:\s*,\s*" + _PART + r")*)\s*\]")
 RANGE_RE = re.compile(r"\s*-\s*")
-# The agent cites a number from get_financial_fact as [F1], [F2] or [F1, F2].
-FACT_CITATION_RE = re.compile(r"\[\s*(F\d+(?:\s*,\s*F?\d+)*)\s*\]")
+
+
+def _parts(text: str, *, facts: bool) -> list[tuple[int, int]]:
+    """The (low, high) bounds of each cited part: fact parts ([Fn]) or passage parts ([n])."""
+    bounds: list[tuple[int, int]] = []
+    for match in CITATION_RE.finditer(normalize_text(text)):
+        for part in match.group(1).split(","):
+            part = part.strip()
+            if part.startswith("F") != facts:
+                continue
+            numbers = [int(n) for n in RANGE_RE.split(part.removeprefix("F"))]
+            bounds.append((min(numbers), max(numbers)))
+    return bounds
+
 
 # Abbreviations whose period never ends a sentence.
 ABBREVIATIONS = (
@@ -90,19 +105,16 @@ class Citation(BaseModel):
 def cited_numbers(text: str, passages: int) -> list[int]:
     """The passage numbers cited in the text, in first-cited order, within 1..passages."""
     numbers: list[int] = []
-    for match in CITATION_RE.finditer(normalize_text(text)):
-        for part in match.group(1).split(","):
-            bounds = [int(n) for n in RANGE_RE.split(part.strip())]
-            low, high = min(bounds), max(bounds)
-            numbers.extend(range(max(low, 1), min(high, passages) + 1))
+    for low, high in _parts(text, facts=False):
+        numbers.extend(range(max(low, 1), min(high, passages) + 1))
     return list(dict.fromkeys(numbers))
 
 
 def parse_fact_citations(text: str, facts: int) -> list[int]:
     """The fact numbers cited as [Fn] in the text, in first-cited order, within 1..facts."""
     numbers: list[int] = []
-    for match in FACT_CITATION_RE.finditer(normalize_text(text)):
-        numbers.extend(int(n) for n in re.findall(r"\d+", match.group(1)) if 1 <= int(n) <= facts)
+    for low, high in _parts(text, facts=True):
+        numbers.extend(range(max(low, 1), min(high, facts) + 1))
     return list(dict.fromkeys(numbers))
 
 
@@ -143,7 +155,4 @@ def has_figure(sentence: str) -> bool:
 
 def has_uncited_claims(text: str) -> bool:
     """True if any sentence states a figure without a citation ([n] or [Fn]) in that sentence."""
-    return any(
-        has_figure(s) and not CITATION_RE.search(s) and not FACT_CITATION_RE.search(s)
-        for s in sentences(normalize_text(text))
-    )
+    return any(has_figure(s) and not CITATION_RE.search(s) for s in sentences(normalize_text(text)))

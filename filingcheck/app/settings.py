@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 
-# 70% of a 200,000-token daily limit over about 2,130 tokens a question; docs/decisions.md.
+# Questions a UTC day that reach a model; an agent question counts once, however many
+# model calls it makes. Why 65: docs/decisions.md (2026-11-02 and 2026-11-04).
 DEFAULT_DAILY_CAP = 65
 PER_IP_PER_HOUR = 20
 MAX_QUESTION_CHARS = 500
@@ -21,7 +22,7 @@ DEFAULT_CORS_ORIGINS = ("http://localhost:3000",)
 class Settings(BaseModel):
     """Limits and origins for one running API."""
 
-    daily_cap: int = Field(default=DEFAULT_DAILY_CAP, ge=0)  # model calls per UTC day
+    daily_cap: int = Field(default=DEFAULT_DAILY_CAP, ge=0)  # questions per UTC day
     per_ip_per_hour: int = Field(default=PER_IP_PER_HOUR, ge=1)
     cors_origins: list[str] = Field(default_factory=lambda: list(DEFAULT_CORS_ORIGINS))
     ip_hash_salt: str = Field(default_factory=lambda: secrets.token_hex(16))

@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.answer.baseline import passage_header
 from filingcheck.retrieval.models import Retriever
-from filingcheck.tools.inputs import Item, Ticker
+from filingcheck.tools.inputs import Item, Ticker, WholeNumber
 
 
 class SearchFilingsInput(BaseModel):
@@ -16,7 +16,7 @@ class SearchFilingsInput(BaseModel):
     ticker: Ticker | None = Field(
         default=None, description="Only this company's filings (its ticker)."
     )
-    fiscal_year: int | None = Field(
+    fiscal_year: WholeNumber | None = Field(
         default=None, description="Only this fiscal year's 10-K (the company's own fiscal year)."
     )
     items: list[Item] | None = Field(
@@ -26,7 +26,9 @@ class SearchFilingsInput(BaseModel):
             'risk, "8" financial statements and notes ("1-7A" is used by some banks).'
         ),
     )
-    k: int = Field(default=8, ge=1, le=10, description="How many passages to return (1 to 10).")
+    k: WholeNumber = Field(
+        default=8, ge=1, le=10, description="How many passages to return (1 to 10)."
+    )
 
 
 class Passage(BaseModel):

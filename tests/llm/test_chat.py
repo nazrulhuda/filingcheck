@@ -513,3 +513,13 @@ def test_batch_a_cut_off_reply_stops_the_run_and_never_falls_back() -> None:
     with pytest.raises(IncompleteAnswer):
         router.complete(MESSAGES, max_tokens=700)
     assert backup.calls == []
+
+
+def test_a_router_names_the_models_a_run_may_use_in_turn() -> None:
+    from filingcheck.llm import FakeChat, ModelRouter
+
+    primary, fallback = FakeChat([], name="a:one"), FakeChat([], name="b:two")
+    live = ModelRouter(primary, [fallback], mode="live")
+    batch = ModelRouter(primary, [fallback], mode="batch")
+    assert live.in_turn() == [primary, fallback]
+    assert batch.in_turn() == [primary]  # batch mode never falls back
