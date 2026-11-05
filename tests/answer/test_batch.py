@@ -90,7 +90,7 @@ def test_a_run_resumes_after_a_crash_from_the_next_question(tmp_path: Path) -> N
     )
     with out.open("a", encoding="utf-8") as handle:
         handle.write('{"id": "q-2", "mode": "agent", "answ')  # a line cut off by the crash
-    assert read_done(out) == {"q-1"}
+    assert read_done(out) == {("q-1", 1)}
     model = FakeChat(agent_replies(2))
     written = run_batch(
         QUESTIONS, mode="agent", out=out, model=model, deps=apple_deps(), settings="s"
@@ -203,3 +203,57 @@ def test_a_line_without_an_id_is_corrupt(tmp_path: Path) -> None:
     out.write_text('{"id": "q-1"}\n{"answer": "x"}\n', encoding="utf-8")
     with pytest.raises(BatchFileError, match="line 2"):
         read_done(out)
+
+
+def test_each_question_is_asked_repeats_times_and_each_row_says_which(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    written = run_batch(
+        QUESTIONS[:2],
+        mode="agent",
+        out=out,
+        model=FakeChat(agent_replies(6)),
+        deps=apple_deps(),
+        settings="s",
+        repeats=3,
+    )
+    assert written == 6
+    # One full pass over the questions, then the next, so a stopped run has whole passes.
+    assert [(r["id"], r["repeat"]) for r in lines(out)] == [
+        ("q-1", 1),
+        ("q-2", 1),
+        ("q-1", 2),
+        ("q-2", 2),
+        ("q-1", 3),
+        ("q-2", 3),
+    ]
+
+
+def test_repeats_resume_by_question_and_repeat(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=FakeChat(agent_replies(1)),
+        deps=apple_deps(),
+        settings="s",
+        repeats=1,
+    )
+    model = FakeChat(agent_replies(2))
+    written = run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=model,
+        deps=apple_deps(),
+        settings="s",
+        repeats=3,
+    )
+    assert written == 2 and model.replies == []
+    assert [r["repeat"] for r in lines(out)] == [1, 2, 3]
+
+
+def test_a_row_written_before_repeats_counts_as_repeat_1(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    out.write_text('{"id": "q-1"}\n', encoding="utf-8")
+    assert read_done(out) == {("q-1", 1)}
