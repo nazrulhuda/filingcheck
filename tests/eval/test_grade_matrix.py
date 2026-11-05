@@ -67,7 +67,7 @@ def amount_cases() -> list[Any]:
     ):
         if rk == "billions_sB" and ck in ("none", "USD_after"):
             continue  # by design: "681.0 B" without a currency sign is not read as billions
-        amount = rv + " USD" if ck == "USD_after" else cv + rv
+        amount = rv + " USD" if cv is None else cv + rv
         cases.append(pytest.param(xv.replace("{v}", amount), id=f"{rk}-{ck}-{xk}"))
     return cases
 

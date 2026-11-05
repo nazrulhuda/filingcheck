@@ -7,7 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 MAX_CHARS = 200
 PRECISION = 28  # significant digits, Python's default decimal precision
-_TOKEN = re.compile(r"\s*(?:(\d+(?:\.\d+)?|\.\d+)|([-+*/()]))")
+# A number: digits with an optional decimal point, or digits in groups of three with US
+# thousands separators ("713,163,000,000"); "1,23" is not a number.
+_TOKEN = re.compile(r"\s*(?:(\d{1,3}(?:,\d{3})+(?!\d)(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)|([-+*/()]))")
 
 
 class CalculationError(ValueError):
@@ -23,8 +25,9 @@ class CalculateInput(BaseModel):
         min_length=1,
         max_length=MAX_CHARS,
         description=(
-            "Plain arithmetic: numbers (digits with an optional decimal point, no commas or "
-            "exponents), + - * / and parentheses. Example: (713163 - 680985) / 680985 * 100"
+            "Plain arithmetic: numbers (digits with an optional decimal point; commas only as US "
+            "thousands separators, like 713,163,000,000; no exponents), + - * / and "
+            "parentheses. Example: (713163 - 680985) / 680985 * 100"
         ),
     )
 
@@ -44,7 +47,7 @@ def _tokens(expression: str) -> list[str]:
         match = _TOKEN.match(text, position)
         if match is None:
             raise CalculationError(f"not allowed at position {position}: {text[position:][:20]!r}")
-        tokens.append(match.group(1) or match.group(2))
+        tokens.append((match.group(1) or match.group(2)).replace(",", ""))
         position = match.end()
     if not tokens:
         raise CalculationError("the expression is empty")

@@ -49,9 +49,14 @@ def run_main(args: argparse.Namespace) -> int:
         out = REPO_ROOT / results_path(args.set, args.mode, args.date)
     else:
         today = datetime.now(UTC).date().isoformat()
-        expected = len(read_questions(questions)) * args.repeats
+        ids = {q.id for q in read_questions(questions)}
         out = choose_results_path(
-            REPO_ROOT, args.set, args.mode, expected_rows=expected, today=today
+            REPO_ROOT,
+            args.set,
+            args.mode,
+            expected_rows=len(ids) * args.repeats,
+            today=today,
+            question_ids=ids,
         )
         if not out.name.startswith(today):
             print(f"resuming the unfinished {out.relative_to(REPO_ROOT)}")

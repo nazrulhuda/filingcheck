@@ -5,16 +5,18 @@ Outcomes for a number question (`expected_behavior: answer`):
 - year_not_stated: the number matches but the answer does not state the fiscal year;
 - other_year_number: the number matches the same metric for another pinned year of the
   company (`gold_other_years`), not the year asked about;
-- wrong_number: no number matches anything;
-- asked_when_should_answer: no number, and the answer asks the user a question instead;
-- abstained: the abstain sentence.
+- wrong_number: a number is given but matches nothing;
+- no_number: no amount is given and the answer neither declines nor asks;
+- asked_when_should_answer: no amount, and the answer asks the user a question instead;
+- abstained: the abstain sentence, or a decline in other words with no amount.
 A clarify or refuse question is correct when the answer gives no amount and asks or declines
 (keyword rules), else answered_when_should_ask. Rows with no answer are error; a number
 question with no gold value is not_graded.
 
 The fiscal year is stated by an explicit phrase ("fiscal 2025", "fiscal year 2025", "FY2025",
 "FY25", "fiscal '25"), which wins; without one, by a period-end date ("the year ended
-January 31, 2025", "as of June 30, 2025", "... to 2025-01-31") or a year standing on its own.
+January 31, 2025", "as of June 30, 2025", "on June 30, 2025", "... to 2025-01-31") or a year
+standing on its own.
 A year inside any other date ("filed on February 25, 2026", "from January 27, 2025") counts
 for nothing. In all 75 pinned filings the fiscal year is the calendar year of the period end.
 """
@@ -35,6 +37,7 @@ Outcome = Literal[
     "year_not_stated",
     "other_year_number",
     "wrong_number",
+    "no_number",
     "asked_when_should_answer",
     "answered_when_should_ask",
     "abstained",
@@ -46,6 +49,7 @@ OUTCOMES: tuple[Outcome, ...] = (
     "year_not_stated",
     "other_year_number",
     "wrong_number",
+    "no_number",
     "asked_when_should_answer",
     "answered_when_should_ask",
     "abstained",
@@ -66,12 +70,14 @@ SCALE_WORDS = {
 }
 SCALE_LETTERS = {"k": 10**3, "m": 10**6, "b": 10**9, "t": 10**12}
 SCALE_WORD_PATTERN = "|".join(SCALE_WORDS)
-# A minus is a sign only when no word, digit or closing bracket is right before it, so the
-# dash of a range ("$10-12 billion", "680.9-681.0") or of "2024-25" is no sign.
+# A minus is a sign only when it is attached to the number or the currency sign and no word,
+# digit or closing bracket is right before it: "-$1.2 billion" is negative; the dash of a
+# range ("$10-12 billion"), of "2024-25", of a list ("revenue - $681 billion") or of a
+# subtraction ("713 - 680") is not.
 NOT_AFTER_WORD = r"(?<![\w)\]])"
 NUMBER_RE = re.compile(
-    r"(?P<sign>" + NOT_AFTER_WORD + r"-\s?)?"
-    r"(?P<open>\()?\s?(?P<cur>\$)?\s?(?P<sign2>" + NOT_AFTER_WORD + r"-)?(?P<open2>\()?"
+    r"(?P<sign>" + NOT_AFTER_WORD + r"-(?=[\d$.(]))?"
+    r"(?P<open>\()?\s?(?P<cur>\$)?\s?(?P<sign2>" + NOT_AFTER_WORD + r"-(?=[\d.(]))?(?P<open2>\()?"
     r"(?P<num>(?<![\w.,])(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+))(?![\d,]\d)"
     r"(?P<close>\))?"
     r"(?:\s?(?P<pct>%|(?i:percent)\b)"
@@ -81,8 +87,12 @@ NUMBER_RE = re.compile(
 )
 # The text between the two numbers of a range: "$10-12 billion", "10 to 12%".
 RANGE_GAP_RE = re.compile(r"\s*(?:-|to)\s*")
-# A number stated as a loss: "a net loss of $10.6 billion", "losses were $2 billion".
-LOSS_BEFORE_RE = re.compile(r"\b(?:loss|losses|deficit)\b[^\d$]{0,20}$", re.IGNORECASE)
+# A number stated as a loss: "a net loss of $10.6 billion", "loss before income taxes of $3B".
+# Not the "(loss)" of a label like "Net income (loss)", not "before losses", and not across a
+# comma, semicolon or bracket ("Despite the loss, net income was $5 billion").
+LOSS_BEFORE_RE = re.compile(
+    r"(?<!before )\b(?:loss|losses|deficit)\b(?!\))[^\d$,;()]{0,30}$", re.IGNORECASE
+)
 RIGHT_QUOTE = chr(0x2019)
 # A narrow no-break, no-break or thin space between digit groups is a thousands separator
 # ("680 985 000 000" with U+202F); a plain space is not.
@@ -101,13 +111,18 @@ DATE_RE = re.compile(
 )
 # The words before a date that make it a period's end ("the year ended", "through", "as of").
 PERIOD_END_BEFORE_RE = re.compile(
-    r"(?:\bended|\bending|\bend(?:ed)?\s+on|\bthrough|\bthru|\bto|\buntil|\bas\s+of|\bat|-)"
-    r"\s*(?:on\s+)?$",
+    r"(?:\bended|\bending|\bend(?:ed)?\s+on|\bthrough|\bthru|\bto|\buntil|\bas\s+of|\bat|-"
+    r"|(?<!filed )(?<!dated )(?<!issued )\bon)\s*(?:on\s+)?$"
+    r"|\d\s+$",  # a date right after another date or number ends a range
     re.IGNORECASE,
 )
+_YEAR = r"(?:\d{4}|\d{2})(?!\d)(?!-?\s*week)(?!-[KQ]\b)"
 FISCAL_PHRASE_RE = re.compile(
-    r"\b(?:fiscal(?:\s+years?)?|FY)\s*'?\s*(\d{4}|\d{2})(?!\d)", re.IGNORECASE
+    r"\b(?:fiscal(?:[\s-]+years?)?|FY)[\s-]*'?\s*(" + _YEAR + r")"
+    r"((?:\s*(?:,|and|&|-|to|through)\s*'?" + _YEAR + r")*)",
+    re.IGNORECASE,
 )
+YEAR_THEN_FISCAL_RE = re.compile(r"(?<!\d)(\d{4})[\s-]+fiscal[\s-]+year\b", re.IGNORECASE)
 YEAR_ALONE_RE = re.compile(r"(?<![\d$.,])(?:19|20)\d{2}(?![\d%]|[.,]\d)")
 # Asking: one of these phrases, or a question to the user ("...you...?" or "Which ...?").
 ASK_PHRASE_RE = re.compile(
@@ -120,11 +135,15 @@ QUESTION_TO_USER_RE = re.compile(
 )
 # Declining: saying it cannot answer, or that the data is not there.
 DECLINE_RE = re.compile(
-    r"\b(?:can't|cannot|can not|unable to|not able to|won't be able to)\s+(?:\w+\s+){0,2}?"
-    r"(?:answer|find|provide|give|determine|locate|report|say|tell|confirm|access|see|identify)\b"
-    r"|\b(?:don't|do not)\s+have\b"
-    r"|\bnot\s+(?:available|included|loaded|covered)\b|\bunavailable\b"
-    r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b"
+    r"\b(?:can't|cannot|can not|could not|couldn't|unable to|not able to|won't be able to"
+    r"|wasn't able to|was unable to)\s+(?:\w+\s+){0,2}?"
+    r"(?:answer|find|provide|give|determine|locate|report|say|tell|confirm|access|see"
+    r"|identify|help)\b"
+    r"|\b(?:don't|do not|doesn't|does not|didn't|did not)\s+"
+    r"(?:have|include|cover|contain|report|provide)\b"
+    r"|\b(?:isn't|is not|aren't|are not|not)\s+(?:available|included|loaded|covered)\b"
+    r"|\bnot in the (?:filings|data|dataset|10-K)\b|\bunavailable\b"
+    r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b|\bno (?:quarterly|such)\b"
     r"|" + re.escape(ABSTAIN),
     re.IGNORECASE,
 )
@@ -210,7 +229,11 @@ def _year(digits: str) -> int:
 def states_year(text: str, fiscal_year: int) -> bool:
     """True if the answer states the fiscal year (see the module docstring for the rule)."""
     text = _prepare(text)
-    phrases = {_year(m.group(1)) for m in FISCAL_PHRASE_RE.finditer(text)}
+    phrases: set[int] = set()
+    for match in FISCAL_PHRASE_RE.finditer(text):
+        phrases.add(_year(match.group(1)))
+        phrases |= {_year(y) for y in re.findall(r"\d{4}|\d{2}", match.group(2))}
+    phrases |= {int(y) for y in YEAR_THEN_FISCAL_RE.findall(text)}
     if phrases:
         return fiscal_year in phrases
     period_ends: set[int] = set()
@@ -233,35 +256,59 @@ def asks(text: str) -> bool:
     return False
 
 
+def declines(text: str) -> bool:
+    """True if the answer says it cannot answer or that the data is not there."""
+    return DECLINE_RE.search(_prepare(text)) is not None
+
+
 def asks_or_declines(text: str) -> bool:
     """True if the answer asks which company or year is meant, or declines to answer."""
-    return asks(text) or DECLINE_RE.search(_prepare(text)) is not None
+    return asks(text) or declines(text)
 
 
 def _within(found: Decimal, gold: Decimal, tolerance_pct: float) -> bool:
     return abs(found - gold) <= abs(gold) * Decimal(str(tolerance_pct)) / 100
 
 
-def _closest(
-    numbers: list[Number], targets: list[tuple[int | None, Decimal]], tolerance_pct: float
-) -> tuple[int | None, str] | None:
-    """The (year, number) pair closest to each other within the tolerance; None for the gold year.
+def _nearest(
+    number: Number, targets: list[tuple[int | None, Decimal]], tolerance_pct: float
+) -> tuple[bool, int | None]:
+    """Whether the number matches a target within the tolerance, and which year's.
 
     Two years' values can be inside the tolerance of each other (Coca-Cola's net income was
     10,714 million in FY2023 and 10,631 million in FY2024), so a number goes to the value it is
-    closest to; on a tie the gold year wins (it is first in `targets`).
+    closest to; on a tie the gold year (None, first in `targets`) wins.
     """
-    best: tuple[Decimal, int, int | None, str] | None = None
+    best: tuple[Decimal, int, int | None] | None = None
+    for order, (year, target) in enumerate(targets):
+        if not _within(number.value, target, tolerance_pct):
+            continue
+        distance = abs(number.value - target) / abs(target) if target else Decimal(0)
+        if best is None or (distance, order) < best[:2]:
+            best = (distance, order, year)
+    return (False, None) if best is None else (True, best[2])
+
+
+def _closest(
+    numbers: list[Number], targets: list[tuple[int | None, Decimal]], tolerance_pct: float
+) -> tuple[int | None, str] | None:
+    """The year and number the answer lands on: the gold year if any number does.
+
+    Each number goes to its own nearest year. If any number lands on the gold value the
+    answer is right; otherwise the first other year hit is named; otherwise nothing.
+    """
+    other: tuple[int | None, str] | None = None
     for number in numbers:
         if number.percent:
             continue
-        for order, (year, target) in enumerate(targets):
-            if not _within(number.value, target, tolerance_pct):
-                continue
-            distance = abs(number.value - target) / abs(target) if target else Decimal(0)
-            if best is None or (distance, order) < best[:2]:
-                best = (distance, order, year, _plain(number.value))
-    return None if best is None else (best[2], best[3])
+        matched, year = _nearest(number, targets, tolerance_pct)
+        if not matched:
+            continue
+        if year is None:
+            return (None, _plain(number.value))
+        if other is None:
+            other = (year, _plain(number.value))
+    return other
 
 
 def grade(row: dict[str, Any], question: Question) -> Grade:
@@ -282,12 +329,14 @@ def grade(row: dict[str, Any], question: Question) -> Grade:
     if question.expected_behavior in ("clarify", "refuse"):
         ok = not amounts and asks_or_declines(text)
         return result("correct" if ok else "answered_when_should_ask")
-    if row.get("abstained") or is_abstain(text):
+    if row.get("abstained") or is_abstain(text) or (not amounts and declines(text)):
         return result("abstained")
     if not amounts and asks(text):
         return result("asked_when_should_answer")
     if question.gold_value is None:
         return result("not_graded")
+    if not any(n.amount or n.percent for n in numbers):
+        return result("no_number")
     targets: list[tuple[int | None, Decimal]] = [(None, Decimal(str(question.gold_value)))]
     targets += [(y, Decimal(str(v))) for y, v in sorted((question.gold_other_years or {}).items())]
     found = _closest(numbers, targets, question.tolerance_pct)
@@ -304,6 +353,7 @@ LABELS = {
     "year_not_stated": "Year not stated",
     "other_year_number": "Other year's number",
     "wrong_number": "Wrong number",
+    "no_number": "No number",
     "asked_when_should_answer": "Asked when it should have answered",
     "answered_when_should_ask": "Answered when it should have asked",
     "abstained": "Abstained",

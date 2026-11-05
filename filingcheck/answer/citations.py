@@ -153,6 +153,28 @@ def has_figure(sentence: str) -> bool:
     return DIGIT_RE.search(sentence) is not None
 
 
-def has_uncited_claims(text: str) -> bool:
-    """True if any sentence states a figure without a citation ([n] or [Fn]) in that sentence."""
-    return any(has_figure(s) and not CITATION_RE.search(s) for s in sentences(normalize_text(text)))
+def _cites_something(sentence: str, passages: int | None, facts: int | None) -> bool:
+    """True if a citation in the sentence points to a passage or fact that exists.
+
+    Without the counts any citation mark counts; with them, [9] among 4 passages or [F3]
+    among 1 fact is no citation.
+    """
+    for low, high in _parts(sentence, facts=False):
+        if passages is None or any(1 <= n <= passages for n in range(low, high + 1)):
+            return True
+    for low, high in _parts(sentence, facts=True):
+        if facts is None or any(1 <= n <= facts for n in range(low, high + 1)):
+            return True
+    return False
+
+
+def has_uncited_claims(text: str, *, passages: int | None = None, facts: int | None = None) -> bool:
+    """True if any sentence states a figure without a citation ([n] or [Fn]) in that sentence.
+
+    Given the number of passages and facts the answer could cite, a mark that points to
+    none of them is no citation, so its figure is uncited.
+    """
+    return any(
+        has_figure(s) and not _cites_something(s, passages, facts)
+        for s in sentences(normalize_text(text))
+    )

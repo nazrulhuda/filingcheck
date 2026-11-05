@@ -42,7 +42,6 @@ def test_division_by_zero_is_an_error() -> None:
         "__import__('os')",
         "x + 1",
         "1e3",
-        "1,000 + 2",
         "(1 + 2",
         "1 + 2)",
         "1 +",

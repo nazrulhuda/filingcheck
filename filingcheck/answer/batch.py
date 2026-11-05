@@ -63,6 +63,8 @@ def read_done(out: Path) -> set[tuple[str, int]]:
         if number == len(lines) and not line.endswith("\n"):
             out.write_text("".join(lines[:-1]), encoding="utf-8", newline="")
             break
+        if not line.strip():
+            continue  # a blank line is not a result and not a fault
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
