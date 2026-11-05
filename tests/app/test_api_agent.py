@@ -231,3 +231,16 @@ def test_a_degraded_search_is_logged_as_degraded() -> None:
     client, store = make_agent(FakeChat([]), [chat], deps=deps)
     body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent"}).json()
     assert body["degraded"] is True and store.rows[0].degraded is True
+
+
+def test_a_crashed_agent_stream_leaves_tokens_unknown_not_zero() -> None:
+    class Broken(FakeChat):
+        def complete(self, *args: Any, **kwargs: Any) -> Any:
+            raise ValueError("a bug, not a provider failure")
+
+    client, store = make_agent(FakeChat([]), [Broken([])])
+    sent = events(client.post("/ask/stream", json={"question": APPLE_Q, "mode": "agent"}).text)
+    assert sent[-1][0] == "error"
+    (row,) = store.rows
+    assert row.error == "agent_crash" and row.mode == "agent"
+    assert (row.prompt_tokens, row.cost_usd) == (None, None)

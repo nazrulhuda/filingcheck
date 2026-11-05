@@ -433,3 +433,22 @@ def test_a_run_log_keeps_what_a_failed_run_spent() -> None:
     assert [c.prompt_tokens for c in log.completions] == [100, 7]
     assert [r.name for r in log.tool_calls] == ["get_financial_fact"]
     assert [f.value for f in log.facts] == [Decimal("416161000000")]
+
+
+def test_a_failure_another_model_would_not_fix_is_recorded_and_raised_at_once() -> None:
+    from filingcheck.agent import FailedAttempt, run_agent_with_fallbacks
+    from filingcheck.llm import ProviderError
+
+    bad_request = ProviderError("bad request", provider="fake", status=400, code="invalid")
+    primary = FakeChat(
+        [fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"), bad_request],
+        name="fake:primary",
+    )
+    fallback = FakeChat(["never asked"], name="fake:fallback")
+    failed: list[FailedAttempt] = []
+    with pytest.raises(ProviderError):
+        run_agent_with_fallbacks(
+            "Sales?", models=[primary, fallback], deps=apple_deps(), failed=failed
+        )
+    assert [a.log_code for a in failed] == ["fake 400 invalid"]
+    assert fallback.calls == []
