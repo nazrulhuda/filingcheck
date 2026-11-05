@@ -85,3 +85,17 @@ def test_the_file_source_matches_what_the_facts_stage_writes(tmp_path: Path) -> 
     assert filing is not None and filing.revenue_rule == "bank"
     result = lookup(source, "EXMP", 2025, "revenue")
     assert result is not None and result.value == 1234000000
+
+
+@pytest.mark.skipif(not FACTS_FILE.exists(), reason="no data/facts.jsonl; run `make ingest` first")
+def test_alphabet_fy2023_long_term_debt_is_the_balance_sheet_line() -> None:
+    # The printed balance sheet's "Long-term debt" for December 31, 2023 is 13,253 million.
+    source = JsonlFacts(
+        REPO / "data" / "manifest.json", REPO / "data" / "companies.yaml", FACTS_FILE
+    )
+    result = lookup(source, "GOOGL", 2023, "long_term_debt")
+    assert result is not None
+    assert (result.concept, result.value) == (
+        "us-gaap:LongTermDebtAndCapitalLeaseObligations",
+        Decimal("13253000000"),
+    )

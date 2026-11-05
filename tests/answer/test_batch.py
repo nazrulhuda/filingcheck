@@ -131,3 +131,75 @@ def test_a_provider_failure_stops_the_run_so_it_can_be_resumed(tmp_path: Path) -
     with pytest.raises(ProviderError):
         run_batch(QUESTIONS, mode="agent", out=out, model=model, deps=apple_deps(), settings="s")
     assert [r["id"] for r in lines(out)] == ["q-1"]
+
+
+def test_a_cut_off_agent_answer_records_everything_the_run_spent(tmp_path: Path) -> None:
+    from tests.agent.test_agent import cut_off
+
+    out = tmp_path / "run.jsonl"
+    model = FakeChat([scripted_tool_calls(("get_financial_fact", FACT)), cut_off()])
+    run_batch(QUESTIONS[:1], mode="agent", out=out, model=model, deps=apple_deps(), settings="s")
+    (row,) = lines(out)
+    assert row["error"] == "fake - incomplete_length" and row["answer"] is None
+    assert row["usage"] == {"prompt_tokens": 107, "completion_tokens": 23}  # both calls
+    assert row["cost_usd"] == pytest.approx(0.001)
+    assert row["model_calls"] == 2
+    assert [c["name"] for c in row["tool_calls"]] == ["get_financial_fact"]
+    assert row["facts_used"][0]["value"] == "416161000000"
+    assert row["latency_ms"] is not None and row["finish_reason"] == "length"
+
+
+def test_a_cut_off_baseline_answer_records_its_one_call(tmp_path: Path) -> None:
+    from tests.agent.test_agent import cut_off
+
+    out = tmp_path / "base.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="baseline",
+        out=out,
+        model=FakeChat([cut_off()]),
+        deps=apple_deps(),
+        settings="s",
+        retriever=FakeRetriever(),
+    )
+    (row,) = lines(out)
+    assert (row["model_calls"], row["usage"]["prompt_tokens"]) == (1, 7)
+    assert row["latency_ms"] is not None
+
+
+def test_a_corrupt_line_before_the_last_stops_the_runner_with_its_line_number(
+    tmp_path: Path,
+) -> None:
+    from filingcheck.answer.batch import BatchFileError
+
+    out = tmp_path / "run.jsonl"
+    out.write_text(
+        '{"id": "q-1"}\nnot json\n{"id": "q-3"}\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(BatchFileError, match="line 2"):
+        read_done(out)
+    with pytest.raises(BatchFileError, match="line 2"):
+        run_batch(
+            QUESTIONS, mode="agent", out=out, model=FakeChat([]), deps=apple_deps(), settings="s"
+        )
+    # Nothing is removed: the file is left for a person to look at.
+    assert out.read_text(encoding="utf-8").count("\n") == 3
+
+
+def test_a_complete_last_line_that_is_not_json_is_corrupt_too(tmp_path: Path) -> None:
+    from filingcheck.answer.batch import BatchFileError
+
+    out = tmp_path / "run.jsonl"
+    out.write_text('{"id": "q-1"}\nnot json\n', encoding="utf-8")
+    with pytest.raises(BatchFileError, match="line 2"):
+        read_done(out)
+
+
+def test_a_line_without_an_id_is_corrupt(tmp_path: Path) -> None:
+    from filingcheck.answer.batch import BatchFileError
+
+    out = tmp_path / "run.jsonl"
+    out.write_text('{"id": "q-1"}\n{"answer": "x"}\n', encoding="utf-8")
+    with pytest.raises(BatchFileError, match="line 2"):
+        read_done(out)

@@ -333,16 +333,18 @@ def test_a_company_whose_statement_words_the_line_differently_gets_its_own_label
     assert result.line_label == "Purchases related to property and equipment and intangible assets"
 
 
-def test_the_added_capex_and_debt_tags_come_after_the_existing_ones_in_order() -> None:
+def test_the_capex_and_debt_tags_are_tried_in_the_agreed_order() -> None:
     assert candidate_tags("capital_expenditures", "standard") == (
         "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment",
         "us-gaap:PaymentsToAcquireProductiveAssets",
         "us-gaap:PaymentsToAcquireOtherProductiveAssets",
     )
+    # The balance-sheet line (LongTermDebtAndCapitalLeaseObligations) comes before
+    # LongTermDebt, which some filers use for the debt note's total with current maturities.
     assert candidate_tags("long_term_debt", "standard") == (
         "us-gaap:LongTermDebtNoncurrent",
-        "us-gaap:LongTermDebt",
         "us-gaap:LongTermDebtAndCapitalLeaseObligations",
+        "us-gaap:LongTermDebt",
         "us-gaap:UnsecuredLongTermDebt",
         "us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
     )
@@ -355,3 +357,30 @@ def test_the_added_capex_and_debt_tags_come_after_the_existing_ones_in_order() -
         result is not None
         and result.concept == "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
     )
+
+
+def test_the_balance_sheet_debt_line_wins_over_the_debt_note_total() -> None:
+    # Alphabet FY2023: no LongTermDebtNoncurrent; the balance sheet's "Long-term debt" is
+    # LongTermDebtAndCapitalLeaseObligations 13,253; LongTermDebt 14,862 is the note's total.
+    both = [
+        instant("us-gaap:LongTermDebt", "14862000000"),
+        instant("us-gaap:LongTermDebtAndCapitalLeaseObligations", "13253000000"),
+    ]
+    result = lookup(FakeFacts(both), "EXMP", 2025, "long_term_debt")
+    assert result is not None
+    assert (result.concept, result.value) == (
+        "us-gaap:LongTermDebtAndCapitalLeaseObligations",
+        Decimal("13253000000"),
+    )
+
+
+def test_the_cover_page_note_says_only_what_is_true_of_the_filing() -> None:
+    # A filing may report a year-end count per class of stock (with dimensions); the lookup
+    # does not add classes up, so the note must not say the filing has no year-end count.
+    cover = instant(
+        "dei:EntityCommonStockSharesOutstanding", "4300000000", on=date(2026, 2, 10), unit="shares"
+    )
+    result = lookup(FakeFacts([cover]), "EXMP", 2025, "shares_outstanding")
+    assert result is not None and result.note is not None
+    assert "reports no count dated at year end" not in result.note
+    assert "no year-end count for the company as a whole" in result.note

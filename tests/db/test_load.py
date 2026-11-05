@@ -145,6 +145,7 @@ def test_the_load_stage_loads_the_files_and_checks_the_count(
     write_manifest(manifest, Manifest(filings=[FILING]))
     (tmp_path / "data").mkdir()
     write_jsonl(tmp_path / cli.CHUNKS_FILE, chunks())
+    (tmp_path / "data" / "facts.jsonl").write_text("", encoding="utf-8")  # a load needs it
     assert cli.run_load(companies, manifest, tmp_path) == 0
     out = capsys.readouterr().out
     assert "applied migrations: 0001_initial" in out

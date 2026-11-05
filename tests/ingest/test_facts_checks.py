@@ -232,3 +232,42 @@ def test_the_facts_report_lists_counts_the_cross_check_and_conflicts() -> None:
     assert "Agreements: 1" in page and "Disagreements: 0" in page
     assert "Conflicts: 2 facts in 1 groups" in page
     assert "us-gaap:OperatingIncomeLoss" in page.split("## Conflicts")[1]
+
+
+def test_the_cover_page_share_count_is_compared_on_its_own_later_date() -> None:
+    tag = "dei:EntityCommonStockSharesOutstanding"
+
+    def cover(on: str, value: str, **over: Any) -> dict[str, Any]:
+        return fact(
+            concept=tag,
+            unit="shares",
+            period_start=None,
+            period_end=None,
+            instant=on,
+            value=value,
+            **over,
+        )
+
+    facts = [
+        cover("2026-02-10", "4300000000"),  # the cover page, after the year ended: compared
+        cover("2026-02-10", "100", dimensions={"a:ClassAxis": "a:B"}),  # one class: ignored
+        cover("2025-06-30", "4200000000"),  # before the year ended: not the cover date
+    ]
+    data = {
+        "facts": {
+            "dei": {
+                "EntityCommonStockSharesOutstanding": {
+                    "units": {
+                        "shares": [
+                            {"accn": ACC, "end": "2026-02-10", "val": 4300000000},
+                            {"accn": OTHER, "end": "2027-02-10", "val": 1},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    rows = cross_check(FILING, facts, data, [tag])
+    assert [(r.tag, r.period, r.status, r.ours) for r in rows] == [
+        (tag, "2026-02-10", "agree", "4300000000")
+    ]
