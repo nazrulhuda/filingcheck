@@ -206,3 +206,16 @@ def test_the_summary_table_counts_each_outcome_per_question_and_in_total() -> No
     assert "| control-001 | 3 | 1 | 0 | 1 | 0 | 1 | 0 |" in table
     assert "| **All** | 3 | 1 | 0 | 1 | 0 | 1 | 0 |" in table
     assert "$0.000600" in table
+
+
+def test_a_loss_written_as_a_positive_amount_matches_a_negative_gold_value() -> None:
+    q = question(metric="net_income", gold_value=-1200000000)
+    assert grade(row("In fiscal 2025 the net loss was $1.2 billion."), q).outcome == "correct"
+    assert grade(row("In fiscal 2025 net income was -$1.2 billion."), q).outcome == "correct"
+    # Without a word for a loss, a positive amount is not the negative gold value.
+    assert grade(row("In fiscal 2025 net income was $1.2 billion."), q).outcome == "wrong_number"
+
+
+def test_an_answer_question_without_a_gold_value_is_not_graded() -> None:
+    q = question(gold_value=None)
+    assert grade(row("In fiscal 2025 sales were $416.2 billion."), q).outcome == "not_graded"
