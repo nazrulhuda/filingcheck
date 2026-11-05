@@ -1,0 +1,14 @@
+{"source": "day18", "id": "trap-001", "answer": "Morgan Stanley reported net revenue of **$70,645,000,000** for its fiscal year 2025 (period from January 1, 2025 to December 31, 2025)【F1】.", "must_find": ["70645000000"]}
+{"source": "day18", "id": "trap-002", "answer": "Walmart’s revenue for fiscal year 2025 was **$680,985,000,000**.  \nThis figure covers the period from February 1, 2024 to January 31, 2025【F1】.", "must_find": ["680985000000"]}
+{"source": "day18", "id": "trap-003", "answer": "Nvidia’s net income for fiscal year 2025 was $72,880,000,000 [ F1 ]. This figure covers the period from 2024‑01‑29 to 2025‑01‑26.", "must_find": ["72880000000"]}
+{"source": "day18", "id": "trap-004", "answer": "Microsoft’s total assets for FY 2025 were $619,003 million【F1】.", "must_find": ["619003000000"]}
+{"source": "day18", "id": "trap-005", "answer": "I can't find this in the filings I have.", "must_find": []}
+{"source": "day18", "id": "control-001", "answer": "Coca‑Cola’s net income for fiscal 2024 was **$10,631,000,000** (USD) for the period from 2024‑01‑01 to 2024‑12‑31【F1】.", "must_find": ["10631000000"]}
+{"source": "day18", "id": "extra-1", "answer": "Apple’s total net sales for fiscal 2025 were $416 161 000 000 【F1】.", "must_find": ["416161000000"]}
+{"source": "day18", "id": "extra-2", "answer": "Walmart’s revenue increased by **4.73 %** from fiscal 2025 to fiscal 2026.  \n\n- Fiscal 2025 revenue: 680,985,000,000 USD【F1】 (period: 2024‑02‑01 to 2025‑01‑31).  \n- Fiscal 2026 revenue: 713,163,000,000 USD【F2】 (period: 2025‑02‑01 to 2026‑01‑31).  \n\nThe growth rate is calculated as \\((713,163,000,000 - 680,985,000,000) / 680,985,000,000 \\times 100 = 4.73\\%\\).", "must_find": ["680985000000", "713163000000", "4.73%"]}
+{"source": "day19", "id": "trap-001", "answer": "Morgan Stanley reported net revenue of **$70,645,000,000** for fiscal year 2025 (period from 2025‑01‑01 to 2025‑12‑31)【F1】.", "must_find": ["70645000000"]}
+{"source": "day19", "id": "trap-002", "answer": "Walmart’s revenue for fiscal year 2025 was **$680,985,000,000** USD, reported for the period from February 1, 2024 to January 31, 2025【F1】.", "must_find": ["680985000000"]}
+{"source": "day19", "id": "trap-003", "answer": "I can’t find that figure in the filings I have.", "must_find": []}
+{"source": "day19", "id": "trap-004", "answer": "Microsoft’s total assets for fiscal year 2025 were $619,003 million【F1】.", "must_find": ["619003000000"]}
+{"source": "day19", "id": "trap-005", "answer": "I can’t find this information in the filings I have.", "must_find": []}
+{"source": "day19", "id": "control-001", "answer": "I can’t find this in the filings I have.", "must_find": []}

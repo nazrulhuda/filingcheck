@@ -58,3 +58,24 @@ def test_anything_else_is_rejected(expression: str) -> None:
 def test_an_expression_longer_than_200_characters_is_rejected() -> None:
     with pytest.raises(CalculationError, match="200"):
         evaluate("1 + " * 60 + "1")
+
+
+@pytest.mark.parametrize(
+    ("expression", "value"),
+    [
+        ("713,163,000,000 - 680,985,000,000", "32178000000"),
+        (
+            "(713,163,000,000 - 680,985,000,000) / 680,985,000,000 * 100",
+            "4.725214211766779003942818124",
+        ),
+        ("1,234.5 * 2", "2469.0"),
+    ],
+)
+def test_us_thousands_separators_are_accepted(expression: str, value: str) -> None:
+    assert evaluate(expression) == Decimal(value)
+
+
+@pytest.mark.parametrize("expression", ["1,23 + 1", "12,3456 + 1", ",123 + 1", "1,234,56"])
+def test_digits_not_in_groups_of_three_are_rejected(expression: str) -> None:
+    with pytest.raises(CalculationError):
+        evaluate(expression)
