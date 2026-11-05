@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings, and the model is asked to cite a passage for each claim. It uses the plain baseline: there is no agent yet, and no skeptical checks or number labels, so answers are not checked and numbers may be wrong.
+**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings, and the model is asked to cite a passage for each claim. It uses the plain baseline: the agent runs only from the command line and the API so far, and there are no skeptical checks or number labels yet, so answers are not checked and numbers may be wrong.
 
 FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
 
-What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent and the checks arrive in weeks 3 to 5 and the results in week 6; none of them is in the code yet.
+What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent is built, without checks (week 3); the checks arrive in week 4, the number labels in week 5 and the results in week 6.
 
-**Status: week 2 of 7 done.** Search, baseline answers, the API and the web page are built and deployed: the page on Vercel, the API on Render and the database on Neon. No evaluation results yet.
+**Status: week 3 of 7 done.** Search, baseline answers, the API and the web page are built and deployed: the page on Vercel, the API on Render and the database on Neon. The filings' own XBRL numbers, three tools and the agent are built; the agent is not on the page yet. The only graded results so far are on 6 example questions, which prove nothing ([week 3 summary](docs/week3_summary.md)).
 
 ## What works today
 
@@ -17,6 +17,7 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 - **Baseline answers with citations:** plain retrieval-augmented answers from one model call, asked to cite every claim to its passage; an answer with an uncited figure is flagged. They are not checked, and on the example trap questions they guess the company or the year, or decline to answer ([baseline answers](docs/baseline_examples.md)).
 - **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
 - **The web page:** a Next.js page with a citation chip for each source and five saved example answers, each checked against the passages it cites ([web](web/)).
+- **The numbers and the agent:** company totals from each filing's own XBRL facts, cross-checked against the SEC's companyfacts; three tools with typed inputs (`search_filings`, `get_financial_fact`, `calculate`); and an agent that chooses between them and cites the passages and facts it used. It runs from the command line (`make ask MODE=agent`) and the API (`mode: "agent"`); the page still runs the baseline, and the agent has no skeptical checks yet ([facts report](docs/facts_report.md), [metric coverage](docs/facts_coverage.md), [week 3 summary](docs/week3_summary.md)).
 
 ## How to run
 
