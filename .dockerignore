@@ -1,4 +1,5 @@
-# Only pyproject.toml, uv.lock, README.md and filingcheck/ go into the image.
+# Only pyproject.toml, uv.lock, README.md, filingcheck/ and the two data files the checks
+# read (companies.yaml, manifest.json) go into the image.
 .env
 .env.*
 .git
@@ -10,7 +11,9 @@
 **/__pycache__
 htmlcov
 coverage.xml
-data
+data/*
+!data/companies.yaml
+!data/manifest.json
 docs
 eval
 tests

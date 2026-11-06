@@ -40,6 +40,8 @@ BATCH_FIELDS = (
     "has_uncited_claims",
     "model_calls",
     "stopped_by",
+    "checks",
+    "overrides",
     "error",
 )
 
@@ -93,6 +95,7 @@ def _row(qid: str, repeat: int, mode: str, question: str, settings: str) -> dict
         "fact_citations": [],
         "tool_calls": [],
         "facts_used": [],
+        "overrides": [],
     }
 
 
@@ -106,13 +109,15 @@ def run_batch(
     settings: str,
     retriever: Retriever | None = None,
     repeats: int = 1,
+    checks: bool = False,
 ) -> int:
     """Answer every question not yet in `out` and append its line; return how many were written.
 
     Questions are asked as text only, with no company or year filter. The baseline searches
     with `retriever` (the tools' retriever when none is given). With `repeats`, each
     question is asked that many times, one whole pass over the file after another, and
-    each row records its `repeat` (1, 2, ...).
+    each row records its `repeat` (1, 2, ...). `checks` switches the agent's skeptical
+    checks on; every agent row records it, and its override log, as `checks` and `overrides`.
     """
     questions = list(questions)
     done = read_done(out)
@@ -123,12 +128,16 @@ def run_batch(
             if (qid, repeat) in done:
                 continue
             row = _row(qid, repeat, mode, question, settings)
+            if mode == "agent":
+                row["checks"] = checks
             answer: Answer
             run_log = RunLog()
             started = time.perf_counter()
             try:
                 if mode == "agent":
-                    answer = run_agent(question, model=model, deps=deps, run_log=run_log)
+                    answer = run_agent(
+                        question, model=model, deps=deps, run_log=run_log, checks=checks
+                    )
                 else:
                     answer = answer_question(
                         question, retriever=retriever or deps.retriever, model=model
@@ -151,6 +160,7 @@ def run_batch(
                     row |= {
                         "tool_calls": [json.loads(r.model_dump_json()) for r in run_log.tool_calls],
                         "facts_used": [json.loads(f.model_dump_json()) for f in run_log.facts],
+                        "overrides": [json.loads(o.model_dump_json()) for o in run_log.overrides],
                     }
             else:
                 data = json.loads(answer.model_dump_json())
@@ -172,6 +182,7 @@ def run_batch(
                         "tool_calls": data["tool_calls"],
                         "facts_used": data["facts_used"],
                         "stopped_by": data["stopped_by"],
+                        "overrides": data["overrides"],
                     }
             with out.open("a", encoding="utf-8", newline="\n") as handle:
                 handle.write(json.dumps(row) + "\n")

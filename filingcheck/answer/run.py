@@ -100,6 +100,10 @@ def format_agent_answer(answer: "AgentAnswer") -> str:
         f"{c.instant or f'{c.period_start} to {c.period_end}'}: {c.source_url}"
         for c in answer.fact_citations
     ] or ["  (none)"]
+    lines.append(f"checks: {'on' if answer.checks else 'off'}")
+    for record in answer.overrides:
+        options = f"; options: {', '.join(record.options)}" if record.options else ""
+        lines.append(f"  {record.check}: {record.outcome}; {record.reason}{options}")
     lines += [
         "",
         f"model used: {answer.model_used}",

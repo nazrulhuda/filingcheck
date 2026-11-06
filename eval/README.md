@@ -62,6 +62,8 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `has_uncited_claims` | true when a sentence states a figure without a citation (a heuristic); a mark that points to no passage or fact, such as `[9]` among 4 passages or `[F3]` among 1 fact, is no citation |
 | `model_calls` | how many model calls the answer took (1 for the baseline) |
 | `stopped_by` | agent only: `model_calls` or `tool_calls` when a limit ended the run, else `null` |
+| `checks` | agent only: whether the skeptical checks ran (`true` or `false`); `null` for the baseline |
+| `overrides` | agent only: the checks' override log, one record per check per `get_financial_fact` call: `check`, `outcome` (`pass`, `repair` or `reject`), `argument`, `sent`, `used`, `reason`, `options` |
 | `error` | `null`, or a short code such as `openrouter - incomplete_length` |
 
 The baseline writes the same fields, with empty `fact_citations`, `tool_calls` and `facts_used`.

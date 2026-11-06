@@ -44,6 +44,7 @@ from filingcheck.app.store import (
     RequestRow,
     Store,
 )
+from filingcheck.checks import reference_data
 from filingcheck.db import connect
 from filingcheck.embeddings.openai_client import OpenAIEmbeddings
 from filingcheck.facts.lookup import PostgresFacts
@@ -109,7 +110,7 @@ def default_services() -> Services:
     def tools() -> Iterator[ToolDeps]:
         with connect() as conn:
             search = HybridRetriever(VectorRetriever(conn, embedder), KeywordRetriever(conn))
-            yield ToolDeps(retriever=search, facts=PostgresFacts(conn))
+            yield ToolDeps(retriever=search, facts=PostgresFacts(conn), **_reference_data())
 
     key_env = getattr(router.primary, "api_key_env", "")
     return Services(
@@ -122,6 +123,11 @@ def default_services() -> Services:
         agent_models=router.in_turn(),
         tools=tools,
     )
+
+
+# The company list, the not-covered list and the manifest change only with a re-pin, so
+# they are read once per process.
+_reference_data = functools.cache(reference_data)
 
 
 def create_app(services: Services | None = None) -> FastAPI:
@@ -170,6 +176,8 @@ def create_app(services: Services | None = None) -> FastAPI:
         return {
             **answer_fields(answer),
             "mode": "agent",
+            "checks": answer.checks,
+            "overrides": [json.loads(o.model_dump_json()) for o in answer.overrides],
             "tool_calls": {
                 "calls": calls,
                 "restarts": answer.restarts,
@@ -216,6 +224,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             fiscal_year=body.fiscal_year,
             on_tool_call=on_tool_call,
             failed=failed,
+            checks=False,  # the request chooses from Day 23 (AskRequest.checks)
         )
 
     def tools() -> AbstractContextManager[ToolDeps]:

@@ -13,7 +13,7 @@ REFUSED = "refused:"  # error codes of requests the API turned away without call
 COLUMNS = (
     "id, created_at, question_hash, question, ticker, fiscal_year, model_used, retriever, "
     "degraded, latency_ms, prompt_tokens, completion_tokens, cost_usd, abstained, error, "
-    "client_ip_hash, mode, tool_calls"
+    "client_ip_hash, mode, tool_calls, checks, overrides"
 )
 
 
@@ -40,6 +40,10 @@ class RequestRow(BaseModel):
     # The agent's tool calls, restarts and failed runs:
     # {"calls": [...], "restarts": [log codes], "failed_attempts": [...]}.
     tool_calls: dict[str, Any] | None = None
+    # The agent's skeptical checks: whether they ran (NULL for the baseline) and their
+    # override log, one record per check per checked tool call.
+    checks: bool | None = None
+    overrides: list[dict[str, Any]] | None = None
 
 
 class CompanyInfo(BaseModel):
@@ -166,8 +170,9 @@ class PostgresStore:
     def log_request(self, row: RequestRow) -> None:
         """Insert one row."""
         values = row.model_dump()
-        if values["tool_calls"] is not None:
-            values["tool_calls"] = Jsonb(values["tool_calls"])
+        for name in ("tool_calls", "overrides"):
+            if values[name] is not None:
+                values[name] = Jsonb(values[name])
         with self._connect() as conn:
             conn.execute(
                 f"INSERT INTO requests ({COLUMNS}) VALUES ("
