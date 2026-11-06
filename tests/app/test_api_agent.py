@@ -244,3 +244,14 @@ def test_a_crashed_agent_stream_leaves_tokens_unknown_not_zero() -> None:
     (row,) = store.rows
     assert row.error == "agent_crash" and row.mode == "agent"
     assert (row.prompt_tokens, row.cost_usd) == (None, None)
+
+
+def test_the_request_log_records_the_checks_switch_and_the_override_log() -> None:
+    client, store = make_agent(FakeChat(["Peso swings are a risk [1]."]), [agent_script()])
+    body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent"}).json()
+    (row,) = store.rows
+    # The API runs the agent without the checks until the request can ask for them.
+    assert body["checks"] is False and body["overrides"] == []
+    assert row.checks is False and row.overrides == []
+    client.post("/ask", json={"question": QUESTION})
+    assert store.rows[1].checks is None and store.rows[1].overrides is None

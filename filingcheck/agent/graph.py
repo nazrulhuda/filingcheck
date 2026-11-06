@@ -25,6 +25,14 @@ from filingcheck.answer.citations import (
     has_uncited_claims,
     parse_fact_citations,
 )
+from filingcheck.checks import (
+    CHECKED_TOOL,
+    CHECKS,
+    CheckContext,
+    CheckedCall,
+    Override,
+    run_checks,
+)
 from filingcheck.facts.lookup import FactResult
 from filingcheck.llm import (
     ChatModel,
@@ -34,7 +42,14 @@ from filingcheck.llm import (
     ProviderError,
     ProviderUnavailable,
 )
-from filingcheck.tools import ToolDeps, run_tool, tool_schemas
+from filingcheck.tools import (
+    ToolDeps,
+    ToolInputError,
+    run_tool,
+    run_validated,
+    tool_schemas,
+    validate_call,
+)
 
 MAX_MODEL_CALLS = 6
 MAX_TOOL_CALLS = 8
@@ -103,6 +118,7 @@ class RunLog:
     completions: list[Completion] = field(default_factory=list)
     tool_calls: list[ToolCallRecord] = field(default_factory=list)
     facts: list[FactResult] = field(default_factory=list)
+    overrides: list[Override] = field(default_factory=list)
 
 
 def total_usage(completions: Sequence[Completion]) -> tuple[dict[str, int | None], float | None]:
@@ -147,6 +163,10 @@ class AgentAnswer(Answer):
     # question again from an empty message list.
     restarts: list[str] = Field(default_factory=list)
     failed_attempts: list[FailedAttempt] = Field(default_factory=list)
+    # The skeptical checks: whether they ran on this answer, and their override log (one
+    # record per check per checked tool call: pass, repair or reject, with the reason).
+    checks: bool = False
+    overrides: list[Override] = Field(default_factory=list)
 
 
 class _Passage(BaseModel):
@@ -169,6 +189,7 @@ class AgentState(TypedDict):
     tool_records: list[ToolCallRecord]
     passages: list[_Passage]  # numbered across the whole run
     facts: list[FactResult]  # numbered across the whole run: [F1] is facts[0]
+    overrides: list[Override]  # the checks' records, in order
     completions: list[Completion]
     stopped_by: str | None
     degraded: bool  # a search fell back to keywords
@@ -229,6 +250,35 @@ def _cite_fact(result: dict[str, Any], facts: list[FactResult]) -> None:
     result["citation"] = f"F{index + 1}"
 
 
+def _checked_call(
+    name: str, arguments_json: str, deps: ToolDeps, context: CheckContext
+) -> tuple[dict[str, Any], list[Override], dict[str, Any] | None]:
+    """Validate, check, then run: the tool result, the checks' records, the arguments as run.
+
+    A validation error comes back as today, before any check. A reject becomes the tool's
+    result, `{"error": reason, "options": [...]}`, the shape of a validation error plus the
+    options. A repair runs the tool with the repaired arguments and adds `"checked"` to the
+    result so the model sees what changed. A pass leaves the result exactly as `run_tool`
+    would give it.
+    """
+    try:
+        tool, parsed = validate_call(name, arguments_json)
+    except ToolInputError as exc:
+        return json.loads(exc.result), [], None
+    sent = parsed.model_dump()
+    checked, overrides = run_checks(CheckedCall(name, sent), context, CHECKS)
+    if checked is None:
+        last = overrides[-1]
+        return {"error": last.reason, "options": last.options}, overrides, None
+    if checked.arguments != sent:
+        parsed = tool.input_model.model_validate(checked.arguments)
+    result: dict[str, Any] = json.loads(run_validated(tool, parsed, deps))
+    repairs = [o.model_dump() for o in overrides if o.outcome == "repair"]
+    if repairs and "error" not in result:
+        result["checked"] = repairs
+    return result, overrides, checked.arguments
+
+
 def build_agent(
     model: ChatModel,
     deps: ToolDeps,
@@ -236,12 +286,16 @@ def build_agent(
     max_tokens: int = MAX_TOKENS,
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     run_log: RunLog | None = None,
+    checks: bool = False,
 ) -> Any:
     """The compiled graph; `on_tool_call` sees each tool call as it finishes.
 
-    `run_log`, when given, is filled in as the run goes (see RunLog).
+    `run_log`, when given, is filled in as the run goes (see RunLog). With `checks`,
+    every get_financial_fact call goes through the skeptical checks before the tool.
     """
     log = run_log if run_log is not None else RunLog()
+    if checks and deps.companies is None:
+        raise ValueError("the checks need the company list: ToolDeps(companies=...)")
     tools = tool_schemas()
 
     def model_node(state: AgentState) -> dict[str, Any]:
@@ -276,6 +330,7 @@ def build_agent(
         facts = list(state["facts"])
         stopped = state["stopped_by"]
         degraded = state["degraded"]
+        overrides = list(state["overrides"])
         for call in last.tool_calls:
             start = time.perf_counter()
             ran = sum(1 for r in records if r.status != "skipped")
@@ -298,12 +353,25 @@ def build_agent(
                 status: Literal["ok", "error", "skipped"] = "skipped"
                 stopped = stopped or "tool_calls"
             else:
-                text = run_tool(
-                    call.name,
-                    json.dumps(arguments) if arguments is not None else call.arguments,
-                    deps,
-                )
-                result = json.loads(text)
+                text_arguments = json.dumps(arguments) if arguments is not None else call.arguments
+                if checks and call.name == CHECKED_TOOL:
+                    context = CheckContext(
+                        question=state["question"],
+                        ticker=state["ticker"],
+                        fiscal_year=state["fiscal_year"],
+                        companies=deps.companies or [],
+                        not_covered=deps.not_covered,
+                        manifest=deps.manifest,
+                        facts=deps.facts,
+                    )
+                    result, call_overrides, as_run = _checked_call(
+                        call.name, text_arguments, deps, context
+                    )
+                    overrides += call_overrides
+                    if as_run is not None:
+                        arguments = as_run
+                else:
+                    result = json.loads(run_tool(call.name, text_arguments, deps))
                 status = "error" if "error" in result else "ok"
                 if status == "ok" and call.name == "search_filings":
                     _number_passages(result, passages)
@@ -328,6 +396,7 @@ def build_agent(
         if stopped is None and sum(1 for r in records if r.status != "skipped") >= MAX_TOOL_CALLS:
             stopped = "tool_calls"
         log.facts[:] = facts
+        log.overrides[:] = overrides
         return {
             "messages": messages,
             "tool_records": records,
@@ -335,6 +404,7 @@ def build_agent(
             "facts": facts,
             "stopped_by": stopped,
             "degraded": degraded,
+            "overrides": overrides,
         }
 
     def answer_node(state: AgentState) -> dict[str, Any]:
@@ -361,14 +431,21 @@ def run_agent(
     max_tokens: int = MAX_TOKENS,
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     run_log: RunLog | None = None,
+    checks: bool = False,
 ) -> AgentAnswer:
     """Answer one question with the agent and return what it said and did.
 
     `run_log`, when given, keeps what the run spent even if a provider failure is raised.
+    `checks` switches the skeptical checks on; off, this is the Week 3 agent.
     """
     start = time.perf_counter()
     agent = build_agent(
-        model, deps, max_tokens=max_tokens, on_tool_call=on_tool_call, run_log=run_log
+        model,
+        deps,
+        max_tokens=max_tokens,
+        on_tool_call=on_tool_call,
+        run_log=run_log,
+        checks=checks,
     )
     state: AgentState = {
         "question": question,
@@ -384,10 +461,11 @@ def run_agent(
         "completions": [],
         "stopped_by": None,
         "degraded": False,
+        "overrides": [],
         "final": None,
     }
     final_state = agent.invoke(state, config={"recursion_limit": 4 * MAX_MODEL_CALLS + 4})
-    return _answer(final_state, start)
+    return _answer(final_state, start, checks)
 
 
 def run_agent_with_fallbacks(
@@ -401,6 +479,7 @@ def run_agent_with_fallbacks(
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     on_restart: Callable[[str], None] | None = None,
     failed: list[FailedAttempt] | None = None,
+    checks: bool = False,
 ) -> AgentAnswer:
     """The agent with each model in turn: if one fails mid-run, the next starts again.
 
@@ -424,6 +503,7 @@ def run_agent_with_fallbacks(
                 max_tokens=max_tokens,
                 on_tool_call=on_tool_call,
                 run_log=run_log,
+                checks=checks,
             )
         except ProviderError as exc:
             # Every provider failure is recorded; only these two move on to the next model.
@@ -461,7 +541,7 @@ def run_agent_with_fallbacks(
     raise ValueError("no models to run the agent with")
 
 
-def _answer(state: AgentState, start: float) -> AgentAnswer:
+def _answer(state: AgentState, start: float, checks: bool = False) -> AgentAnswer:
     final = state["final"]
     assert final is not None
     completions = state["completions"]
@@ -524,4 +604,6 @@ def _answer(state: AgentState, start: float) -> AgentAnswer:
         fact_citations=fact_citations,
         model_calls=len(completions),
         stopped_by=state["stopped_by"],  # type: ignore[arg-type]
+        checks=checks,
+        overrides=state["overrides"],
     )

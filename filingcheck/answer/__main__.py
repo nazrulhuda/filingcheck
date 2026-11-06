@@ -1,4 +1,7 @@
-"""`python -m filingcheck.answer "question" [--mode agent] [--ticker T] [--year Y] [--live]`.
+"""The answer command line: one question, or a question file in batch mode.
+
+`python -m filingcheck.answer "question" [--mode agent] [--checks on|off] [--ticker T]
+[--year Y] [--live]` answers one question.
 
 `python -m filingcheck.answer batch --mode agent --questions FILE --out FILE` runs a question
 file in batch mode (see filingcheck/answer/batch.py and eval/README.md).
@@ -21,10 +24,18 @@ from filingcheck.answer.run import (
     hybrid_retriever,
     settings_line,
 )
+from filingcheck.checks import reference_data
 from filingcheck.console import use_utf8_output
 from filingcheck.db import connect
 from filingcheck.llm import IncompleteAnswer, ModelRouter, router_from_env
 from filingcheck.paths import REPO_ROOT
+
+CHECK_CHOICES = ("on", "off", "1", "0")
+
+
+def checks_on(value: str) -> bool:
+    """The --checks flag as a switch: on or 1 is on."""
+    return value in ("on", "1")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -44,6 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-tokens", type=int, default=MAX_TOKENS, help="token limit sent to the model"
     )
+    parser.add_argument(
+        "--checks",
+        choices=CHECK_CHOICES,
+        default="off",
+        help="agent mode: run the skeptical checks before get_financial_fact (default off)",
+    )
     args = parser.parse_args(argv)
     if not args.question.strip():
         parser.error('give a question: make ask Q="..."')
@@ -57,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         else "no filters"
     )
     settings = settings_line(router.primary.name, filters=filters, max_tokens=args.max_tokens)
-    print(f"mode: {router.mode}, {args.mode}; {settings}\n")
+    checks_line = f"; checks: {args.checks}" if args.mode == "agent" else ""
+    print(f"mode: {router.mode}, {args.mode}{checks_line}; {settings}\n")
     with connect() as conn:
         if args.mode == "agent":
             return _ask_agent(args, router, conn)
@@ -91,11 +109,14 @@ def _ask_agent(args: argparse.Namespace, router: ModelRouter, conn: psycopg.Conn
         answer = run_agent_with_fallbacks(
             args.question,
             models=router.in_turn(),
-            deps=ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn)),
+            deps=ToolDeps(
+                retriever=hybrid_retriever(conn), facts=PostgresFacts(conn), **reference_data()
+            ),
             ticker=args.ticker,
             fiscal_year=args.year,
             max_tokens=args.max_tokens,
             on_tool_call=lambda record: print(format_tool_call(record), flush=True),
+            checks=checks_on(args.checks),
         )
     except IncompleteAnswer as exc:
         print(format_incomplete(exc))
@@ -118,6 +139,12 @@ def batch_main(argv: list[str]) -> int:
     parser.add_argument("--questions", type=Path, required=True, help="a .jsonl question file")
     parser.add_argument("--out", type=Path, required=True, help="the .jsonl results file")
     parser.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
+    parser.add_argument(
+        "--checks",
+        choices=CHECK_CHOICES,
+        default="off",
+        help="agent mode: run the skeptical checks (default off); recorded in every row",
+    )
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -131,9 +158,12 @@ def batch_main(argv: list[str]) -> int:
         )
     ]
     settings = settings_line(router.primary.name, filters="question text only, no filters")
-    print(f"mode: batch, {args.mode}; {settings}")
+    checks_line = f"; checks: {args.checks}" if args.mode == "agent" else ""
+    print(f"mode: batch, {args.mode}{checks_line}; {settings}")
     with connect() as conn:
-        deps = ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn))
+        deps = ToolDeps(
+            retriever=hybrid_retriever(conn), facts=PostgresFacts(conn), **reference_data()
+        )
         try:
             written = run_batch(
                 questions,
@@ -143,6 +173,7 @@ def batch_main(argv: list[str]) -> int:
                 deps=deps,
                 settings=settings,
                 repeats=args.repeats,
+                checks=checks_on(args.checks),
             )
         except BatchFileError as exc:
             print(f"ERROR: {exc}")

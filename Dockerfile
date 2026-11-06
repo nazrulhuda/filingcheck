@@ -18,6 +18,8 @@ RUN useradd --create-home --uid 10001 app
 COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-group ingest --no-install-project
 COPY filingcheck ./filingcheck
+# The checks read the company list and the manifest; the rest of data/ stays out.
+COPY data/companies.yaml data/manifest.json ./data/
 RUN uv sync --locked --no-dev --no-group ingest
 
 USER app

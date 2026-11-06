@@ -19,6 +19,12 @@ HEADER = """\
 # revenue_rule: "standard" (us-gaap Revenues) or "bank" (net revenue, as banks report it).
 # financebench: the company appears in the public FinanceBench questions.
 # aliases: names people type for the company; used to resolve a name to one company.
+# lookalikes: words that name this company and at least one other ("Morgan": JPMorgan Chase
+#      and Morgan Stanley); the company check treats such a word on its own as ambiguous.
+# segments: segment and product names people ask about; the fact tool returns company
+#      totals only, so a question about one of them is turned down by name.
+# not_covered (top level): well-known companies outside the dataset, so a question about one
+#      of them is rejected by name instead of answered with another company's numbers.
 
 """
 
@@ -36,6 +42,8 @@ class Company(BaseModel):
     revenue_rule: RevenueRule
     financebench: bool
     aliases: list[str]
+    lookalikes: list[str] = Field(default_factory=list)
+    segments: list[str] = Field(default_factory=list)
 
 
 class CompanyResolutionError(LookupError):
@@ -64,6 +72,12 @@ def load_companies(path: Path) -> list[Company]:
     return [Company.model_validate(item) for item in data["companies"]]
 
 
+def load_not_covered(path: Path) -> list[str]:
+    """The top-level `not_covered` list: well-known companies outside the dataset."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return [str(name) for name in data.get("not_covered") or []]
+
+
 class _Dumper(yaml.SafeDumper):
     """Quotes all-digit text such as CIKs, so no YAML reader turns them into numbers."""
 
@@ -76,10 +90,24 @@ def _represent_str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
 _Dumper.add_representer(str, _represent_str)
 
 
-def save_companies(path: Path, companies: list[Company]) -> None:
+def _dump(company: Company) -> dict[str, Any]:
+    data = company.model_dump()
+    for name in ("lookalikes", "segments"):  # hand-written lists; empty ones stay unwritten
+        if not data[name]:
+            del data[name]
+    return data
+
+
+def save_companies(
+    path: Path, companies: list[Company], not_covered: list[str] | None = None
+) -> None:
     """Write the company list, with the header that explains each field."""
+    document: dict[str, Any] = {}
+    if not_covered:
+        document["not_covered"] = list(not_covered)
+    document["companies"] = [_dump(c) for c in companies]
     body = yaml.dump(
-        {"companies": [c.model_dump() for c in companies]},
+        document,
         Dumper=_Dumper,
         sort_keys=False,
         allow_unicode=True,
@@ -103,6 +131,7 @@ def update_companies_file(path: Path, client: JsonGetter, refresh: bool = False)
 
     `refresh=True` downloads the SEC ticker list again instead of reading the cached copy.
     """
+    not_covered = load_not_covered(path)
     companies = resolve_ciks(load_companies(path), client.get_json(TICKERS_URL, refresh=refresh))
-    save_companies(path, companies)
+    save_companies(path, companies, not_covered)
     return companies

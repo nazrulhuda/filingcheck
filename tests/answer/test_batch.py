@@ -263,3 +263,51 @@ def test_a_blank_line_in_a_results_file_is_skipped_not_corrupt(tmp_path: Path) -
     out = tmp_path / "run.jsonl"
     out.write_text('{"id": "q-1", "repeat": 1}\n\n{"id": "q-2", "repeat": 1}\n', encoding="utf-8")
     assert read_done(out) == {("q-1", 1), ("q-2", 1)}
+
+
+def test_rows_record_whether_the_checks_ran_and_their_override_log(tmp_path: Path) -> None:
+    from tests.agent.test_agent_checks import checked_deps
+
+    out = tmp_path / "run.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=FakeChat(agent_replies(1)),
+        deps=checked_deps(),
+        settings="s",
+        checks=True,
+    )
+    (row,) = lines(out)
+    assert row["checks"] is True
+    [record] = row["overrides"]
+    assert (record["check"], record["outcome"], record["sent"], record["used"]) == (
+        "company",
+        "pass",
+        "AAPL",
+        "AAPL",
+    )
+    out2 = tmp_path / "off.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out2,
+        model=FakeChat(agent_replies(1)),
+        deps=apple_deps(),
+        settings="s",
+    )
+    (row,) = lines(out2)
+    assert row["checks"] is False and row["overrides"] == []
+    out3 = tmp_path / "base.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="baseline",
+        out=out3,
+        model=FakeChat(["Risk [1]."]),
+        deps=apple_deps(),
+        settings="s",
+        retriever=FakeRetriever(),
+    )
+    (row,) = lines(out3)
+    assert row["checks"] is None and row["overrides"] == []
+    assert "checks" in BATCH_FIELDS and "overrides" in BATCH_FIELDS

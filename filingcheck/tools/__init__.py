@@ -9,12 +9,14 @@ failure inside a tool (the database, the search) is an error result too, never a
 import json
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
 from filingcheck.facts.lookup import FactsSource
+from filingcheck.ingest.companies import Company
+from filingcheck.ingest.filings import Manifest
 from filingcheck.retrieval.models import Retriever
 from filingcheck.tools.calculate import CalculateInput, CalculationError, calculate
 from filingcheck.tools.financial_fact import GetFinancialFactInput, get_financial_fact
@@ -25,10 +27,17 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class ToolDeps:
-    """What the tools read: the retriever (passages) and the facts source (numbers)."""
+    """What the tools read, and what the checks read.
+
+    The retriever (passages) and the facts source (numbers) for the tools; the company list,
+    the not-covered list and the manifest for the checks.
+    """
 
     retriever: Retriever
     facts: FactsSource
+    companies: list[Company] | None = None
+    not_covered: list[str] = field(default_factory=list)
+    manifest: Manifest | None = None
 
 
 @dataclass(frozen=True)
@@ -120,34 +129,71 @@ def _validation_message(error: ValidationError) -> str:
     return "invalid arguments: " + "; ".join(parts)
 
 
-def run_tool(name: str, arguments_json: str, deps: ToolDeps) -> str:
-    """Validate, run and return the result as JSON text; errors are results too."""
+class ToolInputError(Exception):
+    """A call the tool cannot run (unknown tool, bad JSON, invalid arguments).
+
+    `result` is the JSON text the model gets, the same text `run_tool` returns.
+    """
+
+    def __init__(self, result: str) -> None:
+        super().__init__(result)
+        self.result = result
+
+
+def validate_call(name: str, arguments_json: str) -> tuple[Tool, BaseModel]:
+    """The tool and its validated arguments, or `ToolInputError` with the result for the model."""
     tool = _BY_NAME.get(name)
     if tool is None:
-        return json.dumps(
-            {"error": f"unknown tool {name!r}; the tools are {', '.join(TOOL_NAMES)}"}
+        raise ToolInputError(
+            json.dumps({"error": f"unknown tool {name!r}; the tools are {', '.join(TOOL_NAMES)}"})
         )
     try:
         raw = json.loads(arguments_json or "{}")
     except json.JSONDecodeError as exc:
-        return json.dumps({"error": f"the arguments are not valid JSON ({exc.msg})"})
+        raise ToolInputError(
+            json.dumps({"error": f"the arguments are not valid JSON ({exc.msg})"})
+        ) from exc
     if not isinstance(raw, dict):
-        return json.dumps({"error": "the arguments must be a JSON object"})
+        raise ToolInputError(json.dumps({"error": "the arguments must be a JSON object"}))
     try:
         arguments = tool.input_model.model_validate(raw)
     except ValidationError as exc:
-        return json.dumps({"error": _validation_message(exc)})
+        raise ToolInputError(json.dumps({"error": _validation_message(exc)})) from exc
+    return tool, arguments
+
+
+def run_validated(tool: Tool, arguments: BaseModel, deps: ToolDeps) -> str:
+    """Run a validated call and return its result as JSON text; failures are results too."""
     try:
         result = tool.run(arguments, deps)
     except CalculationError as exc:
         return json.dumps({"error": str(exc)})
     except Exception:  # a database or search failure: the model is told, the run goes on
         # The exception's text can name a host or a table, so it goes to the log only.
-        log.exception("tool %s failed", name)
+        log.exception("tool %s failed", tool.name)
         return json.dumps(
-            {"error": f"{name} failed inside the tool; try again or answer without it"}
+            {"error": f"{tool.name} failed inside the tool; try again or answer without it"}
         )
     return result.model_dump_json()
 
 
-__all__ = ["TOOLS", "TOOL_NAMES", "Tool", "ToolDeps", "run_tool", "tool_schemas"]
+def run_tool(name: str, arguments_json: str, deps: ToolDeps) -> str:
+    """Validate, run and return the result as JSON text; errors are results too."""
+    try:
+        tool, arguments = validate_call(name, arguments_json)
+    except ToolInputError as exc:
+        return exc.result
+    return run_validated(tool, arguments, deps)
+
+
+__all__ = [
+    "TOOLS",
+    "TOOL_NAMES",
+    "Tool",
+    "ToolDeps",
+    "ToolInputError",
+    "run_tool",
+    "run_validated",
+    "tool_schemas",
+    "validate_call",
+]

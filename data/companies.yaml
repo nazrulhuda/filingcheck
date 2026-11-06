@@ -6,7 +6,16 @@
 # revenue_rule: "standard" (us-gaap Revenues) or "bank" (net revenue, as banks report it).
 # financebench: the company appears in the public FinanceBench questions.
 # aliases: names people type for the company; used to resolve a name to one company.
+# lookalikes: words that name this company and at least one other ("Morgan": JPMorgan Chase
+#      and Morgan Stanley); the company check treats such a word on its own as ambiguous.
+# segments: segment and product names people ask about; the fact tool returns company
+#      totals only, so a question about one of them is turned down by name.
+# not_covered (top level): well-known companies outside the dataset, so a question about one
+#      of them is rejected by name instead of answered with another company's numbers.
 
+not_covered: [Tesla, Bank of America, Wells Fargo, Berkshire Hathaway, Visa, PayPal, Intel, AMD, Oracle,
+  Salesforce, Adobe, Cisco, Broadcom, Qualcomm, Boeing, Disney, ExxonMobil, Chevron, Home Depot, Target,
+  Procter & Gamble, PepsiCo, McDonald's, Uber]
 companies:
 - ticker: JPM
   name: JPMorgan Chase & Co.
@@ -16,6 +25,7 @@ companies:
   revenue_rule: bank
   financebench: true
   aliases: [JPMorgan, JP Morgan, JPMorgan Chase, Chase, JPM]
+  lookalikes: [Morgan]
 - ticker: GS
   name: The Goldman Sachs Group, Inc.
   cik: '0000886982'
@@ -32,6 +42,7 @@ companies:
   revenue_rule: bank
   financebench: false
   aliases: [Morgan Stanley, MS]
+  lookalikes: [Morgan]
 - ticker: C
   name: Citigroup Inc.
   cik: '0000831001'
@@ -55,7 +66,7 @@ companies:
   fiscal_year_end: 12
   revenue_rule: bank
   financebench: false
-  aliases: [Capital One, CapOne, COF]
+  aliases: [Capital One, CapOne, COF, Cap One]
 - ticker: MCO
   name: Moody's Corporation
   cik: '0001059556'
