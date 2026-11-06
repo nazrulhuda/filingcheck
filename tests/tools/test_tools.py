@@ -5,6 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, get_args
 
+import pytest
 import yaml
 
 from filingcheck.paths import REPO_ROOT
@@ -266,3 +267,43 @@ def test_two_values_for_one_fact_are_unavailable_with_the_reason() -> None:
     )
     assert (result["status"], result["reason"]) == ("unavailable", "conflicting_values")
     assert "1" in result["message"] and "2" in result["message"]
+
+
+# ---------------------------------------------------------------- validate, then run
+
+
+def test_validating_then_running_gives_exactly_what_run_tool_gives() -> None:
+    from filingcheck.tools import run_validated, validate_call
+    from tests.agent.test_agent import apple_deps
+
+    tool_deps = apple_deps()
+    for name, arguments in (
+        ("get_financial_fact", {"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"}),
+        (
+            "get_financial_fact",
+            {"ticker": "AAPL", "fiscal_year": 2025, "metric": "operating_income"},
+        ),
+        ("search_filings", {"query": "risks in Mexico", "k": 2}),
+        ("calculate", {"expression": "(2 - 1) / 4 * 100"}),
+        ("calculate", {"expression": "1 / 0"}),
+    ):
+        text = json.dumps(arguments)
+        tool, parsed = validate_call(name, text)
+        assert tool.name == name
+        assert run_validated(tool, parsed, tool_deps) == run_tool(name, text, tool_deps)
+
+
+def test_an_invalid_call_raises_the_same_error_text_run_tool_returns() -> None:
+    from filingcheck.tools import ToolInputError, validate_call
+
+    morgan = json.dumps({"ticker": "Morgan", "fiscal_year": 2025, "metric": "revenue"})
+    for name, text in (
+        ("delete_everything", "{}"),
+        ("calculate", "{expression: 1}"),
+        ("calculate", "[1, 2]"),
+        ("get_financial_fact", morgan),
+    ):
+        with pytest.raises(ToolInputError) as caught:
+            validate_call(name, text)
+        assert caught.value.result == run_tool(name, text, deps())
+        assert "error" in json.loads(caught.value.result)

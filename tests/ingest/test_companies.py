@@ -9,6 +9,7 @@ from filingcheck.ingest.companies import (
     Company,
     CompanyResolutionError,
     load_companies,
+    load_not_covered,
     pad_cik,
     resolve_ciks,
     save_companies,
@@ -122,3 +123,51 @@ def test_update_companies_file_fetches_tickers_once_and_writes_ciks(tmp_path: Pa
     assert client.urls == [TICKERS_URL]
     assert all(c.cik for c in companies)
     assert [c.cik for c in load_companies(path)] == ["0000320193", "0000019617"]
+
+
+HAND_WRITTEN = """\
+not_covered: [Tesla, Bank of America]
+companies:
+  - ticker: JPM
+    name: JPMorgan Chase & Co.
+    sector: banking
+    fiscal_year_end: 12
+    revenue_rule: bank
+    financebench: true
+    aliases: [JPMorgan, Chase]
+    lookalikes: [Morgan]
+    segments: [Consumer & Community Banking, Corporate & Investment Bank]
+  - ticker: AAPL
+    name: Apple Inc.
+    sector: technology
+    fiscal_year_end: 9
+    revenue_rule: standard
+    financebench: true
+    aliases: [Apple, AAPL]
+"""
+
+
+def test_the_hand_written_fields_survive_a_round_trip_through_the_generator(
+    tmp_path: Path,
+) -> None:
+    path = write(tmp_path, HAND_WRITTEN)
+    update_companies_file(path, FakeClient())
+    companies = {c.ticker: c for c in load_companies(path)}
+    assert companies["JPM"].lookalikes == ["Morgan"]
+    assert companies["JPM"].segments == [
+        "Consumer & Community Banking",
+        "Corporate & Investment Bank",
+    ]
+    assert companies["AAPL"].lookalikes == [] and companies["AAPL"].segments == []
+    assert load_not_covered(path) == ["Tesla", "Bank of America"]
+    assert companies["JPM"].cik == "0000019617"
+    text = path.read_text(encoding="utf-8")
+    assert "lookalikes" in text and "not_covered" in text  # the header explains the new fields
+    assert text.count("lookalikes:") == 2  # the header line and JPM's; empty lists are not written
+
+
+def test_a_file_without_the_new_fields_still_loads(tmp_path: Path) -> None:
+    path = write(tmp_path, YAML)
+    companies = load_companies(path)
+    assert all(c.lookalikes == [] and c.segments == [] for c in companies)
+    assert load_not_covered(path) == []

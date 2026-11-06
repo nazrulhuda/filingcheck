@@ -203,8 +203,32 @@ def test_the_request_log_records_the_mode_and_the_tool_calls(
             **base,
         )
     )
+    override = {
+        "check": "company",
+        "outcome": "repair",
+        "argument": "ticker",
+        "sent": "MSFT",
+        "used": "AAPL",
+        "reason": "the question names Apple Inc. (AAPL); the model sent MSFT",
+        "options": [],
+    }
+    store.log_request(
+        RequestRow(
+            id="00000000-0000-0000-0000-000000000003",
+            mode="agent",
+            checks=True,
+            overrides=[override],
+            **base,
+        )
+    )
     rows = sorted(store.requests_since(now), key=lambda r: r.id)
-    assert [(r.mode, r.tool_calls) for r in rows] == [
+    assert [(r.mode, r.tool_calls) for r in rows[:2]] == [
         ("baseline", None),
         ("agent", {"calls": [{"name": "calculate"}], "restarts": ["fake 503 busy"]}),
+    ]
+    # Migration 0009: the checks switch and the override log; NULL for rows that had none.
+    assert [(r.checks, r.overrides) for r in rows] == [
+        (None, None),
+        (None, None),
+        (True, [override]),
     ]
