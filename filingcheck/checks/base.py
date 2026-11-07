@@ -36,10 +36,15 @@ class Override(BaseModel):
 
 @dataclass(frozen=True)
 class CheckedCall:
-    """A tool call as the checks see it: the tool's name and its validated arguments."""
+    """A tool call as the checks see it: the tool's name and its validated arguments.
+
+    `annotations` carry what a check asks to add next to the tool's result (the units
+    check's requested scale); they never change the arguments.
+    """
 
     name: str
     arguments: dict[str, Any]
+    annotations: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -62,17 +67,23 @@ class CheckResult:
     outcome: Outcome
     arguments: dict[str, Any]
     override: Override
+    annotations: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def passed(
-        cls, check: str, argument: str | None, arguments: dict[str, Any], reason: str
+        cls,
+        check: str,
+        argument: str | None,
+        arguments: dict[str, Any],
+        reason: str,
+        annotations: dict[str, Any] | None = None,
     ) -> "CheckResult":
         """The arguments stand; the record says why."""
         value = arguments.get(argument) if argument else None
         record = Override(
             check=check, outcome="pass", argument=argument, sent=value, used=value, reason=reason
         )
-        return cls("pass", dict(arguments), record)
+        return cls("pass", dict(arguments), record, dict(annotations or {}))
 
     @classmethod
     def repaired(
@@ -131,10 +142,12 @@ def run_checks(
     """
     overrides: list[Override] = []
     arguments = dict(call.arguments)
+    annotations: dict[str, Any] = {}
     for check in checks:
         result = check.run(CheckedCall(call.name, dict(arguments)), context)
         overrides.append(result.override)
         if result.outcome == "reject":
             return None, overrides
         arguments = dict(result.arguments)
-    return CheckedCall(call.name, arguments), overrides
+        annotations.update(result.annotations)
+    return CheckedCall(call.name, arguments, annotations), overrides

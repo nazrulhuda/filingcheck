@@ -26,6 +26,8 @@ companies:
   financebench: true
   aliases: [JPMorgan, JP Morgan, JPMorgan Chase, Chase, JPM]
   lookalikes: [Morgan]
+  segments: [Consumer & Community Banking, Corporate & Investment Bank, Commercial & Investment Bank,
+    Asset & Wealth Management]
 - ticker: GS
   name: The Goldman Sachs Group, Inc.
   cik: '0000886982'
@@ -34,6 +36,7 @@ companies:
   revenue_rule: bank
   financebench: false
   aliases: [Goldman, Goldman Sachs, GS]
+  segments: [Global Banking & Markets, Asset & Wealth Management, Platform Solutions]
 - ticker: MS
   name: Morgan Stanley
   cik: '0000895421'
@@ -43,6 +46,7 @@ companies:
   financebench: false
   aliases: [Morgan Stanley, MS]
   lookalikes: [Morgan]
+  segments: [Institutional Securities, Wealth Management, Investment Management]
 - ticker: C
   name: Citigroup Inc.
   cik: '0000831001'
@@ -99,6 +103,7 @@ companies:
   revenue_rule: standard
   financebench: false
   aliases: [Apple, AAPL]
+  segments: [iPhone, Mac, iPad, Services, Wearables]
 - ticker: MSFT
   name: Microsoft Corporation
   cik: '0000789019'
@@ -107,6 +112,8 @@ companies:
   revenue_rule: standard
   financebench: true
   aliases: [Microsoft, MSFT]
+  segments: [Azure, Intelligent Cloud, Productivity and Business Processes, More Personal Computing, Office,
+    Windows, Xbox, LinkedIn]
 - ticker: AMZN
   name: Amazon.com, Inc.
   cik: '0001018724'
@@ -115,6 +122,7 @@ companies:
   revenue_rule: standard
   financebench: true
   aliases: [Amazon, AMZN, Amazon.com]
+  segments: [AWS, Amazon Web Services, North America, International, advertising]
 - ticker: GOOGL
   name: Alphabet Inc.
   cik: '0001652044'
@@ -123,6 +131,7 @@ companies:
   revenue_rule: standard
   financebench: false
   aliases: [Alphabet, Google, GOOGL, GOOG]
+  segments: [Google Cloud, YouTube, Google Search, Google Services]
 - ticker: META
   name: Meta Platforms, Inc.
   cik: '0001326801'
@@ -131,6 +140,7 @@ companies:
   revenue_rule: standard
   financebench: false
   aliases: [Meta, Facebook, Meta Platforms, META]
+  segments: [Family of Apps, Reality Labs]
 - ticker: NVDA
   name: NVIDIA Corporation
   cik: '0001045810'
@@ -139,6 +149,7 @@ companies:
   revenue_rule: standard
   financebench: false
   aliases: [Nvidia, NVIDIA, NVDA]
+  segments: [Data Center, Gaming, Compute & Networking, Graphics]
 - ticker: IBM
   name: International Business Machines Corporation
   cik: '0000051143'
@@ -155,6 +166,7 @@ companies:
   revenue_rule: standard
   financebench: true
   aliases: [Walmart, Wal-Mart, WMT]
+  segments: [Walmart U.S., Sam's Club, Walmart International]
 - ticker: COST
   name: Costco Wholesale Corporation
   cik: '0000909832'

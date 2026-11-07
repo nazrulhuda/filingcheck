@@ -53,7 +53,7 @@ def test_rejects_of_different_classes_each_get_their_own_retry() -> None:
         deps=checked_deps(),
         checks=True,
     )
-    rejects = [o.check for o in answer.overrides if o.outcome == "reject"]
+    rejects = [o.check for o in answer.overrides if o.outcome == "reject" and o.check != "retry"]
     assert rejects == ["fiscal_year", "fiscal_year"]  # the 2023 question is rejected twice
     third = json.loads(tool_messages(chat, 3)[2]["content"])
     assert third == {"error": NO_FURTHER_ATTEMPTS}

@@ -67,6 +67,16 @@ SYSTEM_PROMPT = (
     "- If the question is ambiguous about the company or the year, say what is ambiguous.\n"
     f'- If the tools do not give the answer, say "{ABSTAIN}" and nothing else.'
 )
+# After a second reject of the same class (company, fiscal year, ...), get_financial_fact
+# is not run again in this run; the model gets this instead.
+NO_FURTHER_ATTEMPTS = (
+    "no further attempts; answer with what you have, ask the user, or say you can't find it"
+)
+SCALE_FACTORS = {
+    "thousands": (Decimal(10) ** 3, "thousand"),
+    "millions": (Decimal(10) ** 6, "million"),
+    "billions": (Decimal(10) ** 9, "billion"),
+}
 # The tools whose `ticker` and `fiscal_year` default to the user's selection.
 FILTERED_TOOLS = ("search_filings", "get_financial_fact")
 
@@ -190,6 +200,8 @@ class AgentState(TypedDict):
     passages: list[_Passage]  # numbered across the whole run
     facts: list[FactResult]  # numbered across the whole run: [F1] is facts[0]
     overrides: list[Override]  # the checks' records, in order
+    reject_counts: dict[str, int]  # rejects per check, for the retry rule
+    blocked: bool  # a second reject of one class ended get_financial_fact for the run
     completions: list[Completion]
     stopped_by: str | None
     degraded: bool  # a search fell back to keywords
@@ -276,7 +288,33 @@ def _checked_call(
     repairs = [o.model_dump() for o in overrides if o.outcome == "repair"]
     if repairs and "error" not in result:
         result["checked"] = repairs
+    scale = checked.annotations.get("requested_scale")
+    if scale and result.get("status") == "found":
+        scaled = _scaled(result["fact"], scale)
+        if scaled is not None:
+            result["requested_scale"] = {"scale": scale, "value": scaled}
     return result, overrides, checked.arguments
+
+
+def _scaled(fact: dict[str, Any], scale: str) -> str | None:
+    """The fact's value in the requested scale, as in 416,161 million; dollars and shares only."""
+    if fact.get("unit") not in ("USD", "shares") or scale not in SCALE_FACTORS:
+        return None
+    factor, word = SCALE_FACTORS[scale]
+    value = (Decimal(str(fact["value"])) / factor).normalize()
+    return f"{value:,f} {word}"
+
+
+def _blocked_record() -> Override:
+    """The log record of a call refused because the retry was used up."""
+    return Override(
+        check="retry",
+        outcome="reject",
+        argument=None,
+        sent=None,
+        used=None,
+        reason=NO_FURTHER_ATTEMPTS,
+    )
 
 
 def build_agent(
@@ -294,8 +332,11 @@ def build_agent(
     every get_financial_fact call goes through the skeptical checks before the tool.
     """
     log = run_log if run_log is not None else RunLog()
-    if checks and deps.companies is None:
-        raise ValueError("the checks need the company list: ToolDeps(companies=...)")
+    if checks and (deps.companies is None or deps.manifest is None):
+        raise ValueError(
+            "the checks need the company list and the manifest: "
+            "ToolDeps(companies=..., manifest=...)"
+        )
     tools = tool_schemas()
 
     def model_node(state: AgentState) -> dict[str, Any]:
@@ -331,6 +372,8 @@ def build_agent(
         stopped = state["stopped_by"]
         degraded = state["degraded"]
         overrides = list(state["overrides"])
+        reject_counts = dict(state["reject_counts"])
+        blocked = state["blocked"]
         for call in last.tool_calls:
             start = time.perf_counter()
             ran = sum(1 for r in records if r.status != "skipped")
@@ -364,9 +407,20 @@ def build_agent(
                         manifest=deps.manifest,
                         facts=deps.facts,
                     )
-                    result, call_overrides, as_run = _checked_call(
-                        call.name, text_arguments, deps, context
-                    )
+                    if blocked:
+                        result = {"error": NO_FURTHER_ATTEMPTS}
+                        call_overrides = [_blocked_record()]
+                        as_run = None
+                    else:
+                        result, call_overrides, as_run = _checked_call(
+                            call.name, text_arguments, deps, context
+                        )
+                    if call_overrides and call_overrides[-1].outcome == "reject" and not blocked:
+                        kind = call_overrides[-1].check
+                        reject_counts[kind] = reject_counts.get(kind, 0) + 1
+                        if reject_counts[kind] >= 2:
+                            result["error"] = f"{result['error']}; {NO_FURTHER_ATTEMPTS}"
+                            blocked = True
                     overrides += call_overrides
                     if as_run is not None:
                         arguments = as_run
@@ -405,6 +459,8 @@ def build_agent(
             "stopped_by": stopped,
             "degraded": degraded,
             "overrides": overrides,
+            "reject_counts": reject_counts,
+            "blocked": blocked,
         }
 
     def answer_node(state: AgentState) -> dict[str, Any]:
@@ -462,6 +518,8 @@ def run_agent(
         "stopped_by": None,
         "degraded": False,
         "overrides": [],
+        "reject_counts": {},
+        "blocked": False,
         "final": None,
     }
     final_state = agent.invoke(state, config={"recursion_limit": 4 * MAX_MODEL_CALLS + 4})
