@@ -10,6 +10,7 @@ import pytest
 from filingcheck.agent import AgentAnswer, run_agent, run_agent_with_fallbacks
 from filingcheck.answer.run import format_agent_answer
 from filingcheck.ingest.companies import load_companies, load_not_covered
+from filingcheck.ingest.filings import load_manifest
 from filingcheck.llm import FakeChat, scripted_tool_calls
 from filingcheck.paths import DATA_DIR
 from filingcheck.tools import ToolDeps
@@ -18,6 +19,7 @@ from tests.facts.test_lookup import duration
 
 COMPANIES = load_companies(DATA_DIR / "companies.yaml")
 NOT_COVERED = load_not_covered(DATA_DIR / "companies.yaml")
+MANIFEST = load_manifest(DATA_DIR / "manifest.json")
 APPLE_Q = "What were Apple's total net sales in fiscal 2025?"
 
 
@@ -29,6 +31,7 @@ def checked_deps(facts: Any = None) -> ToolDeps:
         facts=plain.facts,
         companies=COMPANIES,
         not_covered=NOT_COVERED,
+        manifest=MANIFEST,
     )
 
 
@@ -55,7 +58,7 @@ def test_a_reject_is_the_tools_result_with_the_reason_and_the_options() -> None:
     [record] = answer.tool_calls
     assert record.status == "error" and record.result_summary.startswith("error: ")
     assert answer.facts_used == [] and answer.fact_citations == []
-    [override] = answer.overrides
+    [override] = [o for o in answer.overrides if o.check == "company"]
     assert (override.check, override.outcome, override.sent, override.used) == (
         "company",
         "reject",
@@ -79,7 +82,7 @@ def test_a_repair_runs_the_tool_with_the_repaired_arguments_and_tells_the_model(
     [record] = answer.tool_calls
     assert record.status == "ok" and record.arguments["ticker"] == "AAPL"  # as run
     assert answer.facts_used[0].value == 416161000000
-    [override] = answer.overrides
+    [override] = [o for o in answer.overrides if o.check == "company"]
     assert override.outcome == "repair" and override.used == "AAPL"
 
 
@@ -93,7 +96,7 @@ def test_a_pass_leaves_the_tool_result_as_it_is_and_is_still_logged() -> None:
     on = run_agent(APPLE_Q, model=chat, deps=checked_deps(), checks=True)
     result = json.loads(tool_messages(chat, 1)[0]["content"])
     assert "checked" not in result and "options" not in result
-    [override] = on.overrides
+    [override] = [o for o in on.overrides if o.check == "company"]
     assert override.outcome == "pass" and override.sent == override.used == "AAPL"
 
 
@@ -124,7 +127,15 @@ def test_a_validation_error_comes_before_the_checks_and_is_unchanged() -> None:
     error = json.loads(tool_messages(chat, 1)[0]["content"])
     assert set(error) == {"error"} and "ticker" in error["error"]
     assert [r.status for r in answer.tool_calls] == ["error", "ok"]
-    assert [o.outcome for o in answer.overrides] == ["pass"]  # only the valid call was checked
+    # Only the valid call was checked: one record per check, all passes.
+    assert [o.check for o in answer.overrides] == [
+        "company",
+        "fiscal_year",
+        "metric",
+        "units",
+        "segment",
+    ]
+    assert {o.outcome for o in answer.overrides} == {"pass"}
 
 
 def test_a_rejected_call_counts_as_a_tool_call_toward_the_limit() -> None:
@@ -147,7 +158,7 @@ def test_the_page_filter_reaches_the_check() -> None:
         checks=True,
         ticker="WMT",
     )
-    [override] = answer.overrides
+    [override] = [o for o in answer.overrides if o.check == "company"]
     assert override.outcome == "repair" and override.used == "WMT"
     result = json.loads(tool_messages(chat, 1)[0]["content"])
     assert result["status"] == "unavailable"  # the fake facts hold Apple only: WMT has no filing
@@ -162,7 +173,8 @@ def test_checks_need_the_company_list() -> None:
 def test_the_switch_and_the_log_reach_the_fallback_runner() -> None:
     chat = FakeChat([fact_call(ticker="MSFT", fiscal_year=2025, metric="revenue"), "Sales [F1]."])
     answer = run_agent_with_fallbacks(APPLE_Q, models=[chat], deps=checked_deps(), checks=True)
-    assert answer.checks is True and [o.outcome for o in answer.overrides] == ["repair"]
+    assert answer.checks is True
+    assert [o.outcome for o in answer.overrides if o.check == "company"] == ["repair"]
 
 
 def test_make_ask_output_lists_the_override_log() -> None:
