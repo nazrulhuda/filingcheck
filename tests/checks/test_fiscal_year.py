@@ -187,3 +187,55 @@ def test_a_stated_or_relative_year_that_differs_from_the_filter_is_rejected_with
     assert result.override.options == ["2025", "2026"]
     # The stated year equal to the filter is simply rule (a).
     assert run("Revenue in 2025?", ticker="WMT", fiscal_year=2025, page_year=2025).outcome == "pass"
+
+
+# ---------------------------------------------------------------- strong evidence only
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What was Apple's revenue compared to September 28, 2024?",
+        "Apple reported on March 20, 2026 that revenue grew; what was it?",
+        "Apple announced on October 30, 2025 its results; what was revenue?",
+        "At September 27, 2025, what did Apple report as revenue?",
+        "Apple's revenue up to September 27, 2025?",
+    ],
+)
+def test_a_weak_cue_leaves_the_models_argument_standing(question: str) -> None:
+    for year in (2025, 2026):
+        result = run(question, ticker="AAPL", fiscal_year=year)
+        assert result.outcome == "pass", (question, year)
+        assert "the model's choice stands" in result.override.reason
+
+
+def test_the_calendar_rule_for_a_non_december_company_rejects_and_asks_the_user() -> None:
+    for year in (2025, 2026):
+        result = run(
+            "What was Microsoft's revenue in calendar 2025?", ticker="MSFT", fiscal_year=year
+        )
+        assert result.outcome == "reject", year
+        assert result.override.options == ["2025", "2026"]
+        assert "ask the user which fiscal year" in result.override.reason
+    result = run("What was Walmart's revenue in calendar 2025?", ticker="WMT", fiscal_year=2026)
+    assert result.outcome == "reject" and result.override.options == ["2025", "2026"]
+    assert "Feb 1, 2025 to Jan 31, 2026" in result.override.reason
+
+
+def test_the_calendar_rule_for_a_december_company_is_the_fiscal_year() -> None:
+    assert (
+        run("JPMorgan's net revenue in calendar 2025?", ticker="JPM", fiscal_year=2025).outcome
+        == "pass"
+    )
+    result = run("JPMorgan's net revenue in CY2025?", ticker="JPM", fiscal_year=2024)
+    assert result.outcome == "repair" and result.arguments["fiscal_year"] == 2025
+    assert "calendar 2025" in result.override.reason
+
+
+def test_a_date_range_names_the_year_that_ends_on_its_second_date() -> None:
+    result = run(
+        "What was Nvidia's net income for January 27, 2025 to January 25, 2026?",
+        ticker="NVDA",
+        fiscal_year=2025,
+    )
+    assert result.outcome == "repair" and result.arguments["fiscal_year"] == 2026

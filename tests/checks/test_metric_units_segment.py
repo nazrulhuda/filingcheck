@@ -211,3 +211,45 @@ def test_a_repair_reaches_the_checks_after_it() -> None:
 def test_a_requested_scale_reaches_the_checked_call() -> None:
     call, _ = chain("Give Microsoft's FY2025 total assets in millions.", ticker="MSFT")
     assert call is not None and call.annotations == {"requested_scale": "millions"}
+
+
+# ---------------------------------------------------------------- tie, including, sentences
+
+
+def test_a_segments_own_total_is_still_a_segment_question() -> None:
+    result = run_check(SEGMENT, "What was AWS's total revenue in 2025?", ticker="AMZN")
+    assert result.outcome == "reject" and "AWS" in result.override.reason
+
+
+def test_including_breaks_the_tie_and_excluding_keeps_it() -> None:
+    included = "Microsoft's revenue in 2025, Office included?"
+    assert run_check(SEGMENT, included, ticker="MSFT").outcome == "pass"
+    including = "Amazon's total revenue, including AWS, in 2025?"
+    assert run_check(SEGMENT, including, ticker="AMZN").outcome == "pass"
+    excluding = "What was Amazon's revenue excluding AWS in 2025?"
+    assert run_check(SEGMENT, excluding, ticker="AMZN").outcome == "reject"
+
+
+def test_a_segment_far_from_the_metric_word_or_in_another_sentence_is_not_tied() -> None:
+    far = "What was the revenue in 2025 for the company that makes the iPhone?"
+    assert run_check(SEGMENT, far, ticker="AAPL").outcome == "pass"
+    other = "What was Apple's revenue in fiscal 2025? Also, how did Services do?"
+    assert run_check(SEGMENT, other, ticker="AAPL").outcome == "pass"
+    text_only = "Which kinds of customers use Nvidia's data center platforms?"
+    assert run_check(SEGMENT, text_only, ticker="NVDA").outcome == "pass"
+
+
+def test_the_metric_check_looks_at_the_sentences_about_the_calls_metric() -> None:
+    two = (
+        "What was Apple's net income in fiscal 2025? Also, what did it report as revenue for "
+        "the quarter?"
+    )
+    assert run_check(METRIC, two, metric="net_income").outcome == "pass"
+    assert run_check(METRIC, two, metric="revenue").outcome == "reject"
+    follow_up = "What was Goldman's net revenue in 2025? I mean for Q3."
+    assert run_check(METRIC, follow_up, ticker="GS", metric="revenue").outcome == "reject"
+    ebitda_too = "What was Apple's revenue in fiscal 2025? And what is its EBITDA?"
+    assert run_check(METRIC, ebitda_too, metric="revenue").outcome == "pass"
+    swapped = "What was Apple's revenue in fiscal 2025? What about net income in Q4?"
+    assert run_check(METRIC, swapped, metric="revenue").outcome == "pass"
+    assert run_check(METRIC, swapped, metric="net_income").outcome == "reject"
