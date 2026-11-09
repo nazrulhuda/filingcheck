@@ -11,7 +11,7 @@ Checks off: `2026-11-09_examples_agent-checks-off.jsonl`; checks on: `2026-11-09
 
 ## Each question
 
-| Question | Checks off | Checks on | What the checks did | Changed |
+| Question | Checks off | Checks on | What the checks did | Outcomes differ |
 |---|---|---|---|---|
 | trap-001 | Correct x1, Answered when it should have asked x2 | Correct x3 | company reject x2, no fact call x1 | yes |
 | trap-002 | Correct x3 | Correct x3 | pass x3 | no |
@@ -19,3 +19,5 @@ Checks off: `2026-11-09_examples_agent-checks-off.jsonl`; checks on: `2026-11-09
 | trap-004 | Correct x3 | Correct x3 | pass x3 | no |
 | trap-005 | Correct x3 | Correct x3 | no fact call x3 | no |
 | control-001 | Abstained x3 | Correct x1, Abstained x2 | no fact call x2, pass x1 | yes |
+
+Outcomes can differ from model variance alone; a check changed an answer only where "What the checks did" shows a repair or a reject.

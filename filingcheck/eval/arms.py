@@ -4,7 +4,7 @@ Each arm is a `make eval` run whose file name carries it (`<date>_<set>_agent-ch
 `..._agent-checks-off.jsonl`; Day 20's `..._agent.jsonl` predates the checks). After an
 agent run, when a finished file of the other arm exists, `make eval` writes
 `<date>_<set>_agent-arms.md`: the two arms as two rows one under the other, then each
-question with both arms' outcomes, what the checks did and whether the outcome changed. A
+question with both arms' outcomes, what the checks did and whether the outcomes differ. A
 handful of questions shows that the layer works and is logged; it measures nothing (Week 6).
 """
 
@@ -102,7 +102,7 @@ def compare_arms(off: Graded, on: Graded, *, set_name: str, off_file: str, on_fi
         "",
         "## Each question",
         "",
-        "| Question | Checks off | Checks on | What the checks did | Changed |",
+        "| Question | Checks off | Checks on | What the checks did | Outcomes differ |",
         "|---|---|---|---|---|",
     ]
     for qid in ids:
@@ -117,4 +117,9 @@ def compare_arms(off: Graded, on: Graded, *, set_name: str, off_file: str, on_fi
         else:
             changed = "-"
         lines.append(f"| {qid} | {off_cell} | {on_cell} | {did} | {changed} |")
+    lines += [
+        "",
+        "Outcomes can differ from model variance alone; a check changed an answer only where "
+        '"What the checks did" shows a repair or a reject.',
+    ]
     return "\n".join(lines) + "\n"
