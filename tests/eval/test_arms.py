@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from filingcheck.checks import reference_data
 from filingcheck.eval.arms import (
     arm_name,
     arms_path,
@@ -16,6 +17,7 @@ from filingcheck.eval.arms import (
 from filingcheck.eval.grade import Grade
 from filingcheck.eval.run import run_eval
 from filingcheck.llm import FakeChat
+from filingcheck.tools import ToolDeps
 from tests.agent.test_agent import apple_deps
 from tests.eval.test_run import questions_file, replies
 
@@ -67,12 +69,15 @@ def test_an_eval_run_passes_the_switch_and_names_the_arm(
     tmp_path: Path, checks: bool, label: str
 ) -> None:
     out = tmp_path / f"2026-11-09_examples_{arm_name('agent', checks)}.jsonl"
+    deps = apple_deps()
+    if checks:  # as make eval does: the checks read the company list and the manifest
+        deps = ToolDeps(retriever=deps.retriever, facts=deps.facts, **reference_data())
     summary = run_eval(
         questions_file(tmp_path),
         mode="agent",
         repeats=1,
         model=FakeChat(replies()[:3]),
-        deps=apple_deps(),
+        deps=deps,
         out=out,
         settings="s",
         checks=checks,

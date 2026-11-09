@@ -367,28 +367,29 @@ def summary_table(
 ) -> str:
     """One table: a row per question with its outcome counts, cost and time, and a total row."""
     ids = list(dict.fromkeys(row["id"] for row, _ in graded))
-    header = (
-        "| Question | Answers | "
-        + " | ".join(LABELS[o] for o in OUTCOMES)
-        + " | Cost | Mean time |"
-    )
-    lines = [
-        f"Mode: {mode}" + (f"; {settings}" if settings else ""),
-        "",
-        header,
+    lines = [f"Mode: {mode}" + (f"; {settings}" if settings else ""), ""]
+    lines += summary_header("Question")
+    for qid in ids:
+        lines.append(summary_row(qid, [(r, g) for r, g in graded if r["id"] == qid]))
+    lines.append(summary_row("**All**", graded))
+    return "\n".join(lines) + "\n"
+
+
+def summary_header(first: str) -> list[str]:
+    """The header and rule lines of a summary table whose first column is `first`."""
+    labels = " | ".join(LABELS[o] for o in OUTCOMES)
+    return [
+        f"| {first} | Answers | {labels} | Cost | Mean time |",
         "|---|" + "---:|" * (len(OUTCOMES) + 3),
     ]
 
-    def line(name: str, part: Sequence[tuple[dict[str, Any], Grade]]) -> str:
-        counts = [sum(1 for _, g in part if g.outcome == o) for o in OUTCOMES]
-        costs = [r.get("cost_usd") for r, _ in part]
-        cost = "unknown" if None in costs else f"${sum(c for c in costs if c is not None):.6f}"
-        times = [r["latency_ms"] for r, _ in part if r.get("latency_ms") is not None]
-        mean = f"{sum(times) / len(times) / 1000:.1f} s" if times else "-"
-        cells = [name, str(len(part)), *map(str, counts), cost, mean]
-        return "| " + " | ".join(cells) + " |"
 
-    for qid in ids:
-        lines.append(line(qid, [(r, g) for r, g in graded if r["id"] == qid]))
-    lines.append(line("**All**", graded))
-    return "\n".join(lines) + "\n"
+def summary_row(name: str, part: Sequence[tuple[dict[str, Any], Grade]]) -> str:
+    """One summary line: the answers, each outcome's count, the total cost and the mean time."""
+    counts = [sum(1 for _, g in part if g.outcome == o) for o in OUTCOMES]
+    costs = [r.get("cost_usd") for r, _ in part]
+    cost = "unknown" if None in costs else f"${sum(c for c in costs if c is not None):.6f}"
+    times = [r["latency_ms"] for r, _ in part if r.get("latency_ms") is not None]
+    mean = f"{sum(times) / len(times) / 1000:.1f} s" if times else "-"
+    cells = [name, str(len(part)), *map(str, counts), cost, mean]
+    return "| " + " | ".join(cells) + " |"

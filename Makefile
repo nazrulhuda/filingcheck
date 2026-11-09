@@ -97,9 +97,9 @@ validate-questions:
 eval-smoke:
 	@echo "not built yet (week 4)"
 
-eval:  # ask and grade a question set: make eval SET=examples MODE=agent [REPEATS=3] [DATE=YYYY-MM-DD] (costs money)
+eval:  # ask and grade a question set: make eval SET=examples MODE=agent [CHECKS=on|off] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money)
 	@test -n "$(SET)" -a -n "$(MODE)" || { echo "give SET and MODE: make eval SET=examples MODE=agent [REPEATS=3]"; exit 1; }
-	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE))
+	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE))
 
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload
