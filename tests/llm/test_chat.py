@@ -523,3 +523,60 @@ def test_a_router_names_the_models_a_run_may_use_in_turn() -> None:
     batch = ModelRouter(primary, [fallback], mode="batch")
     assert live.in_turn() == [primary, fallback]
     assert batch.in_turn() == [primary]  # batch mode never falls back
+
+
+# ---------------------------------------------------------------- a reply with no choices
+# OpenRouter can answer 200 with {"error": {...}} and no "choices" (an upstream failure).
+
+
+def no_choices(message: str = "Upstream error from Groq", code: int | None = 502) -> httpx.Response:
+    err: dict[str, Any] = {"message": message}
+    if code is not None:
+        err["code"] = code
+    return httpx.Response(200, json={"error": err})
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        no_choices(),
+        no_choices(code=None),
+        httpx.Response(200, json={"choices": []}),
+        httpx.Response(200, text="<html>bad gateway</html>"),
+    ],
+    ids=["error-body", "error-no-code", "empty-choices", "not-json"],
+)
+def test_live_a_reply_with_no_choices_is_provider_unavailable(response: httpx.Response) -> None:
+    script = Script(response)
+    with pytest.raises(ProviderUnavailable, match="no choices") as caught:
+        chat(OPENROUTER, script, mode="live").complete(MESSAGES, max_tokens=700)
+    assert len(script.requests) == 1
+    assert caught.value.provider == "openrouter"
+
+
+def test_live_the_error_message_is_kept() -> None:
+    with pytest.raises(ProviderUnavailable, match="Upstream error from Groq"):
+        chat(OPENROUTER, Script(no_choices()), mode="live").complete(MESSAGES, max_tokens=700)
+
+
+def test_batch_a_reply_with_no_choices_is_retried() -> None:
+    sleeps: list[float] = []
+    script = Script(no_choices(), ok("Retried [1].", usage=USAGE))
+    result = chat(OPENROUTER, script, sleeps=sleeps).complete(MESSAGES, max_tokens=700)
+    assert result.text == "Retried [1]."
+    assert len(script.requests) == 2 and len(sleeps) == 1
+
+
+def test_batch_stops_with_an_error_after_4_replies_with_no_choices() -> None:
+    script = Script(*[no_choices() for _ in range(5)])
+    with pytest.raises(ProviderError, match="4 retries") as caught:
+        chat(OPENROUTER, script).complete(MESSAGES, max_tokens=700)
+    assert not isinstance(caught.value, ProviderUnavailable)
+    assert len(script.requests) == 5
+
+
+def test_live_the_router_falls_back_on_a_reply_with_no_choices() -> None:
+    primary = chat(OPENROUTER, Script(no_choices()), mode="live")
+    router = ModelRouter(primary, [fallback()], mode="live")
+    completion = router.complete(MESSAGES, max_tokens=700)
+    assert completion.text == "From the fallback [1]."

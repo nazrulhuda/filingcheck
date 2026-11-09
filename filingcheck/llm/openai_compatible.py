@@ -196,21 +196,34 @@ class OpenAICompatibleChat:
                 if self.mode == "live":
                     raise self._unavailable(problem, status, code) from exc
             else:
-                if response.status_code < 400:
+                answered = response.status_code < 400
+                missing = _no_choices(response) if answered and not stream else None
+                if answered and missing is None:
                     return response
-                if stream:
-                    response.read()
-                    response.close()
-                status, code = response.status_code, _error_field(response, "code")
-                problem = f"HTTP {status}: {_message(response)}"
-                if _unavailable(response):
-                    log.error("provider unavailable: %s: %s", self.name, problem)
-                    raise self._unavailable(problem, status, code)
-                if status != 429 and status < 500:
-                    raise ProviderError(
-                        f"{self.name}: {problem}", provider=self.provider, status=status, code=code
-                    )
-                asked = _retry_after(response)
+                if missing is not None:
+                    # An error inside a 200 (OpenRouter's upstream failures): retried like a 5xx.
+                    status, code = response.status_code, _error_field(response, "code")
+                    problem, code = missing, code or "no_choices"
+                    log.warning("%s: %s", self.name, problem)
+                    if self.mode == "live":
+                        raise self._unavailable(problem, status, code)
+                else:
+                    if stream:
+                        response.read()
+                        response.close()
+                    status, code = response.status_code, _error_field(response, "code")
+                    problem = f"HTTP {status}: {_message(response)}"
+                    if _unavailable(response):
+                        log.error("provider unavailable: %s: %s", self.name, problem)
+                        raise self._unavailable(problem, status, code)
+                    if status != 429 and status < 500:
+                        raise ProviderError(
+                            f"{self.name}: {problem}",
+                            provider=self.provider,
+                            status=status,
+                            code=code,
+                        )
+                    asked = _retry_after(response)
             if attempt == MAX_RETRIES:
                 break
             wait = max(BACKOFF_SECONDS * 2**attempt, asked)
@@ -363,6 +376,17 @@ def _unavailable(response: httpx.Response) -> bool:
     return code in UNAVAILABLE_CODES or (
         "model" in message and any(words in message for words in MISSING_MODEL_WORDS)
     )
+
+
+def _no_choices(response: httpx.Response) -> str | None:
+    """Why a reply under 400 has no answer to read, or None when it has one."""
+    try:
+        data = response.json()
+    except ValueError:
+        return f"HTTP {response.status_code} with no choices: the body is not JSON"
+    if isinstance(data, dict) and data.get("choices"):
+        return None
+    return f"HTTP {response.status_code} with no choices: {_message(response)}"
 
 
 def _error_field(response: httpx.Response, field: str) -> str | None:
