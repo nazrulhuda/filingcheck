@@ -1,6 +1,6 @@
 # Week 4 summary
 
-The rest of this page comes with Days 24 to 27: the two graded rows with the checks off and on, the gate, the page switch and the costs. The limits below were written on Day 23, when the check rules were frozen.
+The rest of this page comes with Days 24 to 27: the two graded rows with the checks off and on, the gate, the page switch and the costs. The limits below were written on Day 23, before the check rules were frozen.
 
 ## What the checks can and cannot do
 
@@ -15,4 +15,4 @@ A repair rests on strong evidence only: a company named in the question, an expl
 
 The segment check knows the segment names each company reports. A phrase that is not one of them, such as "cloud revenue" for Microsoft or "ad revenue" for Amazon, passes, and the tool returns the company total under its own label.
 
-**The rules were frozen on 2026-11-08**, like the agent's prompt on Day 18. A later change to a check means re-running both evaluation arms, with the checks off and on.
+**The rules were frozen on 2026-11-09, when Day 23 was merged**, like the agent's prompt on Day 18. A later change to a check means re-running both evaluation arms, with the checks off and on.

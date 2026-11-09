@@ -3,9 +3,9 @@
 `CHECKS` is the chain in order: company, fiscal year, metric and period, units, segment.
 `reference_data` loads what the checks read from `data/`, in the shape `ToolDeps` takes.
 
-The rules are frozen as of 2026-11-08, like the agent's prompt: the Week 6 measurement
-compares the agent with the checks off and on, so a change to any check means re-running
-both arms (docs/decisions.md, docs/week4_summary.md).
+The rules are frozen from the Day 23 merge on 2026-11-09, like the agent's prompt: the
+Week 6 measurement compares the agent with the checks off and on, so a change to any check
+means re-running both arms (docs/decisions.md, docs/week4_summary.md).
 """
 
 from pathlib import Path

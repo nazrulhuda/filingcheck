@@ -13,7 +13,8 @@ or "included" next to the segment breaks the tie, since the segment is then part
 ("Amazon's total revenue, including AWS", "including AWS revenue").
 
 An exclusion word right before the segment ("excluding", "without", "not counting", "not
-including", "minus", "other than", "except", "ex-") asks for the total less a segment, a figure
+including", "minus", "other than", "except", "ex-", "apart from", "aside from"; not the
+ambiguous "besides") asks for the total less a segment, a figure
 the 10-K data does not hold, so it rejects at any distance from the metric word ("Amazon's
 revenue in fiscal 2024, excluding AWS"), provided the sentence names a metric. A single
 ordinary word counts in any case there too ("excluding services").
@@ -38,7 +39,7 @@ INCLUDED_BEFORE_RE = re.compile(
 # An exclusion word right before the segment, with at most "the" between.
 EXCLUDED_BEFORE_RE = re.compile(
     r"(?:\b(?:excluding|without|not\s+counting|not\s+including|minus|other\s+than"
-    r"|except(?:\s+for)?)\s+(?:the\s+)?|\bex-\s*)$",
+    r"|except(?:\s+for)?|apart\s+from|aside\s+from)\s+(?:the\s+)?|\bex-\s*)$",
     re.IGNORECASE,
 )
 WORD_RE = re.compile(r"[A-Za-z0-9$%&'./-]+")
