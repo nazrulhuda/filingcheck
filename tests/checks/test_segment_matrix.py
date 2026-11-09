@@ -145,6 +145,8 @@ EXCLUSIONS = [
     "other than",
     "except",
     "ex-",
+    "apart from",
+    "aside from",
 ]
 EXCLUDE_SHAPES = [
     "What was {c}'s {m} in fiscal 2024, {x}{seg}?",
@@ -200,6 +202,8 @@ def test_an_exclusion_word_before_a_segment_rejects_at_any_distance(
         "What was Amazon's revenue in 2024, not counting AWS?",
         "What was Apple's revenue in fiscal 2024, excluding services?",
         "What was Microsoft's revenue in fiscal 2024 without office?",
+        "What was Amazon's revenue in 2024 apart from AWS?",
+        "What was Amazon's revenue in 2024 aside from AWS?",
     ],
 )
 def test_the_review_examples_and_lower_case_words_after_an_exclusion_reject(question: str) -> None:
@@ -211,6 +215,7 @@ def test_the_review_examples_and_lower_case_words_after_an_exclusion_reject(ques
     ("question", "ticker"),
     [
         ("What was Amazon's revenue in fiscal 2024, excluding taxes?", "AMZN"),
+        ("Besides AWS, what does Amazon sell? What was its revenue in 2024?", "AMZN"),
         ("What was Coca-Cola's revenue in fiscal 2024, excluding AWS?", "KO"),
         ("Without counting on AWS, Amazon grew. What was its net income in 2024?", "AMZN"),
     ],
