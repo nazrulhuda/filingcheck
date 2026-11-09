@@ -10,7 +10,13 @@ A segment name alone is not enough: it must be tied to the number, meaning withi
 words of a metric word in the same sentence, before or after it ("AWS revenue", "revenue did
 AWS make", "revenues in the Commercial & Investment Bank", "AWS's total revenue"). "Including"
 or "included" next to the segment breaks the tie, since the segment is then part of the total
-("Amazon's total revenue, including AWS", "including AWS revenue"); "excluding" keeps it.
+("Amazon's total revenue, including AWS", "including AWS revenue").
+
+An exclusion word right before the segment ("excluding", "without", "not counting", "not
+including", "minus", "other than", "except", "ex-") asks for the total less a segment, a figure
+the 10-K data does not hold, so it rejects at any distance from the metric word ("Amazon's
+revenue in fiscal 2024, excluding AWS"), provided the sentence names a metric. A single
+ordinary word counts in any case there too ("excluding services").
 Only the sentences about the call's metric are read (see `metric.scoped_sentences`). A
 segment eight words from the metric ("the revenue for the company that makes the iPhone"), in
 another sentence, or of another company is not a segment question.
@@ -28,6 +34,12 @@ INCLUDE_RE = re.compile(r"\b(?:including|included|includes|inclusive of)\b", re.
 # "including" right before the segment, with at most "the" between: "including the AWS revenue".
 INCLUDED_BEFORE_RE = re.compile(
     r"\b(?:including|includes|inclusive of)\s+(?:the\s+)?$", re.IGNORECASE
+)
+# An exclusion word right before the segment, with at most "the" between.
+EXCLUDED_BEFORE_RE = re.compile(
+    r"(?:\b(?:excluding|without|not\s+counting|not\s+including|minus|other\s+than"
+    r"|except(?:\s+for)?)\s+(?:the\s+)?|\bex-\s*)$",
+    re.IGNORECASE,
 )
 WORD_RE = re.compile(r"[A-Za-z0-9$%&'./-]+")
 _BEFORE, _AFTER = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
@@ -51,10 +63,17 @@ def _segment_spans(sentence: str, segments: list[str]) -> list[tuple[int, int, s
     """Where the listed segment names appear, longest first, without overlaps."""
     spans: list[tuple[int, int, str]] = []
     for name in sorted(segments, key=len, reverse=True):
-        for pattern in _patterns(name):
-            for match in pattern.finditer(sentence):
-                if all(match.end() <= s or match.start() >= e for s, e, _ in spans):
-                    spans.append((match.start(), match.end(), name))
+        found = [m for pattern in _patterns(name) for m in pattern.finditer(sentence)]
+        if not _any_case(name):  # "excluding services": any case after an exclusion word
+            any_case = re.compile(_BEFORE + re.escape(name) + _AFTER, re.IGNORECASE)
+            found += [
+                m
+                for m in any_case.finditer(sentence)
+                if EXCLUDED_BEFORE_RE.search(sentence[: m.start()])
+            ]
+        for match in found:
+            if all(match.end() <= s or match.start() >= e for s, e, _ in spans):
+                spans.append((match.start(), match.end(), name))
     return sorted(spans)
 
 
@@ -86,8 +105,10 @@ def find_segments(
     tied: list[str] = []
     loose: list[str] = []
     for sentence in scoped_sentences(text, metric):
+        names_metric = METRIC_WORD_RE.search(sentence) is not None
         for start, end, name in _segment_spans(sentence, segments):
-            bucket = tied if _tied(sentence, start, end) else loose
+            excluded = names_metric and EXCLUDED_BEFORE_RE.search(sentence[:start]) is not None
+            bucket = tied if excluded or _tied(sentence, start, end) else loose
             if name not in bucket:
                 bucket.append(name)
     return tied, [name for name in loose if name not in tied]
