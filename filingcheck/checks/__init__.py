@@ -1,8 +1,11 @@
 """The skeptical checks: rules over a tool call's arguments, run before the tool.
 
-`CHECKS` is the chain in order (company first; the fiscal-year, metric-and-period, units
-and segment checks join it on Day 23). `reference_data` loads what the checks read from
-`data/`, in the shape `ToolDeps` takes.
+`CHECKS` is the chain in order: company, fiscal year, metric and period, units, segment.
+`reference_data` loads what the checks read from `data/`, in the shape `ToolDeps` takes.
+
+The rules are frozen from the Day 23 merge on 2026-11-09, like the agent's prompt: the
+Week 6 measurement compares the agent with the checks off and on, so a change to any check
+means re-running both arms (docs/decisions.md, docs/week4_summary.md).
 """
 
 from pathlib import Path
@@ -18,12 +21,22 @@ from filingcheck.checks.base import (
     run_checks,
 )
 from filingcheck.checks.company import CompanyCheck
+from filingcheck.checks.fiscal_year import FiscalYearCheck
+from filingcheck.checks.metric import MetricCheck
+from filingcheck.checks.segment import SegmentCheck
+from filingcheck.checks.units import UnitsCheck
 from filingcheck.ingest.companies import load_companies, load_not_covered
 from filingcheck.ingest.filings import load_manifest
 from filingcheck.paths import DATA_DIR
 
 CHECKED_TOOL = "get_financial_fact"
-CHECKS: tuple[Check, ...] = (CompanyCheck(),)
+CHECKS: tuple[Check, ...] = (
+    CompanyCheck(),
+    FiscalYearCheck(),
+    MetricCheck(),
+    UnitsCheck(),
+    SegmentCheck(),
+)
 
 
 def reference_data(root: Path = DATA_DIR) -> dict[str, Any]:

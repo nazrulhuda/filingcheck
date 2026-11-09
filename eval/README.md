@@ -72,6 +72,14 @@ The baseline writes the same fields, with empty `fact_citations`, `tool_calls` a
 
 A row with an `error` has `answer: null` and no citations; `usage`, `cost_usd`, `latency_ms` and `model_calls` cover every model call the question made, the cut-off one included, and for the agent `tool_calls` and `facts_used` hold the calls made before it.
 
+## Year conventions
+
+- **A bare year** ("2025") means the fiscal year with that label: Walmart's 2025 is fiscal 2025, February 1, 2024 to January 31, 2025.
+- **"Last year", "latest", "most recent"** mean the company's latest pinned fiscal year: for Nvidia, fiscal 2026 (January 27, 2025 to January 25, 2026).
+- **A date** ("the year ended January 31, 2026", "as of June 30, 2025", or a range one year long) means the fiscal year ending within a week of it. A date that is no fiscal year end of the company ("the year ended December 31, 2025" for Walmart) or a range shorter or longer than a year is no fiscal year: the 10-K data has no figure for it, so the fiscal-year check rejects the call and the model should ask the user.
+- **A calendar year** ("calendar 2025", "CY2025") is that fiscal year for a company whose year ends in December; for the others it overlaps two fiscal years, and the check asks the user which one.
+- The question set's gold values follow these conventions (trap-002 is Walmart fiscal 2025; trap-003 is Nvidia fiscal 2026), the fiscal-year check uses them, and its reason always states the period dates, so a reader can see what was meant.
+
 ## Where the gold values come from
 
 A number question's gold value is filled from the `facts` table through the same lookup the agent's `get_financial_fact` tool uses: the pinned filing's own XBRL fact for that company, fiscal year and metric (`python -m filingcheck.eval gold`, from Week 3 Day 20).

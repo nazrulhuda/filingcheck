@@ -280,7 +280,7 @@ def test_rows_record_whether_the_checks_ran_and_their_override_log(tmp_path: Pat
     )
     (row,) = lines(out)
     assert row["checks"] is True
-    [record] = row["overrides"]
+    [record] = [o for o in row["overrides"] if o["check"] == "company"]
     assert (record["check"], record["outcome"], record["sent"], record["used"]) == (
         "company",
         "pass",
@@ -311,3 +311,13 @@ def test_rows_record_whether_the_checks_ran_and_their_override_log(tmp_path: Pat
     (row,) = lines(out3)
     assert row["checks"] is None and row["overrides"] == []
     assert "checks" in BATCH_FIELDS and "overrides" in BATCH_FIELDS
+
+
+def test_make_ask_and_the_batch_command_run_the_checks_by_default() -> None:
+    from filingcheck.answer.__main__ import answer_parser, batch_parser, checks_on
+
+    one = answer_parser().parse_args(["Apple's sales?", "--mode", "agent"])
+    batch = batch_parser().parse_args(["--mode", "agent", "--questions", "q", "--out", "o"])
+    assert checks_on(one.checks) and checks_on(batch.checks)
+    off = answer_parser().parse_args(["Apple's sales?", "--mode", "agent", "--checks", "0"])
+    assert not checks_on(off.checks)

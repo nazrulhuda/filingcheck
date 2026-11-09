@@ -11,7 +11,7 @@ from filingcheck.app.store import MemoryStore
 from filingcheck.llm import ChatModel, FakeChat, ProviderUnavailable, scripted_tool_calls
 from filingcheck.retrieval import Retriever
 from filingcheck.tools import ToolDeps
-from tests.agent.test_agent import apple_deps
+from tests.agent.test_agent_checks import checked_deps
 from tests.answer.test_baseline import FakeRetriever
 from tests.app.test_api import QUESTION, WALMART, events, settings
 
@@ -34,7 +34,7 @@ def make_agent(
 
     @contextmanager
     def tools() -> Iterator[ToolDeps]:
-        yield deps or apple_deps()
+        yield deps or checked_deps()
 
     services = Services(
         model=baseline,
@@ -200,7 +200,8 @@ class BrokenRetriever(FakeRetriever):
 
 
 def test_a_tool_that_fails_inside_is_an_error_for_the_model_not_a_500() -> None:
-    deps = ToolDeps(retriever=BrokenRetriever(), facts=apple_deps().facts)
+    deps = checked_deps()
+    deps.retriever = BrokenRetriever()
     chat = FakeChat(
         [
             scripted_tool_calls(("search_filings", {"query": "risks"})),
@@ -226,7 +227,8 @@ def test_a_daily_cap_refusal_of_an_agent_question_is_logged_as_agent() -> None:
 
 
 def test_a_degraded_search_is_logged_as_degraded() -> None:
-    deps = ToolDeps(retriever=FakeRetriever(degraded=True), facts=apple_deps().facts)
+    deps = checked_deps()
+    deps.retriever = FakeRetriever(degraded=True)
     chat = FakeChat([scripted_tool_calls(("search_filings", {"query": "risks"})), "Risks [1]."])
     client, store = make_agent(FakeChat([]), [chat], deps=deps)
     body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent"}).json()
@@ -250,8 +252,31 @@ def test_the_request_log_records_the_checks_switch_and_the_override_log() -> Non
     client, store = make_agent(FakeChat(["Peso swings are a risk [1]."]), [agent_script()])
     body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent"}).json()
     (row,) = store.rows
-    # The API runs the agent without the checks until the request can ask for them.
-    assert body["checks"] is False and body["overrides"] == []
-    assert row.checks is False and row.overrides == []
+    # Agent mode runs the checks unless the request says checks: false.
+    assert body["checks"] is True
+    assert next(o["check"] for o in body["overrides"]) == "company"
+    assert row.checks is True and row.overrides == body["overrides"]
     client.post("/ask", json={"question": QUESTION})
     assert store.rows[1].checks is None and store.rows[1].overrides is None
+
+
+def test_a_request_can_switch_the_checks_off_and_the_baseline_ignores_them() -> None:
+    client, store = make_agent(FakeChat(["Peso swings are a risk [1]."]), [agent_script()])
+    body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent", "checks": False}).json()
+    assert body["checks"] is False and body["overrides"] == []
+    assert store.rows[0].checks is False
+    body = client.post("/ask", json={"question": QUESTION, "checks": True}).json()
+    assert "checks" not in body and store.rows[1].checks is None
+
+
+def test_the_agent_stream_runs_the_checks_by_default() -> None:
+    client, store = make_agent(FakeChat([]), [agent_script()])
+    sent = events(client.post("/ask/stream", json={"question": APPLE_Q, "mode": "agent"}).text)
+    assert sent[-1][1]["answer"]["checks"] is True
+    assert store.rows[0].checks is True and store.rows[0].overrides
+
+
+def test_a_daily_cap_refusal_of_an_agent_question_records_the_checks_it_would_have_run() -> None:
+    client, store = make_agent(FakeChat([]), [agent_script()], daily_cap=0)
+    client.post("/ask", json={"question": APPLE_Q, "mode": "agent"})
+    assert (store.rows[0].mode, store.rows[0].checks) == ("agent", True)

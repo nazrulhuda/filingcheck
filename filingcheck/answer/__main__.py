@@ -38,12 +38,8 @@ def checks_on(value: str) -> bool:
     return value in ("on", "1")
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Answer one question with the baseline or the agent; print the answer and its cost."""
-    use_utf8_output()
-    argv = sys.argv[1:] if argv is None else argv
-    if argv[:1] == ["batch"]:
-        return batch_main(argv[1:])
+def answer_parser() -> argparse.ArgumentParser:
+    """The options of one question (`make ask`)."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.answer")
     parser.add_argument("question")
     parser.add_argument("--mode", choices=["baseline", "agent"], default="baseline")
@@ -58,9 +54,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--checks",
         choices=CHECK_CHOICES,
-        default="off",
-        help="agent mode: run the skeptical checks before get_financial_fact (default off)",
+        default="on",
+        help="agent mode: run the skeptical checks before get_financial_fact (default on)",
     )
+    return parser
+
+
+def batch_parser() -> argparse.ArgumentParser:
+    """The options of a batch run."""
+    parser = argparse.ArgumentParser(prog="python -m filingcheck.answer batch")
+    parser.add_argument("--mode", choices=["baseline", "agent"], required=True)
+    parser.add_argument("--questions", type=Path, required=True, help="a .jsonl question file")
+    parser.add_argument("--out", type=Path, required=True, help="the .jsonl results file")
+    parser.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
+    parser.add_argument(
+        "--checks",
+        choices=CHECK_CHOICES,
+        default="on",
+        help="agent mode: run the skeptical checks (default on); recorded in every row",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Answer one question with the baseline or the agent; print the answer and its cost."""
+    use_utf8_output()
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["batch"]:
+        return batch_main(argv[1:])
+    parser = answer_parser()
     args = parser.parse_args(argv)
     if not args.question.strip():
         parser.error('give a question: make ask Q="..."')
@@ -134,17 +156,7 @@ def batch_main(argv: list[str]) -> int:
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.tools import ToolDeps
 
-    parser = argparse.ArgumentParser(prog="python -m filingcheck.answer batch")
-    parser.add_argument("--mode", choices=["baseline", "agent"], required=True)
-    parser.add_argument("--questions", type=Path, required=True, help="a .jsonl question file")
-    parser.add_argument("--out", type=Path, required=True, help="the .jsonl results file")
-    parser.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
-    parser.add_argument(
-        "--checks",
-        choices=CHECK_CHOICES,
-        default="off",
-        help="agent mode: run the skeptical checks (default off); recorded in every row",
-    )
+    parser = batch_parser()
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")

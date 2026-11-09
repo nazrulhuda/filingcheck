@@ -93,6 +93,14 @@ class AskRequest(BaseModel):
     ticker: str | None = Field(default=None, pattern=r"^[A-Za-z.\-]{1,10}$")
     fiscal_year: int | None = Field(default=None, ge=1990, le=2100)
     mode: Literal["baseline", "agent"] = "baseline"  # the page sends none: the baseline
+    # The agent's skeptical checks: on unless the request says false; ignored for the baseline.
+    checks: bool | None = None
+
+    def checks_on(self) -> bool | None:
+        """Whether the checks run: None for the baseline, else on by default."""
+        if self.mode != "agent":
+            return None
+        return True if self.checks is None else self.checks
 
 
 def default_services() -> Services:
@@ -147,6 +155,7 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     def new_row(request_id: str, body: AskRequest, ip_hash: str, **fields: Any) -> RequestRow:
         fields.setdefault("mode", body.mode)  # a refusal is logged with the mode asked for
+        fields.setdefault("checks", body.checks_on())
         return RequestRow(
             id=request_id,
             created_at=datetime.now(UTC),
@@ -224,7 +233,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             fiscal_year=body.fiscal_year,
             on_tool_call=on_tool_call,
             failed=failed,
-            checks=False,  # the request chooses from Day 23 (AskRequest.checks)
+            checks=bool(body.checks_on()),
         )
 
     def tools() -> AbstractContextManager[ToolDeps]:
