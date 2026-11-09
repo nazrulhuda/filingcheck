@@ -208,3 +208,15 @@ def test_a_question_missing_from_one_arm_is_shown_as_not_run() -> None:
         "| trap-001 | Answered when it should have asked x1, Abstained x1 | not run | - | - |"
         in text
     )
+
+
+def test_the_last_column_says_outcomes_differ_and_a_note_says_what_that_means() -> None:
+    text = compare_arms(OFF, ON, set_name="examples", off_file="off.jsonl", on_file="on.jsonl")
+    assert "| Question | Checks off | Checks on | What the checks did | Outcomes differ |" in text
+    assert "| Changed |" not in text
+    assert (
+        "Outcomes can differ from model variance alone; a check changed an answer only where "
+        '"What the checks did" shows a repair or a reject.' in text
+    )
+    table_end = text.rindex("| control-001 |")
+    assert text.index("Outcomes can differ") > table_end  # the note sits under the table
