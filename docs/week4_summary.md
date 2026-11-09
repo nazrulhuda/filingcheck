@@ -11,6 +11,8 @@ So they cannot act in three cases:
 - **The model never calls the number tool.** A check runs on a tool call; when the model abstains or searches the text instead, as it did on Goldman's quarterly question in every run, the checks are not reached.
 - **One sentence with two asks.** The metric and segment checks read the sentences about the call's metric; a single sentence that asks for a quarterly figure and an annual one is judged as one.
 
-A repair rests on strong evidence only: a company named in the question, an explicit year or period, a relative word ("last year"), or the page filter. A weak cue, such as a date after "compared to" or "reported on", changes nothing, because a wrong repair is a silent wrong answer while a missed one is not.
+A repair rests on strong evidence only: a company named in the question, an explicit year, a date that is one of the company's fiscal year ends, a relative word ("last year"), or the page filter. A weak cue, such as a date after "compared to" or "reported on", changes nothing, because a wrong repair is a silent wrong answer while a missed one is not. A date that is no fiscal year end of the company ("the year ended December 31, 2025" for Walmart, "January 1 to June 30, 2025") is rejected with the company's real periods rather than moved to the nearest year.
+
+The segment check knows the segment names each company reports. A phrase that is not one of them, such as "cloud revenue" for Microsoft or "ad revenue" for Amazon, passes, and the tool returns the company total under its own label.
 
 **The rules were frozen on 2026-11-08**, like the agent's prompt on Day 18. A later change to a check means re-running both evaluation arms, with the checks off and on.
