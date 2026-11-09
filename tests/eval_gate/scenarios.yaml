@@ -1,4 +1,4 @@
-# The deterministic gate (make eval-smoke): 20 scripted agent runs with the checks on.
+# The deterministic gate (make eval-smoke): 21 scripted agent runs with the checks on.
 #
 # Each scenario is a question, the page filters, the model's scripted tool calls (one model
 # turn each; a turn may ask for two calls), the scripted final answer, and what must come out:
@@ -282,4 +282,18 @@ scenarios:
       overrides: [company:repair, fiscal_year:repair, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: WMT, fiscal_year: 2026, metric: revenue}]
       values: ["713163000000"]
+      grade: correct
+
+  # ------------------------------------------------------------ the annual-only rule
+  - id: gate-021
+    covers: annual periods only (JNJ FY2023 also reports a 90-day fourth quarter ending on the year end)
+    question: What was Johnson & Johnson's net income in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: JNJ, fiscal_year: 2023, metric: net_income}}]
+    final_answer: Johnson & Johnson's net income for fiscal 2023 was $35,153 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: JNJ, fiscal_year: 2023, metric: net_income, expected_behavior: answer, gold_value: 35153000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: JNJ, fiscal_year: 2023, metric: net_income}]
+      values: ["35153000000"]
       grade: correct
