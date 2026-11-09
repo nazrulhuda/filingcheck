@@ -1,23 +1,30 @@
-"""The segment check: a segment or product name of the argument's company in the question.
+"""The segment check: a segment or product figure asked of the number tool.
 
-The fact tool returns company totals only, so "AWS operating income" is turned down by name
-rather than answered with Amazon's total. The names are each company's `segments` list in
-`data/companies.yaml`. A name of two or more words or in capitals ("AWS") is matched in any
-case; a single ordinary word ("Services", "Office") only as written, so "services" in a
-sentence is not Apple's Services segment. A question that asks for the company total while
-mentioning a segment ("Amazon's total revenue, including AWS") passes, with a note.
+The fact tool returns company totals only, so "AWS revenue" is turned down by name rather
+than answered with Amazon's total. The names are each company's `segments` list in
+`data/companies.yaml`; a name of two or more words or in capitals ("AWS") is matched in any
+case, a single ordinary word ("Services", "Office") only as written.
+
+A segment name alone is not enough: it must be tied to the number, meaning within three
+words of a metric word in the same sentence, before or after it ("AWS revenue", "revenue did
+AWS make", "revenues in the Commercial & Investment Bank", "AWS's total revenue"). "Including"
+or "included" next to the segment breaks the tie, since the segment is then part of the total
+("Amazon's total revenue, including AWS"); "excluding" keeps it. Only the sentences about the
+call's metric are read (see `metric.scoped_sentences`). A segment eight words from the metric
+("the revenue for the company that makes the iPhone"), in another sentence, or of another
+company is not a segment question.
 """
 
 import re
 
 from filingcheck.checks.base import CheckContext, CheckedCall, CheckResult
+from filingcheck.checks.metric import METRIC_WORD_RE, scoped_sentences
 
 NAME = "segment"
 RIGHT_QUOTE = chr(0x2019)
-TOTAL_RE = re.compile(
-    r"\b(?:total|consolidated|overall|company-wide|whole company|entire company|as a whole)\b",
-    re.IGNORECASE,
-)
+WINDOW = 3  # at most this many words between the segment and the metric word
+INCLUDE_RE = re.compile(r"\b(?:including|included|includes|inclusive of)\b", re.IGNORECASE)
+WORD_RE = re.compile(r"[A-Za-z0-9$%&'./-]+")
 _BEFORE, _AFTER = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
 
 
@@ -26,19 +33,51 @@ def _pattern(name: str) -> re.Pattern[str]:
     return re.compile(_BEFORE + re.escape(name) + _AFTER, re.IGNORECASE if any_case else 0)
 
 
-def find_segments(question: str, segments: list[str]) -> list[str]:
-    """The listed segment names the question uses, longest first, without overlaps."""
-    text = question.replace(RIGHT_QUOTE, "'")
+def _segment_spans(sentence: str, segments: list[str]) -> list[tuple[int, int, str]]:
+    """Where the listed segment names appear, longest first, without overlaps."""
     spans: list[tuple[int, int, str]] = []
     for name in sorted(segments, key=len, reverse=True):
-        for match in _pattern(name).finditer(text):
+        for match in _pattern(name).finditer(sentence):
             if all(match.end() <= s or match.start() >= e for s, e, _ in spans):
                 spans.append((match.start(), match.end(), name))
-    return [name for _, _, name in sorted(spans)]
+    return sorted(spans)
+
+
+def _tied(sentence: str, start: int, end: int) -> bool:
+    """True if a metric word sits within WINDOW words of the segment, with no 'including'."""
+    for metric in METRIC_WORD_RE.finditer(sentence):
+        if metric.end() <= start:
+            between = sentence[metric.end() : start]
+        elif end <= metric.start():
+            between = sentence[end : metric.start()]
+        else:
+            continue
+        if len(WORD_RE.findall(between)) > WINDOW:
+            continue
+        after = sentence[end:].lstrip(" ,;:")
+        if INCLUDE_RE.search(between) or INCLUDE_RE.match(after):
+            continue
+        return True
+    return False
+
+
+def find_segments(
+    question: str, segments: list[str], metric: str = "revenue"
+) -> tuple[list[str], list[str]]:
+    """The segment names in the sentences about `metric`: those tied to the number, and the rest."""
+    text = question.replace(RIGHT_QUOTE, "'")
+    tied: list[str] = []
+    loose: list[str] = []
+    for sentence in scoped_sentences(text, metric):
+        for start, end, name in _segment_spans(sentence, segments):
+            bucket = tied if _tied(sentence, start, end) else loose
+            if name not in bucket:
+                bucket.append(name)
+    return tied, [name for name in loose if name not in tied]
 
 
 class SegmentCheck:
-    """Reject a segment question for the number tool; pass a question about the total."""
+    """Reject a segment figure asked of the number tool."""
 
     name = NAME
 
@@ -46,13 +85,17 @@ class SegmentCheck:
         """Judge the question against the argument company's segment names."""
         ticker = call.arguments["ticker"]
         company = next((c for c in context.companies if c.ticker == ticker), None)
-        named = find_segments(context.question, company.segments if company else [])
+        named, loose = find_segments(
+            context.question, company.segments if company else [], call.arguments["metric"]
+        )
         if not named:
-            return CheckResult.passed(self.name, None, call.arguments, "no segment named")
-        listed = ", ".join(named)
-        if TOTAL_RE.search(context.question):
-            reason = f"the question mentions {listed} but asks for the company total"
+            reason = (
+                f"the question mentions {', '.join(loose)} but asks for the company figure"
+                if loose
+                else "no segment tied to the number"
+            )
             return CheckResult.passed(self.name, None, call.arguments, reason)
+        listed = ", ".join(named)
         reason = (
             f"the fact tool returns company totals only; segment figures ({listed}) are not "
             "supported; use search_filings for the text or say so"

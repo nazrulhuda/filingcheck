@@ -5,6 +5,7 @@ calendar years are read apart. Hand-picked sentences hide blind spots; a matrix 
 
 import itertools
 from datetime import date
+from typing import Any
 
 import pytest
 
@@ -59,7 +60,7 @@ TEMPLATES = [
 ]
 
 
-def strong_cases() -> list[object]:
+def strong_cases() -> list[Any]:
     cases = []
     for ticker, pinned in PINNED.items():
         for year in sorted(pinned)[-2:]:
@@ -99,7 +100,7 @@ RELATIVE_TEMPLATES = [
 ]
 
 
-def relative_cases() -> list[object]:
+def relative_cases() -> list[Any]:
     cases = []
     for ticker, pinned in PINNED.items():
         latest = max(pinned)
@@ -135,7 +136,7 @@ WEAK_TEMPLATES = [
 ]
 
 
-def weak_cases() -> list[object]:
+def weak_cases() -> list[Any]:
     cases = []
     for ticker, pinned in PINNED.items():
         # A date that is not a period end, and the period end itself: the cue decides, not the date.

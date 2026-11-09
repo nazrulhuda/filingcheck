@@ -6,10 +6,18 @@ dataset has annual 10-K figures only. Unsupported metrics ("EBITDA", "free cash 
 unless the question also names a supported metric that the argument matches ("revenue and
 EBITDA" with metric revenue passes). For banks, "net revenue" and "revenue" both mean the
 `revenue` metric; the lookup's bank rule picks the tag.
+
+The check reads the sentences about the call's metric: when some sentence names that
+metric, sentences that name a different metric are set aside ("What was Apple's net income
+in fiscal 2025? Also, what did it report as revenue for the quarter?" passes a net income
+call); a sentence that names no metric still counts ("I mean for Q3" still rejects). When
+no sentence names the call's metric, the whole question is read. Known limit: one sentence
+with two asks is judged as one.
 """
 
 import re
 
+from filingcheck.answer.citations import sentences
 from filingcheck.checks.base import CheckContext, CheckedCall, CheckResult
 from filingcheck.facts.metrics import METRICS
 
@@ -38,16 +46,18 @@ SUPPORTED: tuple[tuple[str, str], ...] = (
     ("total liabilities|liabilities", "total_liabilities"),
     ("total assets|assets", "total_assets"),
     ("(?:share|stock)holders'? equity|equity", "stockholders_equity"),
-    ("net income|net earnings|earnings|profit", "net_income"),
+    ("net income|net earnings|net loss|earnings|profit|loss", "net_income"),
     ("(?:net )?revenues?|(?:net )?sales|top line", "revenue"),
     ("debt", "long_term_debt"),
     ("cash", "cash_and_equivalents"),
 )
+# Any word that names a supported metric, for the segment check's tie.
+METRIC_WORD_RE = re.compile(r"\b(?:" + "|".join(p for p, _ in SUPPORTED) + r")\b", re.IGNORECASE)
 
 
-def named_metrics(question: str) -> set[str]:
-    """The supported metrics the question names (unsupported phrases removed first)."""
-    text = UNSUPPORTED_RE.sub(" ", question.lower())
+def named_metrics(text: str) -> set[str]:
+    """The supported metrics the text names (unsupported phrases removed first)."""
+    text = UNSUPPORTED_RE.sub(" ", text.lower())
     found: set[str] = set()
     for pattern, metric in SUPPORTED:
         regex = re.compile(r"\b(?:" + pattern + r")\b")
@@ -57,25 +67,40 @@ def named_metrics(question: str) -> set[str]:
     return found
 
 
+def scoped_sentences(question: str, metric: str) -> list[str]:
+    """The sentences a check about `metric` should read.
+
+    When some sentence names the call's metric, sentences that name a different metric and
+    not this one are set aside; every other sentence (this metric, or no metric) counts.
+    When no sentence names the call's metric, every sentence counts.
+    """
+    parts = sentences(question) or [question]
+    named = [named_metrics(part) for part in parts]
+    if not any(metric in n for n in named):
+        return parts
+    return [part for part, n in zip(parts, named, strict=True) if not n or metric in n]
+
+
 class MetricCheck:
-    """Quarter words and unsupported metrics in the question."""
+    """Quarter words and unsupported metrics in the sentences about the call's metric."""
 
     name = NAME
 
     def run(self, call: CheckedCall, context: CheckContext) -> CheckResult:
         """Judge the question's period and metric words against the `metric` argument."""
-        quarter = QUARTER_RE.search(context.question)
+        metric = call.arguments["metric"]
+        text = " ".join(scoped_sentences(context.question, metric))
+        quarter = QUARTER_RE.search(text)
         if quarter is not None:
             reason = (
                 "the dataset has annual figures only (10-K); no quarterly periods "
                 f"('{quarter.group(0)}' in the question)"
             )
             return CheckResult.rejected(self.name, "metric", call.arguments, reason)
-        metric = call.arguments["metric"]
-        unsupported = sorted({m.group(0) for m in UNSUPPORTED_RE.finditer(context.question)})
+        unsupported = sorted({m.group(0) for m in UNSUPPORTED_RE.finditer(text)})
         if unsupported:
             listed = ", ".join(f"'{u}'" for u in unsupported)
-            if metric in named_metrics(context.question):
+            if metric in named_metrics(text):
                 reason = (
                     f"the question also asks for {listed}, which the data does not hold; "
                     f"{metric} is named too, so it is looked up"

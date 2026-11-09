@@ -40,7 +40,7 @@ def chain(
     return run_checks(call, context, CHECKS)
 
 
-def real_questions() -> list[object]:
+def real_questions() -> list[Any]:
     cases = []
     for name in ("examples.jsonl", "page_examples.jsonl", "retrieval.jsonl"):
         for line in (REPO / "eval" / "questions" / name).read_text(encoding="utf-8").splitlines():

@@ -1,12 +1,16 @@
 """The fiscal-year check: the `fiscal_year` argument against the question and the manifest.
 
-The question's years: a bare year or a fiscal phrase ("2025", "fiscal 2025", "FY2025",
-"FY25", "fiscal '25", "fiscal years 2024 and 2025") is the fiscal-year label; "the year
-ended <date>" is the pinned fiscal year whose period ends on that date; relative words
-("last year", "latest", "most recent", "this year") mean the company's latest pinned year,
-"the year before" one year earlier and "two years ago" two. A year inside any other date
-(a filing date) is not a fiscal year. Every reason states the period dates, so a reader can
-see what was meant: "fiscal 2025 (Feb 1, 2024 to Jan 31, 2025)".
+A repair rests on strong evidence only: an explicit year ("2025" is the fiscal-year label by
+the settled convention, "fiscal 2025", "FY2025", "FY25", "fiscal years 2024 and 2025"), "the
+year ended/ending <date>" or "as of <date>" (the pinned year whose period ends on that date),
+a date range ("Jan 27, 2025 to Jan 25, 2026": the year ending on the second date), a relative
+word ("last year", "latest", "most recent", "this year": the latest pinned year; "the year
+before" one earlier; "two years ago" two earlier), or the page filter. A date after a weak cue
+("on", "to", "at", "compared to", "filed on", "announced on") counts for nothing and leaves
+the model's argument standing: a false repair is a silent wrong answer, a false pass is not.
+"Calendar 2025" is read apart: it is fiscal 2025 for a company whose year ends in December,
+and for the others a reject naming the two overlapping fiscal years, with "ask the user".
+Every reason states the period dates: "fiscal 2025 (Feb 1, 2024 to Jan 31, 2025)".
 """
 
 import re
@@ -18,38 +22,46 @@ from filingcheck.ingest.filings import Manifest
 
 NAME = "fiscal_year"
 RIGHT_QUOTE = chr(0x2019)
+DASHES = str.maketrans({chr(0x2013): "-", chr(0x2014): "-", chr(0x2212): "-"})
 MONTHS = {
     m: i + 1
     for i, m in enumerate(
         ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     )
 }
-MONTH_RE = (
-    r"(?P<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?"
+MONTH = (
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?"
     r"|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 )
+# One full date: "January 31, 2025", "Jan. 31, 2025", "31 January 2025" or "2025-01-31".
 DATE_RE = re.compile(
-    r"\b" + MONTH_RE + r"\.?\s+(?P<day>\d{1,2}),?\s+(?P<year>\d{4})\b"
+    r"\b(?P<month>" + MONTH + r")\.?\s+(?P<day>\d{1,2}),?\s+(?P<year>\d{4})\b"
+    r"|\b(?P<day2>\d{1,2})\s+(?P<month2>" + MONTH + r")\.?,?\s+(?P<year2>\d{4})\b"
     r"|\b(?P<iso>\d{4}-\d{2}-\d{2})\b",
     re.IGNORECASE,
 )
-# The words before a date that make it the end of a fiscal year.
-PERIOD_END_RE = re.compile(
-    r"(?:\bended|\bending|\bend|\bas of|\bthrough|\bto|\bat|\bon)\s*$", re.IGNORECASE
-)
-# Not "filed on <date>": a filing date is not a period end.
-FILED_RE = re.compile(r"\b(?:filed|dated|issued|released|published)\s+(?:on\s+)?$", re.IGNORECASE)
+# A month and a year with no day ("November 2025"): a filing date, never a fiscal year.
+MONTH_YEAR_RE = re.compile(r"\b" + MONTH + r"\.?\s+\d{4}\b", re.IGNORECASE)
+# The words that make a date the end of a fiscal year. "on", "to", "at", "through" are not
+# among them: "compared to <date>" and "reported on <date>" are not periods.
+PERIOD_END_RE = re.compile(r"\b(?:ended|ending|ends|end of|as of)\s*$", re.IGNORECASE)
+RANGE_GAP_RE = re.compile(r"\s*(?:to|through|until|-)\s*", re.IGNORECASE)
 _YEAR = r"(?:\d{4}|'?\d{2})(?!\d)(?!-?\s*week)"
 FISCAL_RE = re.compile(
     r"\b(?:fiscal(?:[\s-]+years?)?|FY)[\s-]*(" + _YEAR + r")"
     r"((?:\s*(?:,|and|&|-|to|through)\s*(?:fiscal\s+|FY\s?)?" + _YEAR + r")*)",
     re.IGNORECASE,
 )
+CALENDAR_RE = re.compile(
+    r"\b(?:calendar(?:\s+year)?\s+(?P<a>\d{4})|CY\s?(?P<b>\d{4}|\d{2})(?!\d)"
+    r"|the\s+(?P<c>\d{4})\s+calendar\s+year)\b",
+    re.IGNORECASE,
+)
 BARE_RANGE_RE = re.compile(r"(?<![\d$.,])((?:19|20)\d{2})\s*-\s*(\d{2})(?!\d)")
 BARE_YEAR_RE = re.compile(
     r"(?<![\d$.,])((?:19|20)\d{2})(?![\d%]|[.,]\d)(?!\s*(?:million|billion|thousand))"
 )
-# Relative words, longest first: (pattern, how many years before the reference, reference).
+# Relative words, longest first: (pattern, years before the reference, the reference).
 RELATIVE: tuple[tuple[str, int, str], ...] = (
     (r"the year before last|two years ago", 2, "latest"),
     (
@@ -64,6 +76,20 @@ RELATIVE: tuple[tuple[str, int, str], ...] = (
         "latest",
     ),
 )
+MONTH_NAMES = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 
 def _pinned(ticker: str, manifest: Manifest) -> dict[int, date]:
@@ -73,6 +99,11 @@ def _pinned(ticker: str, manifest: Manifest) -> dict[int, date]:
 
 def _short(day: date) -> str:
     return f"{day:%b} {day.day}, {day.year}"
+
+
+def _start(year: int, pinned: dict[int, date]) -> date | None:
+    """The day after the previous pinned year ends; None for the earliest pinned year."""
+    return pinned[year - 1] + timedelta(days=1) if year - 1 in pinned else None
 
 
 def period_text(
@@ -87,10 +118,8 @@ def period_text(
     end = pinned.get(year)
     if end is None:
         return f"fiscal {year}"
-    start: date | None = None
-    if year - 1 in pinned:
-        start = pinned[year - 1] + timedelta(days=1)
-    elif facts is not None:
+    start = _start(year, pinned)
+    if start is None and facts is not None:
         try:
             result = lookup(facts, ticker, year, "operating_cash_flow")
         except LookupError:
@@ -106,23 +135,52 @@ def _year(text: str) -> int:
     return int(digits) if len(digits) == 4 else 2000 + int(digits)
 
 
+def _date(match: re.Match[str]) -> date:
+    if match["iso"]:
+        return date.fromisoformat(match["iso"])
+    if match["month"]:
+        month, day, year = match["month"], match["day"], match["year"]
+    else:
+        month, day, year = match["month2"], match["day2"], match["year2"]
+    return date(int(year), MONTHS[month[:3].lower()], int(day))
+
+
+def _normalize(question: str) -> str:
+    return question.replace(RIGHT_QUOTE, "'").translate(DASHES)
+
+
+def read_calendar_years(question: str) -> set[int]:
+    """The calendar years the question names ("calendar 2025", "CY2025")."""
+    return {_year(m["a"] or m["b"] or m["c"]) for m in CALENDAR_RE.finditer(_normalize(question))}
+
+
 def read_years(question: str, ticker: str, manifest: Manifest) -> dict[int, str]:
     """The fiscal years the question asks about, each with how it was read."""
-    text = question.replace(RIGHT_QUOTE, "'").replace(chr(0x2013), "-")
+    text = CALENDAR_RE.sub(" ", _normalize(question))
     pinned = _pinned(ticker, manifest)
     years: dict[int, str] = {}
-    for match in DATE_RE.finditer(text):
-        before = text[: match.start()]
-        if FILED_RE.search(before) or not PERIOD_END_RE.search(before):
-            continue
-        if match["iso"]:
-            day = date.fromisoformat(match["iso"])
-        else:
-            day = date(int(match["year"]), MONTHS[match["month"][:3].lower()], int(match["day"]))
+
+    def label(day: date) -> int:
         near = [y for y, end in pinned.items() if abs((end - day).days) <= 7]
-        year = near[0] if near else day.year
-        years.setdefault(year, f"the question names the year ended {_short(day)}")
-    rest = DATE_RE.sub(" ", text)
+        return near[0] if near else day.year
+
+    dates = list(DATE_RE.finditer(text))
+    i = 0
+    while i < len(dates):
+        this = dates[i]
+        gap = text[this.end() : dates[i + 1].start()] if i + 1 < len(dates) else None
+        if gap is not None and RANGE_GAP_RE.fullmatch(gap):
+            end = _date(dates[i + 1])
+            years.setdefault(
+                label(end), f"the question names the period {_short(_date(this))} to {_short(end)}"
+            )
+            i += 2
+            continue
+        if PERIOD_END_RE.search(text[: this.start()]):
+            day = _date(this)
+            years.setdefault(label(day), f"the question names the year ended {_short(day)}")
+        i += 1
+    rest = MONTH_YEAR_RE.sub(" ", DATE_RE.sub(" ", text))
     for match in FISCAL_RE.finditer(rest):
         for found in [match.group(1), *re.findall(r"'?\d{4}|'?\d{2}", match.group(2))]:
             years.setdefault(_year(found), f"the question says fiscal {_year(found)}")
@@ -162,7 +220,7 @@ def _join(years: list[int]) -> str:
 
 
 class FiscalYearCheck:
-    """Rules (a) to (e) of the Week 4 spec, with the page-filter rules from the review."""
+    """Rules (a) to (e) of the Week 4 spec, with the page-filter and calendar rules from review."""
 
     name = NAME
 
@@ -172,25 +230,25 @@ class FiscalYearCheck:
             return CheckResult.passed(
                 self.name, "fiscal_year", call.arguments, "no manifest; the year is not checked"
             )
+        manifest = context.manifest
         ticker, sent = call.arguments["ticker"], call.arguments["fiscal_year"]
-        pinned = _pinned(ticker, context.manifest)
+        pinned = _pinned(ticker, manifest)
+        listed = ", ".join(str(y) for y in sorted(pinned))
 
         def period(year: int) -> str:
-            return period_text(ticker, year, context.manifest, context.facts)  # type: ignore[arg-type]
+            return period_text(ticker, year, manifest, context.facts)
+
+        def reject(reason: str, options: list[int]) -> CheckResult:
+            return CheckResult.rejected(
+                self.name, "fiscal_year", call.arguments, reason, options=[str(y) for y in options]
+            )
 
         def unpinned(year: int) -> CheckResult:
-            listed = ", ".join(str(y) for y in sorted(pinned))
             reason = (
                 f"{ticker} has no 10-K for fiscal {year} in the dataset; "
                 f"the pinned fiscal years are {listed}"
             )
-            return CheckResult.rejected(
-                self.name,
-                "fiscal_year",
-                call.arguments,
-                reason,
-                options=[str(y) for y in sorted(pinned)],
-            )
+            return reject(reason, sorted(pinned))
 
         def settle(target: int, why: str) -> CheckResult:
             if target not in pinned:
@@ -202,35 +260,44 @@ class FiscalYearCheck:
             used = {**call.arguments, "fiscal_year": target}
             return CheckResult.repaired(self.name, "fiscal_year", call.arguments, used, reason)
 
-        asked = read_years(context.question, ticker, context.manifest)
+        asked = read_years(context.question, ticker, manifest)
+        calendar = read_calendar_years(context.question)
+        if calendar:
+            company = next((c for c in context.companies if c.ticker == ticker), None)
+            if company is not None and company.fiscal_year_end == 12:
+                for year in sorted(calendar):
+                    asked.setdefault(
+                        year,
+                        f"the question says calendar {year}, which is {ticker}'s fiscal {year}",
+                    )
+            else:
+                year = min(calendar)
+                overlapping = [y for y in (year, year + 1) if y in pinned]
+                month = MONTH_NAMES[company.fiscal_year_end - 1] if company else "another month"
+                parts = [
+                    period(y) if y in pinned else f"fiscal {y} (no 10-K in the dataset)"
+                    for y in (year, year + 1)
+                ]
+                reason = (
+                    f"calendar {year} is not one of {ticker}'s fiscal years, which end in {month}; "
+                    f"it overlaps {parts[0]} and {parts[1]}; ask the user which fiscal year"
+                )
+                return reject(reason, overlapping)
         page = context.fiscal_year
         if asked:
             if page is not None and page not in asked:
-                options = sorted({*asked, page})
                 reason = (
                     f"the question asks about {_join(sorted(asked))} but the page filter is "
                     f"fiscal {page}; ask the user which one"
                 )
-                return CheckResult.rejected(
-                    self.name,
-                    "fiscal_year",
-                    call.arguments,
-                    reason,
-                    options=[str(y) for y in options],
-                )
+                return reject(reason, sorted({*asked, page}))
             if sent in asked:
                 return settle(sent, asked[sent])
             if len(asked) == 1:
                 ((target, why),) = asked.items()
                 return settle(target, why)
             reason = f"the question names {_join(sorted(asked))}; the model sent {sent}"
-            return CheckResult.rejected(
-                self.name,
-                "fiscal_year",
-                call.arguments,
-                reason,
-                options=[str(y) for y in sorted(asked)],
-            )
+            return reject(reason, sorted(asked))
         if page is not None:
             return settle(page, f"no year in the question; the user selected fiscal {page}")
         if sent not in pinned:

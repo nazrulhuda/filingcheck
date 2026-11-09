@@ -4,6 +4,7 @@ tie; "excluding" keeps it; a segment far from any metric word, in another senten
 another company, is not a segment question."""
 
 import itertools
+from typing import Any
 
 import pytest
 
@@ -43,7 +44,7 @@ NOT_TIED = [
 CHECK = SegmentCheck()
 
 
-def cases(templates: list[str]) -> list[object]:
+def cases(templates: list[str]) -> list[Any]:
     out = []
     for (ticker, company, segment), metric, template in itertools.product(
         SEGMENTS, METRICS, templates
