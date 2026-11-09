@@ -9,9 +9,12 @@ requested scale and the final answer's grade with what the scenario expects.
 
 The facts come from `data/facts.jsonl` (the facts table's file) when it is present, and from
 `tests/eval_gate/facts_fixture.jsonl` otherwise (CI). The fixture is written by
-`python -m filingcheck.eval gate-fixture`: the rows of `data/facts.jsonl`, with their
-accession and concept, for every (filing, concept) the scenarios read. The gate checks the
-checks' decisions and the tool path; accuracy on real models is measured by `make eval`.
+`python -m filingcheck.eval gate-fixture`: for every filing the scenarios read, the
+no-dimension rows of every candidate tag of every metric, with their accession and concept.
+Keeping every candidate tag, not only the ones the correct code read, means a wrong tag
+order or a wrong period rule reaches the same wrong row on the fixture as on the real file.
+The gate checks the checks' decisions and the tool path; accuracy on real models is
+measured by `make eval`.
 """
 
 import json
@@ -27,6 +30,7 @@ from filingcheck.checks import reference_data
 from filingcheck.eval.grade import grade
 from filingcheck.eval.questions import Question
 from filingcheck.facts.lookup import FactsSource, FilingRef, JsonlFacts, TotalFact
+from filingcheck.facts.metrics import all_candidate_tags
 from filingcheck.llm import FakeChat, scripted_tool_calls
 from filingcheck.paths import DATA_DIR, REPO_ROOT
 from filingcheck.retrieval.models import SearchResult
@@ -121,19 +125,19 @@ class NoRetriever:
 
 
 class RecordingFacts:
-    """A facts source that remembers every (filing, concept) it was asked for."""
+    """A facts source that remembers every filing it was asked about."""
 
     def __init__(self, inner: FactsSource) -> None:
         self.inner = inner
-        self.read: set[tuple[str, str]] = set()
+        self.read: set[str] = set()  # accessions
 
     def filing(self, ticker: str, fiscal_year: int) -> FilingRef | None:
         """The inner source's filing."""
         return self.inner.filing(ticker, fiscal_year)
 
     def facts(self, accession: str, concepts: Sequence[str]) -> list[TotalFact]:
-        """The inner source's facts; the pairs asked for are recorded."""
-        self.read.update((accession, concept) for concept in concepts)
+        """The inner source's facts; the filing is recorded."""
+        self.read.add(accession)
         return self.inner.facts(accession, concepts)
 
 
@@ -184,15 +188,18 @@ def run_scenario(scenario: Scenario, facts: FactsSource) -> Result:
 def write_fixture(
     scenarios: Sequence[Scenario], facts_file: Path = DATA_DIR / "facts.jsonl", out: Path = FIXTURE
 ) -> int:
-    """Write the rows of `facts_file` the scenarios read; return how many."""
+    """Write every candidate tag's rows of each filing the scenarios read; return how many."""
     recorder = RecordingFacts(facts_source(facts_file))
     for scenario in scenarios:
         run_scenario(scenario, recorder)
+    tags = set(all_candidate_tags())
     rows = []
     with facts_file.open(encoding="utf-8") as handle:
         for line in handle:
             row = json.loads(line)
-            if not row["dimensions"] and (row["accession"], row["concept"]) in recorder.read:
+            if row["dimensions"] or row["concept"] not in tags:
+                continue
+            if row["accession"] in recorder.read:
                 rows.append({k: row[k] for k in FIXTURE_FIELDS})
     rows.sort(key=lambda r: (r["accession"], r["concept"], json.dumps(r, sort_keys=True)))
     out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8", newline="\n")

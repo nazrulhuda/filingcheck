@@ -24,7 +24,7 @@ jobs:
         run: make lint
       - name: Unit tests with coverage
         run: make test
-      - name: The deterministic gate (20 scripted scenarios, facts fixture)
+      - name: The deterministic gate (21 scripted scenarios, facts fixture)
         run: make eval-smoke
       - name: Upload coverage report
         if: always()
