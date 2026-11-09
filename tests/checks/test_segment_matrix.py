@@ -39,6 +39,8 @@ TIED = [
 NOT_TIED = [
     "What was {c}'s total {m}, including {seg}, in 2025?",
     "What was {c}'s {m} in 2025, {seg} included?",
+    "What was {c}'s total {m}, including {seg} {m}, in 2025?",
+    "What was {c}'s total {m} in 2025, including the {seg} {m}?",
     "What was the {m} in 2025 for the company that makes the {seg}?",
     "What was {c}'s {m} in fiscal 2025? Also, how did {seg} do?",
     "Which customers use {c}'s {seg} products? Give {c}'s {m} too.",
@@ -88,6 +90,7 @@ LOWER_TIED = [
     "How much {low} {m} did {c} report in 2025?",
 ]
 LOWER_LOOSE = [
+    "What was {c}'s total {m} in 2025, including {low} {m}?",
     "What was {c}'s {m} from products and {low} in 2025?",
     "What was {c}'s {m} in 2025? Its {low} business grew.",
     "Which {low} does {c} sell, and what was its {m} in 2025?",
