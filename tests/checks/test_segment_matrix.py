@@ -1,7 +1,9 @@
 """A generated matrix for the segment tie: a segment name within three words of a metric word,
 in one sentence, is a segment question and is rejected; "including" or "included" breaks the
 tie; "excluding" keeps it; a segment far from any metric word, in another sentence, or of
-another company, is not a segment question."""
+another company, is not a segment question. A single ordinary word ("Services", "Office")
+also counts in lower case when it sits directly before the metric word ("services revenue"),
+and only there."""
 
 import itertools
 from typing import Any
@@ -77,3 +79,50 @@ def test_another_companys_segment_is_not_a_segment(
 ) -> None:
     other = "KO" if ticker != "KO" else "PFE"
     assert run_check(CHECK, question, ticker=other).outcome == "pass", question
+
+
+# A single ordinary word in lower case: tied only directly before the metric word.
+AS_WRITTEN = [(t, c, seg) for t, c, seg in SEGMENTS if " " not in seg and not seg.isupper()]
+LOWER_TIED = [
+    "What was {c}'s {low} {m} in 2025?",
+    "How much {low} {m} did {c} report in 2025?",
+]
+LOWER_LOOSE = [
+    "What was {c}'s {m} from products and {low} in 2025?",
+    "What was {c}'s {m} in 2025? Its {low} business grew.",
+    "Which {low} does {c} sell, and what was its {m} in 2025?",
+]
+
+
+def lower_cases(templates: list[str]) -> list[Any]:
+    out = []
+    for (ticker, company, segment), metric, template in itertools.product(
+        AS_WRITTEN, METRICS, templates
+    ):
+        question = template.format(c=company, low=segment.lower(), m=metric)
+        out.append(
+            pytest.param(
+                question, ticker, segment, id=f"low-{segment}-{metric}-{templates.index(template)}"
+            )
+        )
+    return out
+
+
+def test_the_lower_case_matrix_covers_the_single_ordinary_words() -> None:
+    assert sorted(seg for _, _, seg in AS_WRITTEN) == ["Office", "Services", "iPhone"]
+
+
+@pytest.mark.parametrize(("question", "ticker", "segment"), lower_cases(LOWER_TIED))
+def test_a_lower_case_segment_word_before_the_metric_is_rejected(
+    question: str, ticker: str, segment: str
+) -> None:
+    result = run_check(CHECK, question, ticker=ticker)
+    assert result.outcome == "reject", question
+    assert segment in result.override.reason
+
+
+@pytest.mark.parametrize(("question", "ticker", "segment"), lower_cases(LOWER_LOOSE))
+def test_a_lower_case_segment_word_elsewhere_passes(
+    question: str, ticker: str, segment: str
+) -> None:
+    assert run_check(CHECK, question, ticker=ticker).outcome == "pass", question

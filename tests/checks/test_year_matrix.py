@@ -1,16 +1,19 @@
 """A generated matrix for the fiscal-year reader: every strong way of naming a year, in every
 sentence shape, for companies with five different year ends, must be read as that year; every
 weak cue (a date after "on", "to", "at", "compared to", a filing date) must count for nothing;
-calendar years are read apart. Hand-picked sentences hide blind spots; a matrix does not."""
+calendar years are read apart; a date that is no fiscal year end of the company, for all 25
+companies, is rejected with "ask the user", never repaired; a range must be one whole fiscal
+year. Hand-picked sentences hide blind spots; a matrix does not."""
 
+import calendar
 import itertools
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
 
-from filingcheck.checks.fiscal_year import read_calendar_years, read_years
-from tests.checks.conftest import MANIFEST
+from filingcheck.checks.fiscal_year import FiscalYearCheck, read_calendar_years, read_years
+from tests.checks.conftest import COMPANIES, MANIFEST, run_check
 
 PINNED = {
     ticker: {f.fiscal_year: f.period_of_report for f in MANIFEST.filings if f.ticker == ticker}
@@ -182,3 +185,131 @@ def test_calendar_years_are_read_apart_from_fiscal_years(form: str) -> None:
     question = f"What was Microsoft's revenue in {form}?"
     assert read_calendar_years(question) == {2025}
     assert read_years(question, "MSFT", MANIFEST) == {}  # not a fiscal-year label
+
+
+# ---------------------------------------------------------------- dates that are no year end
+# The oracle is each company's year-end month in companies.yaml, not the manifest's dates the
+# check reads: a month end outside that month is no fiscal year end of the company.
+
+CHECK = FiscalYearCheck()
+ASK = "ask the user which fiscal year"
+ODD_FORMS = [
+    "What was {c}'s revenue for the year ended {d}?",
+    "What was {c}'s revenue for the fiscal year ending {d}?",
+    "What were {c}'s total assets as of {d}?",
+    "What was {c}'s revenue for the twelve months ended {d}?",
+    "What was {c}'s net income for the year ended {iso}?",
+    "What was {c}'s revenue for the year ended {s}?",
+]
+ALL_PINNED = {
+    company.ticker: {
+        f.fiscal_year: f.period_of_report for f in MANIFEST.filings if f.ticker == company.ticker
+    }
+    for company in COMPANIES
+}
+
+
+def month_end(year: int, month: int) -> date:
+    return date(year, month, calendar.monthrange(year, month)[1])
+
+
+def odd_dates(year_end_month: int) -> list[date]:
+    return [
+        month_end(year, month)
+        for year in range(2023, 2027)
+        for month in range(1, 13)
+        if month != year_end_month
+    ]
+
+
+@pytest.mark.parametrize("form", ODD_FORMS)
+@pytest.mark.parametrize("company", COMPANIES, ids=lambda c: c.ticker)
+def test_a_date_that_is_no_year_end_is_rejected_never_repaired(company: Any, form: str) -> None:
+    pinned = ALL_PINNED[company.ticker]
+    wrong = []
+    for day in odd_dates(company.fiscal_year_end):
+        question = form.format(c=company.name, d=long(day), iso=day.isoformat(), s=short(day))
+        for sent in (min(pinned), max(pinned)):
+            result = run_check(CHECK, question, ticker=company.ticker, fiscal_year=sent)
+            if result.outcome != "reject" or ASK not in result.override.reason:
+                wrong.append((question, sent, result.outcome, result.override.reason))
+    assert wrong == [], wrong[:3]
+
+
+@pytest.mark.parametrize("company", COMPANIES, ids=lambda c: c.ticker)
+def test_a_real_year_end_is_that_fiscal_year_in_or_out_of_the_dataset(company: Any) -> None:
+    pinned = ALL_PINNED[company.ticker]
+    for year in range(2021, 2028):
+        day = month_end(year, company.fiscal_year_end)
+        question = f"What was {company.name}'s revenue for the year ended {long(day)}?"
+        assert set(read_years(question, company.ticker, MANIFEST)) == {year}, question
+        result = run_check(CHECK, question, ticker=company.ticker, fiscal_year=max(pinned))
+        if year in pinned:
+            assert result.outcome in ("pass", "repair"), question
+            assert result.override.used is None or result.override.used == year
+        else:
+            assert result.outcome == "reject", question
+            assert f"no 10-K for fiscal {year}" in result.override.reason
+
+
+@pytest.mark.parametrize("company", COMPANIES, ids=lambda c: c.ticker)
+def test_a_range_counts_only_as_one_whole_fiscal_year(company: Any) -> None:
+    pinned = ALL_PINNED[company.ticker]
+    name = company.name
+    for year in sorted(pinned)[1:]:
+        start, end = pinned[year - 1] + timedelta(days=1), pinned[year]
+        whole = f"What was {name}'s revenue from {long(start)} to {long(end)}?"
+        assert set(read_years(whole, company.ticker, MANIFEST)) == {year}, whole
+        result = run_check(CHECK, whole, ticker=company.ticker, fiscal_year=year)
+        assert result.outcome == "pass", whole
+        for first, last in [
+            (end - timedelta(days=181), end),  # the second half of the year
+            (start, start + timedelta(days=181)),  # the first half
+            (start + timedelta(days=92), end + timedelta(days=92)),  # a year, shifted
+        ]:
+            question = f"What was {name}'s revenue from {long(first)} to {long(last)}?"
+            result = run_check(CHECK, question, ticker=company.ticker, fiscal_year=year)
+            assert result.outcome == "reject" and ASK in result.override.reason, question
+
+
+@pytest.mark.parametrize(
+    ("question", "ticker", "sent", "options", "said"),
+    [
+        (
+            "What was Walmart's revenue for the year ended December 31, 2025?",
+            "WMT",
+            2026,
+            ["2026"],
+            ["no fiscal year of WMT ends on Dec 31, 2025", "Feb 1, 2025 to Jan 31, 2026"],
+        ),
+        (
+            "What were Apple's total assets as of December 31, 2024?",
+            "AAPL",
+            2025,
+            ["2025"],
+            ["no fiscal year of AAPL ends on Dec 31, 2024", "Sep 29, 2024 to Sep 27, 2025"],
+        ),
+        (
+            "What was Coca-Cola's revenue from January 1, 2025 to June 30, 2025?",
+            "KO",
+            2024,
+            ["2025"],
+            ["Jan 1, 2025 to Jun 30, 2025 is not one of KO's fiscal years"],
+        ),
+        (
+            "What was Microsoft's revenue for the year ended December 31, 2025?",
+            "MSFT",
+            2026,
+            ["2026"],
+            ["no fiscal year of MSFT ends on Dec 31, 2025", "Jul 1, 2025 to Jun 30, 2026"],
+        ),
+    ],
+)
+def test_the_reject_names_the_date_the_real_periods_and_the_overlapping_year(
+    question: str, ticker: str, sent: int, options: list[str], said: list[str]
+) -> None:
+    result = run_check(CHECK, question, ticker=ticker, fiscal_year=sent)
+    assert result.outcome == "reject"
+    assert result.override.options == options
+    for words in [*said, ASK]:
+        assert words in result.override.reason, result.override.reason
