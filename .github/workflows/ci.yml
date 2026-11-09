@@ -24,6 +24,8 @@ jobs:
         run: make lint
       - name: Unit tests with coverage
         run: make test
+      - name: The deterministic gate (20 scripted scenarios, facts fixture)
+        run: make eval-smoke
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
@@ -87,11 +89,3 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-
-  smoke-eval:
-    # Placeholder for the 20-question cached eval gate. Enabled in week 4.
-    name: Smoke eval gate (week 4)
-    runs-on: ubuntu-latest
-    if: ${{ false }}
-    steps:
-      - run: echo "not built yet"

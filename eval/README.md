@@ -28,6 +28,19 @@ make eval SET=examples MODE=baseline REPEATS=3
   - **Numbers:** a minus sign attached to the number, an amount in parentheses, or a loss ("a net loss of $10.6 billion") makes a number negative; a dash with a space after it ("revenue - $681 billion", a subtraction) does not, and neither does the "(loss)" of a label. In a range ("$680.9-681.0 billion", "10-12%") both numbers are positive and take the second one's scale.
   - **Other outcomes:** `error` for a row with no answer; `not_graded` for a number question with no gold value.
 
+## `make eval-smoke`: the deterministic gate
+
+```
+make eval-smoke
+uv run python -m filingcheck.eval gate-fixture   # after the facts change: rewrite the fixture
+```
+
+- **What it checks:** the checks' decisions and the tool path, deterministically. Each of the 20 scenarios in `tests/eval_gate/scenarios.yaml` is a question, the page filters, the model's scripted tool calls (one model turn each) and its scripted final answer. The gate runs the real agent graph, checks, lookup and grader on them with `FakeChat` in place of the model, and compares the override records, the arguments that reach `get_financial_fact`, the values it returns, the requested scale and the final answer's grade with what the scenario expects. The expected results were written by hand from the rules; the four golden facts' values are the hand-read ones in `tests/golden_facts.yaml`.
+- **What it does not check:** accuracy on real models. A recorded model conversation cannot be replayed honestly once a tool result changes, so no model is called; accuracy is measured by `make eval`.
+- **Coverage:** every check's pass, repair and reject (the metric, units and segment checks have no repair), the retry rule, a question with two companies, a page-filter question, a company outside the dataset, a quarterly question, a segment question, two plain controls and the four golden facts.
+- **Facts:** `data/facts.jsonl` when it is present (locally), else `tests/eval_gate/facts_fixture.jsonl` (CI). The fixture holds the rows of `data/facts.jsonl`, with their accession and concept, for every (filing, concept) the scenarios read; a test checks that it matches `data/facts.jsonl` whenever that file is present, and another runs every scenario on the fixture alone.
+- **Where it runs:** in the unit job of CI, with no database and no network, in a few seconds (a test fails it at 10 seconds). It is part of `make test` too.
+
 ## The batch runner
 
 ```

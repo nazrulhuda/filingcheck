@@ -19,7 +19,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: JPM, fiscal_year: 2023, metric: revenue}}]
     final_answer: JPMorgan Chase's total net revenue for fiscal 2023 was $158,104 million [F1].
-    grade_as: {set: control, category: control, company: JPM, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 158104000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: JPM, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 158104000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: JPM, fiscal_year: 2023, metric: revenue}]
@@ -32,7 +32,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
     final_answer: Apple's total net sales for fiscal 2025 were $416,161 million [F1].
-    grade_as: {set: control, category: control, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: AAPL, fiscal_year: 2025, metric: revenue}]
@@ -45,7 +45,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: WMT, fiscal_year: 2026, metric: revenue}}]
     final_answer: Walmart's total revenues for fiscal 2026, the year ended January 31, 2026, were $713,163 million [F1].
-    grade_as: {set: control, category: control, company: WMT, fiscal_year: 2026, metric: revenue, expected_behavior: answer, gold_value: 713163000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: WMT, fiscal_year: 2026, metric: revenue, expected_behavior: answer, gold_value: 713163000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: WMT, fiscal_year: 2026, metric: revenue}]
@@ -58,7 +58,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: AXP, fiscal_year: 2023, metric: revenue}}]
     final_answer: American Express's total revenues net of interest expense for fiscal 2023 were $60,515 million [F1].
-    grade_as: {set: control, category: control, company: AXP, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 60515000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: AXP, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 60515000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: AXP, fiscal_year: 2023, metric: revenue}]
@@ -72,7 +72,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: KO, fiscal_year: 2024, metric: net_income}}]
     final_answer: Coca-Cola's net income for fiscal 2024 was $10,631 million [F1].
-    grade_as: {set: control, category: control, company: KO, fiscal_year: 2024, metric: net_income, expected_behavior: answer, gold_value: 10631000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: KO, fiscal_year: 2024, metric: net_income, expected_behavior: answer, gold_value: 10631000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: KO, fiscal_year: 2024, metric: net_income}]
@@ -99,7 +99,7 @@ scenarios:
     turns:
       - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
     final_answer: Microsoft's revenue for fiscal 2025 was $281,724 million [F1].
-    grade_as: {set: control, category: control, company: MSFT, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 281724000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: MSFT, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 281724000000}
     expected:
       overrides: [company:repair, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: MSFT, fiscal_year: 2025, metric: revenue}]
@@ -263,7 +263,7 @@ scenarios:
       - - {name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}
         - {name: get_financial_fact, arguments: {ticker: MSFT, fiscal_year: 2025, metric: revenue}}
     final_answer: Apple's revenue for fiscal 2025 was $416,161 million [F1] and Microsoft's was $281,724 million [F2].
-    grade_as: {set: control, category: control, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
+    grade_as: {set: control, category: control, style: domain-relevant, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
     expected:
       overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass, company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
       tool_arguments: [{ticker: AAPL, fiscal_year: 2025, metric: revenue}, {ticker: MSFT, fiscal_year: 2025, metric: revenue}]
