@@ -17,9 +17,33 @@ The segment check knows the segment names each company reports. A phrase that is
 
 **The rules were frozen on 2026-11-09, when Day 23 was merged**, like the agent's prompt on Day 18. A later change to a check means re-running both evaluation arms, with the checks off and on.
 
-## Day 24: the two arms on the 6 example questions
+## Day 24: the two arms on the 6 example questions (current run: 2026-11-10)
 
 **Six questions prove nothing about accuracy.** These runs show that the checks layer works and is logged; the measurement with intervals is Week 6's, on the full question sets.
+
+**This is the current run.** Both arms were re-run on 2026-11-10, 3 runs per question, after one change to the tool schemas: both tools' ticker descriptions now list each ticker with its company's official name (decisions, 2026-11-10). Before it, the model often failed to find Coca-Cola among the bare tickers and abstained without a tool call, which handicapped both arms. The first run, of 2026-11-09, is kept below and in its files. Same model and settings (`openrouter:openai/gpt-oss-20b`, temperature 0.6, reasoning effort low, batch mode, question text only) and the same frozen prompt. The page is `eval/results/2026-11-10_examples_agent-arms.md`.
+
+| Arm | Answers | Correct | Asked when it should have answered | Answered when it should have asked | Abstained | Cost | Mean time |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Checks off | 18 | 13 | 1 | 2 | 2 | $0.005199 | 2.2 s |
+| Checks on | 18 | 18 | 0 | 0 | 0 | $0.005453 | 1.6 s |
+
+| Question | Checks off | Checks on | What the checks did (3 runs) | Changed by a check? |
+|---|---|---|---|---|
+| trap-001 "How much net revenue did Morgan report last year?" | 1 correct under the lenient rule (it asked only which year), 2 answered with Morgan Stanley's figure | 3 correct: 2 asked which Morgan, 1 correct under the lenient rule (it asked only which year) | company reject x2 (the model then asked which Morgan); 1 run with no fact call | yes, in 2 runs |
+| trap-002 "What was Walmart's revenue for 2025?" | 3 correct | 3 correct | pass x3 | no |
+| trap-003 "What was Nvidia's net income last year?" | 2 abstained after fetching fiscal 2023, which has no 10-K in the dataset; 1 asked which year | 3 correct | fiscal-year repair x3 (sent 2023, 2023 and 2024; used 2026) | yes, in 3 runs |
+| trap-004 "Give Microsoft's FY2025 total assets in millions." | 3 correct | 3 correct | pass x3 | no |
+| trap-005 "What was Goldman Sachs's quarterly net revenue in Q3 2025?" | 3 correct (declined) | 3 correct (declined) | not reached: no fact call | no |
+| control-001 "What was Coca-Cola's net income in fiscal 2024?" | 3 correct | 3 correct | pass x3 | no |
+
+**The checks-off arm got better, and the gain from the checks shrank.** Coca-Cola's control question went from 0 of 3 to 3 of 3 with the checks off, because the model now finds KO; the checks had nothing to do with it. The five extra correct answers with the checks on all follow from a check's action: two company rejects on trap-001 and three year repairs on trap-003. With the strict clarify rule, which does not count an answer that asks only which year, the count is 12 against 17, the same gap of five. On the first run the gap was six, one of which was the control question's variance.
+
+**Cost and time per arm**, for Week 6: about $0.00029 per question with the checks off and $0.00030 with them on, about $0.0001 more than on 2026-11-09 because the tool descriptions are longer (394 more prompt tokens per model call). The mean times, 2.2 s and 1.6 s against 0.7 s and 1.0 s on the first run, moved with the provider's load and are not a measure of the checks.
+
+## Day 24, first run (2026-11-09, superseded)
+
+Kept for the record; superseded by the 2026-11-10 run above because the tool schemas changed. **Six questions prove nothing about accuracy.**
 
 Both arms were run fresh on 2026-11-09, 3 runs per question, with the same model and settings (`openrouter:openai/gpt-oss-20b`, temperature 0.6, batch mode, question text only), the same frozen prompt and the same tool schemas. Day 20's rows were not reused: the fact tool's results and the calculator's description have changed since then. The pages are `eval/results/2026-11-09_examples_agent-arms.md` and the two files it names.
 

@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.facts.lookup import FactResult, FactsSource, lookup
 from filingcheck.facts.metrics import Metric
-from filingcheck.tools.inputs import Ticker, WholeNumber
+from filingcheck.tools.inputs import COMPANY_LIST, Ticker, WholeNumber
 
 
 class GetFinancialFactInput(BaseModel):
@@ -14,7 +14,7 @@ class GetFinancialFactInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    ticker: Ticker = Field(description="The company's ticker, one of the 25 companies.")
+    ticker: Ticker = Field(description=f"The company's ticker, one of the 25: {COMPANY_LIST}.")
     fiscal_year: WholeNumber = Field(
         description=(
             "The company's own fiscal year, as its 10-K names it (for example Walmart's fiscal "

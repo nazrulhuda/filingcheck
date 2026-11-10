@@ -10,7 +10,7 @@ import yaml
 
 from filingcheck.paths import REPO_ROOT
 from filingcheck.tools import TOOL_NAMES, ToolDeps, run_tool, tool_schemas
-from filingcheck.tools.inputs import ITEMS, Ticker
+from filingcheck.tools.inputs import COMPANY_LIST, EXTRA_NAMES, ITEMS, TICKER_NAMES, Ticker
 from tests.answer.test_baseline import FakeRetriever, hit
 from tests.facts.test_lookup import FakeFacts, duration
 
@@ -37,6 +37,32 @@ def test_the_tickers_are_the_25_companies_in_the_data() -> None:
     data = yaml.safe_load((REPO_ROOT / "data" / "companies.yaml").read_text(encoding="utf-8"))
     assert set(get_args(Ticker)) == {c["ticker"] for c in data["companies"]}
     assert len(get_args(Ticker)) == 25
+
+
+def test_the_official_names_are_the_ones_in_the_data() -> None:
+    data = yaml.safe_load((REPO_ROOT / "data" / "companies.yaml").read_text(encoding="utf-8"))
+    assert {c["ticker"]: c["name"] for c in data["companies"]} == TICKER_NAMES
+    assert list(TICKER_NAMES) == sorted(get_args(Ticker))
+    assert EXTRA_NAMES == {"GOOGL": "Google", "META": "Facebook"}
+
+
+def test_the_company_list_names_every_ticker_with_its_official_name() -> None:
+    entries = COMPANY_LIST.split("; ")
+    assert len(entries) == 25
+    assert "KO (The Coca-Cola Company)" in entries
+    assert "AXP (American Express Company)" in entries
+    assert "GOOGL (Alphabet Inc., Google)" in entries
+    assert "META (Meta Platforms, Inc., Facebook)" in entries
+    for ticker, name in TICKER_NAMES.items():
+        assert any(e.startswith(f"{ticker} ({name}") for e in entries), ticker
+
+
+def test_both_tools_ticker_descriptions_carry_the_company_list() -> None:
+    schemas = {s["function"]["name"]: s["function"]["parameters"] for s in tool_schemas()}
+    for tool in ("search_filings", "get_financial_fact"):
+        description = schemas[tool]["properties"]["ticker"]["description"]
+        assert COMPANY_LIST in description, tool
+        assert len(schemas[tool]["properties"]["ticker"]["enum"]) == 25
 
 
 def test_each_tool_has_a_schema_for_the_models_tools_list() -> None:
