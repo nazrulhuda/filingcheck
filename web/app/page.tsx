@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 
-import { AnswerText, CostLine } from "@/components/AnswerView";
+import { AnswerText, ChecksPanel, CostLine } from "@/components/AnswerView";
 import examplesData from "@/data/examples.json";
 import {
   type Answer,
@@ -12,8 +12,9 @@ import {
   checkHealth,
   getCompanies,
   type Health,
+  type Progress,
 } from "@/lib/api";
-import { type AnswerSource, cachedNotice } from "@/lib/display";
+import { type AnswerSource, cachedNotice, pageQuestion } from "@/lib/display";
 
 type Example = { question: string; ticker: string | null; fiscal_year: number | null; answer: Answer };
 
@@ -22,12 +23,20 @@ const MAX_QUESTION = 500;
 const HEALTH_TIMEOUT_MS = 3000;
 const WAKE_RETRY_MS = 5000;
 const WAKE_GIVE_UP_MS = 70_000;
+const NO_STEPS: Progress = { steps: [], restarted: null };
+
+/** A finished tool call's status in words. */
+function statusWords(status: string): string {
+  if (status === "ok") return "done";
+  if (status === "skipped") return "not run (tool-call limit reached)";
+  return "no result";
+}
 
 type Backend = "checking" | "waking" | Health;
 
 type Shown =
   | { kind: "none" }
-  | { kind: "streaming"; text: string }
+  | { kind: "streaming"; text: string; progress: Progress }
   | {
       kind: "answer";
       question: string;
@@ -78,15 +87,20 @@ export default function Home() {
     const text = question.trim();
     if (!text || busy) return;
     setBusy(true);
-    setShown({ kind: "streaming", text: "" });
+    let progress = NO_STEPS;
+    let soFar = "";
+    setShown({ kind: "streaming", text: "", progress });
     try {
       const result = await askStreaming(
-        {
-          question: text,
-          ...(ticker ? { ticker } : {}),
-          ...(ticker && year ? { fiscal_year: Number(year) } : {}),
+        pageQuestion(text, ticker, year),
+        (received) => {
+          soFar = received;
+          setShown({ kind: "streaming", text: soFar, progress });
         },
-        (soFar) => setShown({ kind: "streaming", text: soFar }),
+        (next) => {
+          progress = next;
+          setShown({ kind: "streaming", text: soFar, progress });
+        },
       );
       // After the daily limit the API sends a saved example's answer: it belongs to that
       // example's question, not to the visitor's, and the page says so.
@@ -127,14 +141,15 @@ export default function Home() {
         role="status"
         className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
       >
-        Week 2 baseline: answers are not checked yet and numbers may be wrong; skeptical checks
-        arrive in week 4
+        Week 4: the agent checks the company, year and metric before it fetches a number. Numbers
+        are not yet labeled verified; that comes next.
       </div>
 
       <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
       <p className="mt-1 text-sm text-slate-600">
         Questions about the 10-K filings of 25 public companies, answered from the filings&apos;
-        text, and the model is asked to cite a passage for each claim.
+        text and their own XBRL numbers; the model is asked to cite a passage or a fact for each
+        claim.
       </p>
 
       {backend === "waking" && (
@@ -215,9 +230,9 @@ export default function Home() {
           >
             {busy ? "Answering…" : "Ask"}
           </button>
-          <label className="ml-auto flex cursor-not-allowed items-center gap-2 text-sm text-slate-400">
-            <input type="checkbox" disabled className="h-4 w-4" />
-            Skeptical checks: coming in Week 4
+          <label className="ml-auto flex cursor-not-allowed items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked disabled readOnly className="h-4 w-4" />
+            Skeptical checks: on
           </label>
         </div>
       </form>
@@ -241,8 +256,20 @@ export default function Home() {
       <section className="mt-8" aria-live="polite">
         {shown.kind === "streaming" && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
+            {shown.progress.restarted && (
+              <p className="mb-2 text-sm text-slate-500">{shown.progress.restarted}</p>
+            )}
+            {shown.progress.steps.length > 0 && (
+              <ul className="mb-3 space-y-1 text-sm text-slate-600">
+                {shown.progress.steps.map((step, i) => (
+                  <li key={i}>
+                    {step.label}… <span className="text-slate-400">{statusWords(step.status)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <p className="whitespace-pre-line leading-7 text-slate-800">
-              {shown.text || "Searching the filings…"}
+              {shown.text || "Working on it…"}
             </p>
           </div>
         )}
@@ -257,6 +284,7 @@ export default function Home() {
             )}
             {/* A new answer starts with every citation closed. */}
             <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
+            <ChecksPanel answer={shown.answer} />
             <CostLine answer={shown.answer} source={shown.source} />
           </div>
         )}

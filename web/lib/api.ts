@@ -1,6 +1,7 @@
 // Calls to the FilingCheck API. The base URL comes from NEXT_PUBLIC_API_URL.
 
-import type { Citation } from "./citations.ts";
+import type { Override } from "./checks.ts";
+import type { Citation, FactCitation, FactUsed } from "./citations.ts";
 import { createSseParser } from "./sse.ts";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
@@ -20,6 +21,13 @@ export type Answer = {
   abstained: boolean;
   has_uncited_claims: boolean;
   degraded: boolean;
+  // The agent's answers only: what it looked up and what its checks did.
+  mode?: "agent";
+  checks?: boolean;
+  tool_calls?: { name: string; status: string }[];
+  fact_citations?: FactCitation[];
+  facts_used?: FactUsed[];
+  overrides?: Override[];
 };
 
 export type Company = { ticker: string; name: string; fiscal_years: number[] };
@@ -30,7 +38,18 @@ export type ExampleRef = { question: string; ticker: string | null; fiscal_year:
 /** An answer, and whether it is a saved example's answer served after the daily limit. */
 export type AskResult = { answer: Answer; cached: boolean; example: ExampleRef | null };
 
-export type Question = { question: string; ticker?: string; fiscal_year?: number };
+export type Question = {
+  question: string;
+  mode?: "baseline" | "agent";
+  ticker?: string;
+  fiscal_year?: number;
+};
+
+/** One tool call the agent made, as the page shows it while the answer is on its way. */
+export type Step = { label: string; status: string };
+
+/** The agent's tool calls so far; after a restart, only the new model's, and why. */
+export type Progress = { steps: Step[]; restarted: string | null };
 
 /** An HTTP error with the message the API sent, safe to show. */
 export class ApiError extends Error {
@@ -103,7 +122,9 @@ export async function ask(question: Question): Promise<AskResult> {
 }
 
 /**
- * The answer from POST /ask/stream, calling `onText` with the text so far as it arrives.
+ * The answer from POST /ask/stream, calling `onText` with the text so far as it arrives
+ * and `onProgress` with the agent's tool calls so far. A `restart` event means another
+ * model started the question again, so the tool calls shown so far are dropped.
  * Falls back to POST /ask when the browser cannot read the stream or the connection
  * fails before any text has arrived. An `error` event means the text so far must be
  * discarded; it is raised as an ApiError with the API's message.
@@ -111,8 +132,10 @@ export async function ask(question: Question): Promise<AskResult> {
 export async function askStreaming(
   question: Question,
   onText: (textSoFar: string) => void,
+  onProgress: (progress: Progress) => void = () => {},
 ): Promise<AskResult> {
   let received = "";
+  let progress: Progress = { steps: [], restarted: null };
   let response: Response;
   try {
     response = await fetch(`${API_URL}/ask/stream`, {
@@ -134,12 +157,20 @@ export async function askStreaming(
       for (const event of parser.push(value)) {
         const data = JSON.parse(event.data) as {
           text?: string;
+          label?: string;
+          status?: string;
           answer?: Answer;
           cached?: boolean;
           example?: ExampleRef | null;
           detail?: string;
         };
-        if (event.event === "token" && data.text) {
+        if (event.event === "tool" && data.label) {
+          progress = { ...progress, steps: [...progress.steps, { label: data.label, status: data.status ?? "" }] };
+          onProgress(progress);
+        } else if (event.event === "restart") {
+          progress = { steps: [], restarted: data.detail ?? "Starting again with another model." };
+          onProgress(progress);
+        } else if (event.event === "token" && data.text) {
           received += data.text;
           onText(received);
         } else if (event.event === "final" && data.answer) {

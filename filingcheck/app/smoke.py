@@ -2,7 +2,9 @@
 
 Calls /health, /companies, /examples, one /ask with the baseline and one with the agent (two
 questions counted against the daily cap), and fails on any status other than 200, an empty
-list, or an answer with no citations (the agent's: no tool call or no fact citation).
+list, or an answer with no citations (the agent's: no tool call or no fact citation). The page
+asks the agent with its checks on, so the agent's answer must have the checks on and an
+override log, and every saved example must be such an answer.
 It also fails on an answer that is cached, degraded or from a model other than the primary:
 each means a key or setting on the server is wrong, which a cited answer would otherwise hide.
 """
@@ -88,6 +90,21 @@ def non_empty(body: Any) -> str | None:
     return None if isinstance(body, list) and body else "empty list"
 
 
+def agent_examples(body: Any) -> str | None:
+    """The page asks the agent with its checks on, so its saved examples must be such answers."""
+    if not isinstance(body, list) or not body:
+        return "empty list"
+    for n, example in enumerate(body, start=1):
+        answer = example.get("answer") if isinstance(example, dict) else None
+        if (
+            not isinstance(answer, dict)
+            or answer.get("mode") != "agent"
+            or not answer.get("checks")
+        ):
+            return f"example {n} is not an agent answer with the checks on"
+    return None
+
+
 def primary_is(model: str) -> Callable[[Any], str | None]:
     """/health must name the expected primary model."""
 
@@ -131,6 +148,10 @@ def an_agent_answer_from(model: str) -> Callable[[Any], str | None]:
             problems.append("the agent made no tool call")
         if not body.get("fact_citations"):
             problems.append("the agent's answer cites no fact")
+        if body.get("checks") is not True:
+            problems.append("the checks were off")
+        if not body.get("overrides"):
+            problems.append("the override log is empty")
         if body.get("restarts"):
             problems.append(f"the agent restarted with a fallback ({', '.join(body['restarts'])})")
         if body.get("cached"):
@@ -148,7 +169,7 @@ def run_checks(base_url: str, client: httpx.Client, model: str = DEFAULT_CHAT_MO
     return [
         _check(client, "GET", url, "/health", primary_is(model)),
         _check(client, "GET", url, "/companies", non_empty),
-        _check(client, "GET", url, "/examples", non_empty),
+        _check(client, "GET", url, "/examples", agent_examples),
         _check(client, "POST", url, "/ask", a_new_cited_answer_from(model), json=QUESTION),
         _check(
             client,

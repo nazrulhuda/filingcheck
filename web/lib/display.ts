@@ -1,6 +1,6 @@
 // Text the page shows about an answer, kept here so it can be tested without rendering.
 
-import type { Answer, AskResult } from "./api.ts";
+import type { Answer, AskResult, Question } from "./api.ts";
 
 /** Where a shown answer came from: a new model call, a clicked example, or a saved example's
  * answer served after the daily limit. */
@@ -32,4 +32,15 @@ export function costLine(answer: Answer, source: AnswerSource): string {
     ? " · keyword search only (the embedding service was unavailable)"
     : "";
   return `${saved}${answer.model_used} · ${seconds(answer.latency_ms)} · ${tokens} · ${cost}${degraded}`;
+}
+
+/** What the page sends: the agent, whose checks are on unless a request turns them off. A
+ * fiscal year counts only with a company, as the page lists the years of the chosen company. */
+export function pageQuestion(text: string, ticker: string, year: string): Question {
+  return {
+    question: text,
+    mode: "agent",
+    ...(ticker ? { ticker } : {}),
+    ...(ticker && year ? { fiscal_year: Number(year) } : {}),
+  };
 }
