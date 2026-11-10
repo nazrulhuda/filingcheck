@@ -76,8 +76,12 @@ def run_eval(
     out: Path,
     settings: str,
     retriever: Retriever | None = None,
+    checks: bool | None = None,
 ) -> Path:
-    """Answer, grade and summarize; return the path of the summary file."""
+    """Answer, grade and summarize; return the path of the summary file.
+
+    `checks` is the agent's switch (None for the baseline); the title names the arm.
+    """
     questions = read_questions(questions_path)
     by_id = {q.id: q for q in questions}
     run_batch(
@@ -89,6 +93,7 @@ def run_eval(
         settings=settings,
         retriever=retriever,
         repeats=repeats,
+        checks=bool(checks),
     )
     rows = [
         json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()
@@ -105,7 +110,8 @@ def run_eval(
     partial.replace(out)
     summary = out.with_suffix(".md")
     runs = max((row.get("repeat", 1) for row, _ in graded), default=0)
-    title = f"# Evaluation: {questions_path.stem}, {mode}, {runs} run(s) per question"
+    arm = mode if checks is None else f"{mode}, checks {'on' if checks else 'off'}"
+    title = f"# Evaluation: {questions_path.stem}, {arm}, {runs} run(s) per question"
     note = (
         "Graded by the deterministic number grader (`filingcheck/eval/grade.py`). Written by "
         f"`make eval`; the rows are in `{out.name}`."
@@ -116,6 +122,6 @@ def run_eval(
             f" {stale} {rows_word} whose question is no longer in `{questions_path.name}` "
             f"{verb} kept in the file and not graded."
         )
-    body = summary_table(graded, mode=mode, settings=settings)
+    body = summary_table(graded, mode=arm, settings=settings)
     summary.write_text(f"{title}\n\n{note}\n\n{body}", encoding="utf-8", newline="\n")
     return summary
