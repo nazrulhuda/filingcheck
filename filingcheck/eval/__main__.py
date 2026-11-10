@@ -2,6 +2,7 @@
 
 gold: fill the gold values of a question file from the facts table (filingcheck/eval/gold.py).
 run:  a question set through one mode in batch mode, graded (filingcheck/eval/run.py).
+gate-fixture: write the gate's facts fixture from data/facts.jsonl (filingcheck/eval/gate.py).
 """
 
 import argparse
@@ -18,6 +19,20 @@ from filingcheck.console import use_utf8_output
 from filingcheck.paths import REPO_ROOT
 
 QUESTIONS_DIR = REPO_ROOT / "eval" / "questions"
+
+
+def gate_fixture_main() -> int:
+    """Write tests/eval_gate/facts_fixture.jsonl from data/facts.jsonl."""
+    from filingcheck.eval.gate import FIXTURE, load_scenarios, write_fixture
+    from filingcheck.paths import DATA_DIR
+
+    facts = DATA_DIR / "facts.jsonl"
+    if not facts.exists():
+        print("ERROR: no data/facts.jsonl; run make ingest first")
+        return 1
+    count = write_fixture(load_scenarios(), facts, FIXTURE)
+    print(f"wrote {count} rows to {FIXTURE.relative_to(REPO_ROOT)}")
+    return 0
 
 
 def gold_main(args: argparse.Namespace) -> int:
@@ -132,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     gold = commands.add_parser("gold", help="fill gold values from the facts table")
     gold.add_argument("--questions", type=Path, default=QUESTIONS_DIR / "examples.jsonl")
+    commands.add_parser("gate-fixture", help="write the gate's facts fixture from the facts file")
     run = commands.add_parser("run", help="ask and grade a question set in one mode")
     run.add_argument("--set", required=True, help="a question file in eval/questions/, no .jsonl")
     run.add_argument("--mode", choices=["baseline", "agent"], required=True)
@@ -143,6 +159,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    if args.command == "gate-fixture":
+        return gate_fixture_main()
     if args.command == "gold":
         return gold_main(args)
     if args.repeats < 1:

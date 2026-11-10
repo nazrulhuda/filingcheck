@@ -1,0 +1,299 @@
+# The deterministic gate (make eval-smoke): 21 scripted agent runs with the checks on.
+#
+# Each scenario is a question, the page filters, the model's scripted tool calls (one model
+# turn each; a turn may ask for two calls), the scripted final answer, and what must come out:
+#   overrides       every check record, "check:outcome", in order, across all calls
+#   tool_arguments  the arguments that reach get_financial_fact (calls that ran), in order
+#   values          the value each of those calls returned, raw units, as filed
+#   requested_scale the figure in the scale the question asked for, when it asked for one
+#   grade           the grader's outcome for the scripted final answer
+# The values are the facts table's; the four golden ones were read by hand from the printed
+# statements (tests/golden_facts.yaml). The gate checks the checks' decisions and the tool
+# path; accuracy on real models is measured by make eval, not here.
+
+scenarios:
+  # ------------------------------------------------------------ the four golden facts
+  - id: gate-001
+    covers: golden fact; every check passes
+    question: What was JPMorgan Chase's total net revenue in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: JPM, fiscal_year: 2023, metric: revenue}}]
+    final_answer: JPMorgan Chase's total net revenue for fiscal 2023 was $158,104 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: JPM, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 158104000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: JPM, fiscal_year: 2023, metric: revenue}]
+      values: ["158104000000"]
+      grade: correct
+
+  - id: gate-002
+    covers: golden fact
+    question: What were Apple's total net sales in fiscal 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Apple's total net sales for fiscal 2025 were $416,161 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: AAPL, fiscal_year: 2025, metric: revenue}]
+      values: ["416161000000"]
+      grade: correct
+
+  - id: gate-003
+    covers: golden fact; a year-end date read as the fiscal year
+    question: What were Walmart's total revenues in the year ended January 31, 2026?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: WMT, fiscal_year: 2026, metric: revenue}}]
+    final_answer: Walmart's total revenues for fiscal 2026, the year ended January 31, 2026, were $713,163 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: WMT, fiscal_year: 2026, metric: revenue, expected_behavior: answer, gold_value: 713163000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: WMT, fiscal_year: 2026, metric: revenue}]
+      values: ["713163000000"]
+      grade: correct
+
+  - id: gate-004
+    covers: golden fact
+    question: What were American Express's total revenues net of interest expense in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AXP, fiscal_year: 2023, metric: revenue}}]
+    final_answer: American Express's total revenues net of interest expense for fiscal 2023 were $60,515 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: AXP, fiscal_year: 2023, metric: revenue, expected_behavior: answer, gold_value: 60515000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: AXP, fiscal_year: 2023, metric: revenue}]
+      values: ["60515000000"]
+      grade: correct
+
+  # ------------------------------------------------------------ two plain controls
+  - id: gate-005
+    covers: plain control
+    question: What was Coca-Cola's net income in fiscal 2024?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: KO, fiscal_year: 2024, metric: net_income}}]
+    final_answer: Coca-Cola's net income for fiscal 2024 was $10,631 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: KO, fiscal_year: 2024, metric: net_income, expected_behavior: answer, gold_value: 10631000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: KO, fiscal_year: 2024, metric: net_income}]
+      values: ["10631000000"]
+      grade: correct
+
+  - id: gate-006
+    covers: plain control; a bare year is the fiscal-year label
+    question: What was Walmart's revenue for 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: WMT, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Walmart's revenue for fiscal 2025 was $680,985 million [F1].
+    grade_as: {set: trap, category: wrong_fiscal_year, company: WMT, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 680985000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: WMT, fiscal_year: 2025, metric: revenue}]
+      values: ["680985000000"]
+      grade: correct
+
+  # ------------------------------------------------------------ the company check
+  - id: gate-007
+    covers: company repair (the question names one company, the model sent another)
+    question: What was Microsoft's revenue in fiscal 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Microsoft's revenue for fiscal 2025 was $281,724 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: MSFT, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 281724000000}
+    expected:
+      overrides: [company:repair, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: MSFT, fiscal_year: 2025, metric: revenue}]
+      values: ["281724000000"]
+      grade: correct
+
+  - id: gate-008
+    covers: company reject (a lookalike name)
+    question: How much net revenue did Morgan report last year?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: MS, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Do you mean JPMorgan Chase or Morgan Stanley?
+    grade_as: {set: trap, category: lookalike_company, company: null, fiscal_year: null, metric: revenue, expected_behavior: clarify}
+    expected:
+      overrides: [company:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-009
+    covers: a company outside the dataset (company reject)
+    question: What was Tesla's revenue in 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: lookalike_company, company: null, fiscal_year: 2025, metric: revenue, expected_behavior: refuse}
+    expected:
+      overrides: [company:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  # ------------------------------------------------------------ the fiscal-year check
+  - id: gate-010
+    covers: fiscal-year repair ("last year" is the latest pinned year)
+    question: What was Nvidia's net income last year?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: NVDA, fiscal_year: 2025, metric: net_income}}]
+    final_answer: Nvidia's net income for fiscal 2026 was $120,067 million [F1].
+    grade_as: {set: trap, category: relative_year, company: NVDA, fiscal_year: 2026, metric: net_income, expected_behavior: answer, gold_value: 120067000000}
+    expected:
+      overrides: [company:pass, fiscal_year:repair, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: NVDA, fiscal_year: 2026, metric: net_income}]
+      values: ["120067000000"]
+      grade: correct
+
+  - id: gate-011
+    covers: fiscal-year reject (a year with no pinned 10-K)
+    question: What was Apple's revenue in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2023, metric: revenue}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: wrong_fiscal_year, company: AAPL, fiscal_year: 2023, metric: revenue, expected_behavior: refuse}
+    expected:
+      overrides: [company:pass, fiscal_year:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-012
+    covers: fiscal-year reject (a calendar year that is two fiscal years)
+    question: What was Microsoft's revenue in calendar 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: MSFT, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Microsoft's fiscal year ends in June. Which fiscal year do you mean?
+    grade_as: {set: trap, category: wrong_fiscal_year, company: MSFT, fiscal_year: null, metric: revenue, expected_behavior: clarify}
+    expected:
+      overrides: [company:pass, fiscal_year:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-013
+    covers: fiscal-year reject (a date that is no fiscal year end of the company)
+    question: What was Walmart's revenue for the year ended December 31, 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: WMT, fiscal_year: 2026, metric: revenue}}]
+    final_answer: Walmart's fiscal year ends on January 31. Which fiscal year do you mean?
+    grade_as: {set: trap, category: wrong_fiscal_year, company: WMT, fiscal_year: null, metric: revenue, expected_behavior: clarify}
+    expected:
+      overrides: [company:pass, fiscal_year:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  # ------------------------------------------------------------ the metric, units and segment checks
+  - id: gate-014
+    covers: metric reject (a quarterly figure)
+    question: What was Goldman Sachs's quarterly net revenue in Q3 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: GS, fiscal_year: 2025, metric: revenue}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: metric_not_supported, company: GS, fiscal_year: 2025, metric: revenue, expected_behavior: refuse}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-015
+    covers: units pass with the figure in the scale asked for
+    question: Give Microsoft's FY2025 total assets in millions.
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: MSFT, fiscal_year: 2025, metric: total_assets}}]
+    final_answer: Microsoft's total assets for fiscal 2025 were $619,003 million [F1].
+    grade_as: {set: trap, category: units_scale, company: MSFT, fiscal_year: 2025, metric: total_assets, expected_behavior: answer, gold_value: 619003000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: MSFT, fiscal_year: 2025, metric: total_assets}]
+      values: ["619003000000"]
+      requested_scale: 619,003 million
+      grade: correct
+
+  - id: gate-016
+    covers: segment reject
+    question: How much revenue did AWS make in 2025?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AMZN, fiscal_year: 2025, metric: revenue}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: segment_vs_total, company: AMZN, fiscal_year: 2025, metric: revenue, expected_behavior: refuse}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-017
+    covers: segment pass (the segment is part of the total asked for)
+    question: What was Amazon's total revenue in 2025, including AWS?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AMZN, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Amazon's total revenue for fiscal 2025 was $716,924 million [F1].
+    grade_as: {set: trap, category: segment_vs_total, company: AMZN, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 716924000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: AMZN, fiscal_year: 2025, metric: revenue}]
+      values: ["716924000000"]
+      grade: correct
+
+  # ------------------------------------------------------------ the retry rule
+  - id: gate-018
+    covers: retry once (a second reject of the same check ends the tool for the run)
+    question: What was Apple's revenue in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2023, metric: revenue}}]
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2023, metric: revenue}}]
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2024, metric: revenue}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: wrong_fiscal_year, company: AAPL, fiscal_year: 2023, metric: revenue, expected_behavior: refuse}
+    expected:
+      overrides: [company:pass, fiscal_year:reject, company:pass, fiscal_year:reject, retry:reject]
+      tool_arguments: []
+      values: []
+      grade: correct
+
+  # ------------------------------------------------------------ two companies, and the page filter
+  - id: gate-019
+    covers: a comparison question with two companies (two calls in one turn)
+    question: What were Apple's and Microsoft's revenues in fiscal 2025?
+    turns:
+      - - {name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}
+        - {name: get_financial_fact, arguments: {ticker: MSFT, fiscal_year: 2025, metric: revenue}}
+    final_answer: Apple's revenue for fiscal 2025 was $416,161 million [F1] and Microsoft's was $281,724 million [F2].
+    grade_as: {set: control, category: control, style: domain-relevant, company: AAPL, fiscal_year: 2025, metric: revenue, expected_behavior: answer, gold_value: 416161000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass, company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: AAPL, fiscal_year: 2025, metric: revenue}, {ticker: MSFT, fiscal_year: 2025, metric: revenue}]
+      values: ["416161000000", "281724000000"]
+      grade: correct
+
+  - id: gate-020
+    covers: the page filter (no company named; "last year")
+    question: What was its revenue last year?
+    page: {ticker: WMT}
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: AAPL, fiscal_year: 2025, metric: revenue}}]
+    final_answer: Walmart's revenue for fiscal 2026 was $713,163 million [F1].
+    grade_as: {set: trap, category: relative_year, company: WMT, fiscal_year: 2026, metric: revenue, expected_behavior: answer, gold_value: 713163000000}
+    expected:
+      overrides: [company:repair, fiscal_year:repair, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: WMT, fiscal_year: 2026, metric: revenue}]
+      values: ["713163000000"]
+      grade: correct
+
+  # ------------------------------------------------------------ the annual-only rule
+  - id: gate-021
+    covers: annual periods only (JNJ FY2023 also reports a 90-day fourth quarter ending on the year end)
+    question: What was Johnson & Johnson's net income in fiscal 2023?
+    turns:
+      - [{name: get_financial_fact, arguments: {ticker: JNJ, fiscal_year: 2023, metric: net_income}}]
+    final_answer: Johnson & Johnson's net income for fiscal 2023 was $35,153 million [F1].
+    grade_as: {set: control, category: control, style: domain-relevant, company: JNJ, fiscal_year: 2023, metric: net_income, expected_behavior: answer, gold_value: 35153000000}
+    expected:
+      overrides: [company:pass, fiscal_year:pass, metric:pass, units:pass, segment:pass]
+      tool_arguments: [{ticker: JNJ, fiscal_year: 2023, metric: net_income}]
+      values: ["35153000000"]
+      grade: correct

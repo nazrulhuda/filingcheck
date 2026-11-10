@@ -94,8 +94,8 @@ verify-facts:  # coverage per metric (docs/facts_coverage.md) and the companyfac
 validate-questions:
 	uv run python -m filingcheck.eval.questions validate
 
-eval-smoke:
-	@echo "not built yet (week 4)"
+eval-smoke:  # the deterministic gate: 21 scripted agent runs with the checks on (no model, no DB, no network)
+	uv run pytest tests/eval_gate -q --no-cov
 
 eval:  # ask and grade a question set: make eval SET=examples MODE=agent [CHECKS=on|off] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money)
 	@test -n "$(SET)" -a -n "$(MODE)" || { echo "give SET and MODE: make eval SET=examples MODE=agent [REPEATS=3]"; exit 1; }
