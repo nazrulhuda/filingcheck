@@ -28,14 +28,16 @@ Both arms were run fresh on 2026-11-09, 3 runs per question, with the same model
 | Checks off | 18 | 10 | 2 | 1 | 2 | 3 | $0.003136 | 0.7 s |
 | Checks on | 18 | 16 | 0 | 0 | 0 | 2 | $0.003913 | 1.0 s |
 
-| Question | Checks off | Checks on | What the checks did (3 runs) | Changed by the checks? |
+| Question | Checks off | Checks on | What the checks did (3 runs) | Changed by a check? |
 |---|---|---|---|---|
-| trap-001 "How much net revenue did Morgan report last year?" | 1 correct (asked), 2 answered with Morgan Stanley's figure | 3 correct | company reject x2 (the model then asked which Morgan); 1 run with no fact call (declined) | yes, in 2 runs |
+| trap-001 "How much net revenue did Morgan report last year?" | 1 correct under the lenient rule (it asked only which year, not which Morgan), 2 answered with Morgan Stanley's figure | 3 correct: 2 asked which Morgan, 1 correct under the lenient rule (the abstain sentence) | company reject x2 (the model then asked which Morgan); 1 run with no fact call | yes, in 2 runs |
 | trap-002 "What was Walmart's revenue for 2025?" | 3 correct | 3 correct | pass x3 | no |
 | trap-003 "What was Nvidia's net income last year?" | 2 fiscal 2025's figure, 1 asked | 3 correct | fiscal-year repair x3 (sent 2025, 2025 and 2023; used 2026) | yes, in 3 runs |
 | trap-004 "Give Microsoft's FY2025 total assets in millions." | 3 correct | 3 correct | pass x3 | no |
 | trap-005 "What was Goldman Sachs's quarterly net revenue in Q3 2025?" | 3 correct (declined) | 3 correct (declined) | not reached: no fact call | no |
 | control-001 "What was Coca-Cola's net income in fiscal 2024?" | 3 abstained, no tool call | 1 correct, 2 abstained | pass x1; 2 runs with no tool call | no: model variance |
+
+Two of trap-001's correct runs, one in each arm, count as correct only under the lenient rule for clarify questions (decisions, 2026-11-04): an answer that asks only which year is meant, or gives the abstain sentence, is correct. With a strict rule, where a clarify answer must ask about the ambiguous thing (here, which Morgan), the count is 9 against 15, the same gap.
 
 Of the six more correct answers, five follow from a check's action (two company rejects, three year repairs). The sixth is control-001, where no check acted: the model called the fact tool in one run and not in the others, as it did on Day 20 (1 of 3 correct). Every override is in the rows' `overrides` field.
 
