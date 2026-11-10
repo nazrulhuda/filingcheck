@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Answer } from "./api.ts";
-import { NO_NEW_CALL, costLine } from "./display.ts";
+import { NO_NEW_CALL, costLine, pageQuestion } from "./display.ts";
 
 const ANSWER: Answer = {
   text: "Peso swings [1].",
@@ -52,4 +52,19 @@ test("an unknown cost, missing token counts and keyword-only search are said pla
     "openrouter:openai/gpt-oss-20b · 1.2 s · ? + ? tokens · cost unknown" +
       " · keyword search only (the embedding service was unavailable)",
   );
+});
+
+test("the page asks the agent, with the checks left on by default", () => {
+  assert.deepEqual(pageQuestion("What was Coca-Cola's net income in fiscal 2024?", "", ""), {
+    question: "What was Coca-Cola's net income in fiscal 2024?",
+    mode: "agent",
+  });
+  assert.deepEqual(pageQuestion("Risks?", "WMT", "2025"), {
+    question: "Risks?",
+    mode: "agent",
+    ticker: "WMT",
+    fiscal_year: 2025,
+  });
+  // A year only counts with a company, as the page's year list depends on the company.
+  assert.deepEqual(pageQuestion("Risks?", "", "2025"), { question: "Risks?", mode: "agent" });
 });

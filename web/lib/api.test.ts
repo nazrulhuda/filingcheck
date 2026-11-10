@@ -149,6 +149,60 @@ test("a streamed answer arrives piece by piece, then whole", async () => {
   assert.deepEqual(result, { answer: ANSWER, cached: false, example: null });
 });
 
+test("the agent's tool calls arrive as steps before the answer", async () => {
+  const steps: string[][] = [];
+  stub(() =>
+    sse(
+      ["tool", { name: "get_financial_fact", label: "Looking up Walmart Inc. FY2026 revenue", status: "ok" }],
+      ["tool", { name: "calculate", label: "Calculating", status: "error" }],
+      ["token", { text: ANSWER.text }],
+      ["final", { request_id: "r1", cached: false, example: null, answer: ANSWER }],
+    ),
+  );
+  const result = await askStreaming(
+    { question: "Q?", mode: "agent" },
+    () => {},
+    (progress) => steps.push(progress.steps.map((s) => `${s.label}: ${s.status}`)),
+  );
+  assert.deepEqual(steps, [
+    ["Looking up Walmart Inc. FY2026 revenue: ok"],
+    ["Looking up Walmart Inc. FY2026 revenue: ok", "Calculating: error"],
+  ]);
+  assert.equal(result.answer.text, ANSWER.text);
+});
+
+test("a restart clears the steps so far and says the run started again", async () => {
+  const seen: { steps: string[]; restarted: string | null }[] = [];
+  const detail = "The first model stopped; starting again with another model.";
+  stub(() =>
+    sse(
+      ["tool", { name: "get_financial_fact", label: "Looking up A", status: "ok" }],
+      ["restart", { detail }],
+      ["tool", { name: "get_financial_fact", label: "Looking up B", status: "ok" }],
+      ["final", { request_id: "r1", cached: false, example: null, answer: ANSWER }],
+    ),
+  );
+  await askStreaming({ question: "Q?", mode: "agent" }, () => {}, (p) =>
+    seen.push({ steps: p.steps.map((s) => s.label), restarted: p.restarted }),
+  );
+  assert.deepEqual(seen, [
+    { steps: ["Looking up A"], restarted: null },
+    { steps: [], restarted: detail },
+    { steps: ["Looking up B"], restarted: detail },
+  ]);
+});
+
+test("the agent mode is sent to the stream and to the fallback", async () => {
+  const calls = stub(({ url }) => {
+    if (url.endsWith("/ask/stream")) throw new TypeError("fetch failed");
+    return json({ request_id: "r1", cached: false, example: null, ...ANSWER });
+  });
+  await askStreaming({ question: "Q?", mode: "agent" }, () => {});
+  for (const call of calls) {
+    assert.equal(call.init?.body, JSON.stringify({ question: "Q?", mode: "agent" }));
+  }
+});
+
 // ---------------------------------------------------------------- cached answers
 
 const EXAMPLE = {

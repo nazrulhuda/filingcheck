@@ -21,6 +21,7 @@ from filingcheck.answer.citations import (
     has_uncited_claims,
     normalize_text,
     parse_citations,
+    parse_fact_citations,
 )
 from filingcheck.answer.examples import HEADER, render_examples, run_examples
 from filingcheck.answer.run import format_answer, settings_line
@@ -461,6 +462,18 @@ MARKERS = json.loads(
 @pytest.mark.parametrize("case", MARKERS, ids=[c["text"] for c in MARKERS])
 def test_the_shared_citation_cases_give_the_same_numbers(case: dict[str, Any]) -> None:
     assert cited_numbers(case["text"], case["passages"]) == case["numbers"]
+
+
+FACT_MARKERS = json.loads(
+    (Path(__file__).resolve().parents[1] / "fixtures" / "fact_markers.json").read_text(
+        encoding="utf-8"
+    )
+)["cases"]
+
+
+@pytest.mark.parametrize("case", FACT_MARKERS, ids=[c["text"] for c in FACT_MARKERS])
+def test_the_shared_fact_cases_give_the_same_numbers(case: dict[str, Any]) -> None:
+    assert parse_fact_citations(case["text"], case["facts"]) == case["numbers"]
 
 
 def test_each_citation_carries_the_number_it_has_in_the_answer() -> None:

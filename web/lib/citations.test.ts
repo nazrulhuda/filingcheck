@@ -4,7 +4,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { type Citation, citedNumbers, normalize, segments } from "./citations.ts";
+import {
+  type Citation,
+  type FactCitation,
+  citedFacts,
+  citedNumbers,
+  normalize,
+  segments,
+} from "./citations.ts";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../../tests/fixtures/citation_markers.json", import.meta.url), "utf8"),
@@ -13,6 +20,16 @@ const fixture = JSON.parse(
 for (const c of fixture.cases) {
   test(`shared case: ${c.text}`, () => {
     assert.deepEqual(citedNumbers(c.text, c.passages), c.numbers);
+  });
+}
+
+const factFixture = JSON.parse(
+  readFileSync(new URL("../../tests/fixtures/fact_markers.json", import.meta.url), "utf8"),
+) as { cases: { text: string; facts: number; numbers: number[] }[] };
+
+for (const c of factFixture.cases) {
+  test(`shared fact case: ${c.text}`, () => {
+    assert.deepEqual(citedFacts(c.text, c.facts), c.numbers);
   });
 }
 
@@ -68,4 +85,52 @@ test("a range is never expanded past the highest citation number", () => {
   const chip = parts.find((p) => p.kind === "cite");
   assert.ok(chip && chip.kind === "cite");
   assert.deepEqual(chip.citations.map((c) => c.number), [1, 2]);
+});
+
+function fact(number: number): FactCitation {
+  return {
+    number,
+    concept: "us-gaap:Revenues",
+    value: String(1000 * number),
+    unit: "USD",
+    period_start: "2025-02-01",
+    period_end: "2026-01-31",
+    instant: null,
+    accession: "0000104169-26-000010",
+    source_url: `https://www.sec.gov/fact${number}.htm`,
+  };
+}
+
+test("fact markers become chips pointing at the fact citations", () => {
+  const parts = segments("Revenue was $1,000 [F1] and $2,000 [F2].", [], [fact(1), fact(2)]);
+  assert.deepEqual(
+    parts.map((p) => (p.kind === "text" ? p.text : p.facts.map((f) => `F${f.number}`))),
+    ["Revenue was $1,000 ", ["F1"], " and $2,000 ", ["F2"], "."],
+  );
+});
+
+test("one bracket can hold a passage and a fact", () => {
+  const parts = segments("Sales grew [1, F2].", [citation(1)], [fact(1), fact(2)]);
+  const chip = parts.find((p) => p.kind === "cite");
+  assert.ok(chip && chip.kind === "cite");
+  assert.equal(chip.raw, "[1, F2]");
+  assert.deepEqual(chip.citations.map((c) => c.number), [1]);
+  assert.deepEqual(chip.facts.map((f) => f.number), [2]);
+});
+
+test("a fact marker with no fact citation stays as text", () => {
+  const text = "Unknown [F3] fact, and a lenticular one 【F1】.";
+  const parts = segments(text, [], [fact(1)]);
+  assert.deepEqual(parts.map((p) => (p.kind === "text" ? p.text : p.raw)), [
+    "Unknown [F3] fact, and a lenticular one ",
+    "【F1】",
+    ".",
+  ]);
+});
+
+test("passage-only answers have no fact chips", () => {
+  const parts = segments("Peso risk [1].", [citation(1)]);
+  const chip = parts.find((p) => p.kind === "cite");
+  assert.ok(chip && chip.kind === "cite");
+  assert.deepEqual(chip.facts, []);
 });
