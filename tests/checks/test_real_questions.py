@@ -78,7 +78,7 @@ def test_every_real_question_passes_unless_it_is_a_trap(
 
 
 def test_the_real_question_files_are_the_ones_meant() -> None:
-    assert len(real_questions()) == 50  # 6 + 5 + 40 questions, trap-001 left out
+    assert len(real_questions()) == 52  # 6 + 7 + 40 questions, trap-001 left out
 
 
 # ---------------------------------------------------------------- the ten review probes

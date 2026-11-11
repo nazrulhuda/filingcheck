@@ -69,34 +69,44 @@ def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
     assert (saved.ticker, saved.fiscal_year) == ("WMT", 2026)
 
 
-def test_the_page_examples_file_holds_five_questions_with_a_pinned_filing_each() -> None:
+TEXT_IDS = ["ret-008", "ret-024", "ret-040", "ret-016", "ret-010"]
+NUMBER_IDS = ["fact-001", "fact-002"]
+
+
+def test_the_page_examples_file_holds_five_text_and_two_number_questions() -> None:
     repo = Path(__file__).resolve().parents[2]
-    pinned = {
-        (f["ticker"], f["fiscal_year"])
-        for f in json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))[
-            "filings"
-        ]
-    }
-    retrieval = {
-        q["id"]: q for q in load_example_questions(repo / "eval" / "questions" / "retrieval.jsonl")
-    }
-    page = load_example_questions(repo / "eval" / "questions" / "page_examples.jsonl")
-    assert [q["id"] for q in page] == [
-        "ret-008",
-        "ret-024",
-        "ret-040",
-        "ret-016",
-        "ret-010",
-    ]
+    questions = repo / "eval" / "questions"
+    filings = json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))["filings"]
+    pinned = {(f["ticker"], f["fiscal_year"]) for f in filings}
+    companies = {f["ticker"] for f in filings}
+    retrieval = {q["id"]: q for q in load_example_questions(questions / "retrieval.jsonl")}
+    page = load_example_questions(questions / "page_examples.jsonl")
+    assert [q["id"] for q in page] == TEXT_IDS + NUMBER_IDS
     for q in page:
         assert set(q) == {"id", "question", "ticker", "fiscal_year"}
-        assert (q["ticker"], q["fiscal_year"]) in pinned
+        assert q["ticker"] in companies
+        # A number question may leave the year open, so the page shows the check resolving it.
+        assert q["fiscal_year"] is None or (q["ticker"], q["fiscal_year"]) in pinned
+    # The five text questions are the retrieval set's, unchanged.
+    for q in page[:5]:
         source = retrieval[q["id"]]
         assert (q["question"], q["ticker"], q["fiscal_year"]) == (
             source["question"],
             source["ticker"],
             source["fiscal_year"],
         )
+    # The two number questions were written for the page and are in no evaluation set.
+    evaluated = {
+        json.loads(line)["question"]
+        for path in questions.glob("*.jsonl")
+        if path.name != "page_examples.jsonl"
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    plain, relative = page[5:]
+    assert plain["question"] not in evaluated and relative["question"] not in evaluated
+    assert plain["fiscal_year"] is not None
+    assert "last year" in relative["question"] and relative["fiscal_year"] is None
 
 
 # ---------------------------------------------------------------- make examples-export

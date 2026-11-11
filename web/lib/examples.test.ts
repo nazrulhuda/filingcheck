@@ -19,7 +19,7 @@ const pageQuestions = readFileSync(
   .filter((line) => line.trim())
   .map((line) => JSON.parse(line) as { question: string; ticker: string; fiscal_year: number });
 
-test("the examples are the page's five questions, with their company and year", () => {
+test("the examples are the page's seven questions, with their company and year", () => {
   assert.deepEqual(
     examples.map((e) => [e.question, e.ticker, e.fiscal_year]),
     pageQuestions.map((q) => [q.question, q.ticker, q.fiscal_year]),
