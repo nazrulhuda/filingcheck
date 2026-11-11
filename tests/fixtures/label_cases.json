@@ -1067,7 +1067,7 @@
    "passages": [
     {
      "number": 1,
-     "text": "Costs fell by 5.4 million units."
+     "text": "The cost index fell 5.4 points."
     }
    ],
    "calculations": [],
@@ -1137,6 +1137,31 @@
     {
      "number": 2,
      "text": "the official ARS exchange rate was 1455, which devalued by 5.4%"
+    },
+    {
+     "number": 3,
+     "text": "As of December 31, 2025, the official ARS exchange rate was 1455."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1455",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    }
+   ]
+  },
+  {
+   "name": "passage: the figure's own sentence beats a passage cited earlier in the answer",
+   "answer": "Citi operates there [2]. The official rate was 1,455 ARS per USD [3].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 2,
+     "text": "Citi operates in Argentina; the official ARS exchange rate was 1455."
     },
     {
      "number": 3,
