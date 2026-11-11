@@ -28,6 +28,11 @@ The segment check knows the segment names each company reports. A phrase that is
 - The grader does not depend on it. For number questions it also uses its own decline rule, and for clarify and refuse questions it uses ask-or-decline. So it changed no Day 24 grade.
 - Of the 144 stored rows of the example question sets, 2 have such an answer. Both are trap-005, the quarterly question, where declining is correct, and both were graded correct.
 
+Three more findings from the 2026-11-11 search probes (`eval/probes/`), noted here and not fixed:
+- **A text answer can be confidently unsupported, and no check covers it.** On "Why did Goldman narrow its focus in consumer banking?" the stored FY2023 filing mentions the narrowing but gives no reason, and the agent gave a reason (regulation, the Community Reinvestment Act) in all 6 runs, before and after the schema change. The checks only act on the arguments of `get_financial_fact`; nothing compares a text claim with the cited passage.
+- **Giving up without searching.** 1 run before and 3 after (Walmart twice, UnitedHealth once) said they couldn't find the information and made no tool call at all.
+- **A text question answered from the fact tool.** On "How did Converse revenues change?" some runs called `get_financial_fact` five times and never searched (2 before, 1 after).
+
 ## Day 24: the two arms on the 6 example questions (current run: 2026-11-11)
 
 **Six questions prove nothing about accuracy.** These runs show that the checks layer works and is logged; the measurement with intervals is Week 6's, on the full question sets.
