@@ -636,6 +636,7 @@ def _answer(
                 item=passages[n - 1].item,
                 source_url=passages[n - 1].source_url,
                 quote=passages[n - 1].text[:QUOTE_CHARS],
+                text=passages[n - 1].text,
             )
             for n in cited_numbers(text, len(passages))
         ]

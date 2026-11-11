@@ -24,7 +24,8 @@
           "ticker": "C",
           "chunk_id": 6731,
           "source_url": "https://www.sec.gov/Archives/edgar/data/831001/000083100126000011/c-20251231.htm",
-          "fiscal_year": 2025
+          "fiscal_year": 2025,
+          "text": "the Ukrainian hryvnia as its functional currency. As of December 31, 2025, Citi had $1.9 billion of direct exposures related to Ukraine (compared to $1.7 billion at September 30, 2025).\n\nArgentina\n\nCiti operates in Argentina through its Services, Markets and Banking businesses. As of December 31, 2025, Citi’s net investment in its Argentine operations, inclusive of associated reserves, was approximately $1.3 billion (compared to $1.4 billion at September 30, 2025). Citi uses the U.S. dollar (USD) as the functional currency for its operations in countries such as Argentina that are deemed highly inflationary in accordance with GAAP. Citi uses Argentina’s official market exchange rate to remeasure its net Argentine peso (ARS) - denominated assets into USD, with the impact of exchange rate fluctuations recorded directly in earnings. As of December 31, 2025, the official ARS exchange rate was 1455, which devalued by 5.4% against the USD during the fourth quarter of 2025."
         },
         {
           "item": "7",
@@ -33,7 +34,8 @@
           "ticker": "C",
           "chunk_id": 6732,
           "source_url": "https://www.sec.gov/Archives/edgar/data/831001/000083100126000011/c-20251231.htm",
-          "fiscal_year": 2025
+          "fiscal_year": 2025,
+          "text": "exchange rate fluctuations recorded directly in earnings. As of December 31, 2025, the official ARS exchange rate was 1455, which devalued by 5.4% against the USD during the fourth quarter of 2025.\n\nThe Central Bank of Argentina (BCRA) has generally maintained certain capital and currency controls that have broadly restricted Citi’s ability to access USD in Argentina and remit earnings from its Argentine operations.\n\nDuring the second quarter of 2025, Citi subscribed to approximately $340 million of par value of the latest series of certain USD-denominated bonds (BOPREALs) issued by the BCRA, which provided a mechanism for Argentine companies to pay dividends by selling the bonds and remitting the proceeds. Citi completed the sale of the BOPREALs during\n\n2025 and remitted the total proceeds of approximately $262 million from its Argentine operations, thereby reducing its net investment in the country."
         }
       ],
       "overrides": [],
@@ -142,7 +144,8 @@
           "ticker": "WMT",
           "chunk_id": 41693,
           "source_url": "https://www.sec.gov/Archives/edgar/data/104169/000010416924000056/wmt-20240131.htm",
-          "fiscal_year": 2024
+          "fiscal_year": 2024,
+          "text": "rates and the related impact on the translation of the balance sheets resulted in the $0.3 billion net gain in the currency translation and other category of accumulated other comprehensive loss.\n\nWe hedge a portion of our foreign currency risk by entering into currency swaps.  The aggregate fair value of these swaps was in a liability position of $1.3 billion and $1.4 billion as of January 31, 2024 and January 31, 2023, respectively.  The change in the fair value of these swaps was due to fluctuations in currency exchange rates, primarily due to the strengthening of certain currencies relative to the U.S. dollar in fiscal 2024.  The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion.  A hypothetical 10% change in interest rates underlying these swaps from the market rates in effect as of January 31, 2024 would have resulted in a change in the value of the swaps of $0.1 billion."
         }
       ],
       "overrides": [],
@@ -251,7 +254,8 @@
           "ticker": "UNH",
           "chunk_id": 39222,
           "source_url": "https://www.sec.gov/Archives/edgar/data/731766/000073176624000081/unh-20231231.htm",
-          "fiscal_year": 2023
+          "fiscal_year": 2023,
+          "text": "our financial liabilities, which include debt and deposit liabilities, were at interest rates which vary with market rates, either directly or through the use of related interest rate swap contracts.\n\nThe fair value of our fixed-rate investments and debt also varies with market interest rates. As of December 31, 2023, $43 billion of our investments were fixed-rate debt securities and $44 billion of our debt was non-swapped fixed-rate term debt. An increase in market interest rates decreases the market value of fixed-rate investments and fixed-rate debt. Conversely, a decrease in market interest rates increases the market value of fixed-rate investments and fixed-rate debt.\n\nWe manage exposure to market interest rates by diversifying investments across different fixed-income market sectors and debt across maturities, as well as by matching a portion of our floating-rate assets and liabilities, either directly or through the use of interest rate swap contracts. Unrealized gains and losses on investments in available-for-sale debt securities are reported in comprehensive income."
         }
       ],
       "overrides": [],
@@ -326,7 +330,8 @@
           "ticker": "NFLX",
           "chunk_id": 32241,
           "source_url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528024000030/nflx-20231231.htm",
-          "fiscal_year": 2023
+          "fiscal_year": 2023,
+          "text": "rights related to, among other things, our website, streaming technology, our recommendation and merchandising technology, title selection processes, our content, and marketing activities.\n\nTrademark, copyright, patent and other intellectual property rights are important to us and other companies.  Our intellectual property rights extend to our technology, business processes, the content we produce and distribute through our service, and consumer products, experiences, and marketing assets based thereon.  We use the intellectual property of third parties in creating some of our content, merchandising our products and marketing our service.  From time to time, third parties allege that we have infringed or otherwise violated their intellectual property rights."
         }
       ],
       "overrides": [],
@@ -383,7 +388,8 @@
           "ticker": "AXP",
           "chunk_id": 3404,
           "source_url": "https://www.sec.gov/Archives/edgar/data/4962/000000496226000080/axp-20251231.htm",
-          "fiscal_year": 2025
+          "fiscal_year": 2025,
+          "text": "to permit preparation of financial statements in accordance with GAAP and that our receipts and expenditures are being made only in accordance with authorizations of our management and directors; and\n\n•Provide reasonable assurance regarding prevention or timely detection of unauthorized acquisition, use or disposition of our assets that could have a material effect on the financial statements.\n\nBecause of its inherent limitations, internal control over financial reporting may not prevent or detect misstatements. Also, projections of any evaluation of effectiveness to future periods are subject to the risk that controls may become inadequate because of changes in conditions, or that the degree of compliance with the policies or procedures may deteriorate.\n\nOur management assessed the effectiveness of our internal control over financial reporting as of December 31, 2025. In making this assessment, our management used the criteria set forth by the Committee of Sponsoring Organizations of the Treadway Commission (COSO) in Internal Control —Integrated Framework (2013)."
         }
       ],
       "overrides": [],
