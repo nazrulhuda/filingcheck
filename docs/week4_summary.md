@@ -17,11 +17,50 @@ The segment check knows the segment names each company reports. A phrase that is
 
 **The rules were frozen on 2026-11-09, when Day 23 was merged**, like the agent's prompt on Day 18. A later change to a check means re-running both evaluation arms, with the checks off and on.
 
-## Day 24: the two arms on the 6 example questions (current run: 2026-11-10)
+**The prompt and the tool schemas are frozen until Week 6**, unless there is strong evidence of a problem. The prompt has not changed since Day 18. The tool schemas changed three times after it:
+- The calculator's comma rule (#55).
+- On 2026-11-10, both tools' ticker descriptions gained the company names, with dev probes and both arms re-run.
+- On 2026-11-11, `search_filings` lost its `items` filter, with dev probes and both arms re-run.
+
+## Open for the Week 5 grader round
+
+`is_abstain` misses two wordings of "I can't find it": "I can't find this information…" and "I can't find any information in…". An answer worded that way is stored with `abstained: false`.
+- The grader does not depend on it. For number questions it also uses its own decline rule, and for clarify and refuse questions it uses ask-or-decline. So it changed no Day 24 grade.
+- Of the 144 stored rows of the example question sets, 2 have such an answer. Both are trap-005, the quarterly question, where declining is correct, and both were graded correct.
+
+## Day 24: the two arms on the 6 example questions (current run: 2026-11-11)
 
 **Six questions prove nothing about accuracy.** These runs show that the checks layer works and is logged; the measurement with intervals is Week 6's, on the full question sets.
 
-**This is the current run.** Both arms were re-run on 2026-11-10, 3 runs per question, after one change to the tool schemas: both tools' ticker descriptions now list each ticker with its company's official name (decisions, 2026-11-10). Before it, the model often failed to find Coca-Cola among the bare tickers and abstained without a tool call, which handicapped both arms. The first run, of 2026-11-09, is kept below and in its files. Same model and settings (`openrouter:openai/gpt-oss-20b`, temperature 0.6, reasoning effort low, batch mode, question text only) and the same frozen prompt. The page is `eval/results/2026-11-10_examples_agent-arms.md`.
+**This is the current run.** Both arms were re-run on 2026-11-11, 3 runs per question, after `search_filings` lost its `items` filter (decisions, 2026-11-11). Same model, settings and frozen prompt as below. The page is `eval/results/2026-11-11_examples_agent-arms.md`.
+
+| Arm | Answers | Correct | No number | Asked when it should have answered | Answered when it should have asked | Abstained | Cost | Mean time |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Checks off | 18 | 13 | 0 | 1 | 2 | 2 | $0.004217 | 0.7 s |
+| Checks on | 18 | 16 | 1 | 1 | 0 | 0 | $0.003997 | 0.9 s |
+
+| Question | Checks off | Checks on | What the checks did (3 runs) | Changed by a check? |
+|---|---|---|---|---|
+| trap-001 "How much net revenue did Morgan report last year?" | 1 correct under the lenient rule (it asked only which year), 2 answered with Morgan Stanley's figure | 3 correct: 1 asked which Morgan after a company reject, 2 correct under the lenient rule (they asked only which year, with no fact call) | company reject x1; 2 runs with no fact call | yes, in 1 run |
+| trap-002 "What was Walmart's revenue for 2025?" | 3 correct | 3 correct | pass x3 | no |
+| trap-003 "What was Nvidia's net income last year?" | 2 abstained after fetching fiscal 2023, which has no 10-K in the dataset; 1 asked which year | 2 correct; 1 asked which year, with no fact call | fiscal-year repair x2 (sent 2025 and 2023; used 2026); 1 run with no fact call | yes, in 2 runs |
+| trap-004 "Give Microsoft's FY2025 total assets in millions." | 3 correct | 2 correct; 1 no number: with no fact call it said there was no FY2025 filing, which is wrong | pass x2; 1 run with no fact call | no |
+| trap-005 "What was Goldman Sachs's quarterly net revenue in Q3 2025?" | 3 correct (declined) | 3 correct (declined) | not reached: no fact call | no |
+| control-001 "What was Coca-Cola's net income in fiscal 2024?" | 3 correct | 3 correct | pass x3 | no |
+
+**The gain from the checks shrank from five to three, and the checks did not cause the drop.** The checks-off arm is 13 of 18 again.
+- The checks-on arm lost two answers in runs with no fact call: a question back about the year on trap-003, and on trap-004 a wrong claim that there is no FY2025 filing. A check cannot act when the model makes no call, the limit stated above.
+- The three extra correct answers with the checks on all follow from a check's action: one company reject on trap-001 and two year repairs on trap-003.
+- With the strict clarify rule, which does not count an answer that asks only which year, the count is 12 against 14.
+- None of the six questions needs a text search. Eighteen runs per arm cannot tell whether the shorter search schema moved these two runs or whether it was the model's variance (temperature 0.6).
+
+**Cost per question:** about $0.00023 with the checks off and $0.00022 with them on.
+
+## Day 24, second run (2026-11-10, superseded)
+
+Kept for the record; superseded by the 2026-11-11 run above because the search tool's schema changed.
+
+Both arms were re-run on 2026-11-10, 3 runs per question, after one change to the tool schemas: both tools' ticker descriptions now list each ticker with its company's official name (decisions, 2026-11-10). Before it, the model often failed to find Coca-Cola among the bare tickers and abstained without a tool call, which handicapped both arms. The first run, of 2026-11-09, is kept below and in its files. Same model and settings (`openrouter:openai/gpt-oss-20b`, temperature 0.6, reasoning effort low, batch mode, question text only) and the same frozen prompt. The page is `eval/results/2026-11-10_examples_agent-arms.md`.
 
 | Arm | Answers | Correct | Asked when it should have answered | Answered when it should have asked | Abstained | Cost | Mean time |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -43,7 +82,7 @@ The segment check knows the segment names each company reports. A phrase that is
 
 ## Day 24, first run (2026-11-09, superseded)
 
-Kept for the record; superseded by the 2026-11-10 run above because the tool schemas changed. **Six questions prove nothing about accuracy.**
+Kept for the record; superseded by the 2026-11-10 and 2026-11-11 runs above because the tool schemas changed. **Six questions prove nothing about accuracy.**
 
 Both arms were run fresh on 2026-11-09, 3 runs per question, with the same model and settings (`openrouter:openai/gpt-oss-20b`, temperature 0.6, batch mode, question text only), the same frozen prompt and the same tool schemas. Day 20's rows were not reused: the fact tool's results and the calculator's description have changed since then. The pages are `eval/results/2026-11-09_examples_agent-arms.md` and the two files it names.
 

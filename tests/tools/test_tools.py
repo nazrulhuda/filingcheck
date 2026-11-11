@@ -10,7 +10,7 @@ import yaml
 
 from filingcheck.paths import REPO_ROOT
 from filingcheck.tools import TOOL_NAMES, ToolDeps, run_tool, tool_schemas
-from filingcheck.tools.inputs import COMPANY_LIST, EXTRA_NAMES, ITEMS, TICKER_NAMES, Ticker
+from filingcheck.tools.inputs import COMPANY_LIST, EXTRA_NAMES, TICKER_NAMES, Ticker
 from tests.answer.test_baseline import FakeRetriever, hit
 from tests.facts.test_lookup import FakeFacts, duration
 
@@ -91,7 +91,8 @@ def test_each_tool_has_a_schema_for_the_models_tools_list() -> None:
     search = schemas[0]["function"]["parameters"]
     assert search["required"] == ["query"]
     assert search["properties"]["k"]["maximum"] == 10
-    assert set(search["properties"]["items"]["items"]["enum"]) == set(ITEMS)
+    # No Items filter: the model narrowed searches to Items that did not hold the answer.
+    assert set(search["properties"]) == {"query", "ticker", "fiscal_year", "k"}
 
 
 # ---------------------------------------------------------------- the dispatcher
@@ -132,7 +133,7 @@ def test_search_filings_passes_its_filters_and_returns_passages_with_sources() -
     tool_deps = deps()
     result = call(
         "search_filings",
-        {"query": "Mexico risks", "ticker": "WMT", "fiscal_year": 2025, "items": ["1A"]},
+        {"query": "Mexico risks", "ticker": "WMT", "fiscal_year": 2025},
         tool_deps,
     )
     assert tool_deps.retriever.calls == [  # type: ignore[attr-defined]
@@ -145,6 +146,35 @@ def test_search_filings_passes_its_filters_and_returns_passages_with_sources() -
     assert first["text"] == expected.text
     assert first["source_url"] == expected.source_url
     assert len(result["passages"]) == 4
+
+
+class ItemsRecorder:
+    """A retriever that records the Items filter it was given."""
+
+    def __init__(self) -> None:
+        self.items: list[Any] = []
+
+    def search(self, query: str, **filters: Any) -> Any:
+        from filingcheck.retrieval.models import SearchResult
+
+        self.items.append(filters.get("items"))
+        return SearchResult(hits=[], retriever="recorder")
+
+
+def test_search_filings_searches_every_item_of_the_filing() -> None:
+    recorder = ItemsRecorder()
+    tool_deps = ToolDeps(retriever=recorder, facts=FakeFacts([]))
+    call(
+        "search_filings",
+        {"query": "currency swaps", "ticker": "WMT", "fiscal_year": 2024},
+        tool_deps,
+    )
+    assert recorder.items == [None]
+
+
+def test_a_search_that_still_sends_items_is_an_error_for_the_model() -> None:
+    result = call("search_filings", {"query": "currency swaps", "items": ["8"]})
+    assert "items" in result["error"]
 
 
 def test_search_filings_k_defaults_to_8_and_accepts_1_to_10() -> None:
