@@ -29,9 +29,10 @@ The segment check knows the segment names each company reports. A phrase that is
 - Of the 144 stored rows of the example question sets, 2 have such an answer. Both are trap-005, the quarterly question, where declining is correct, and both were graded correct.
 
 Three more findings from the 2026-11-11 search probes (`eval/probes/`), noted here and not fixed:
-- **A text answer can be confidently unsupported, and no check covers it.** On "Why did Goldman narrow its focus in consumer banking?" the stored FY2023 filing mentions the narrowing but gives no reason, and the agent gave a reason (regulation, the Community Reinvestment Act) in all 6 runs, before and after the schema change. The checks only act on the arguments of `get_financial_fact`; nothing compares a text claim with the cited passage.
+- **A text answer can be confidently unsupported, and no check covers it.** On "Why did Goldman narrow its focus in consumer banking?" the stored FY2023 filing mentions the narrowing but gives no reason, and the agent gave a reason (regulation, the Community Reinvestment Act) in all 6 runs, before and after the schema change. The checks only act on the arguments of `get_financial_fact`; nothing compares a text claim with the cited passage. The Day 26 page examples show the same thing on a smaller scale: Walmart's saved answer calls the swaps "10-year-old", which the filing does not say, next to a number that is right.
 - **Giving up without searching.** 1 run before and 3 after (Walmart twice, UnitedHealth once) said they couldn't find the information and made no tool call at all.
 - **A text question answered from the fact tool.** On "How did Converse revenues change?" some runs called `get_financial_fact` five times and never searched (2 before, 1 after).
+- **A citation marker form the parser does not read.** In the Day 26 example refresh, 2 of 14 agent answers marked their source as `【1†number=1】` instead of `[1]`. The parser reads `[1]` and `【1】` only, so both answers were stored with no citation at all, although the right passage had been retrieved; the page would show the raw marker in the text. Worth a parser rule (read `【n†…】` as `[n]`) before the Week 5 runs, since an unread marker makes a cited answer look uncited to the grader.
 
 ## Day 24: the two arms on the 6 example questions (current run: 2026-11-11)
 
