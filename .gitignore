@@ -28,6 +28,9 @@ build/
 coverage.xml
 htmlcov/
 
+# Written by `next dev` on start; not part of the page
+web/AGENTS.md
+
 # Editors and OS
 .vscode/
 .idea/
