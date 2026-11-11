@@ -30,9 +30,14 @@ AGENT_ANSWER = {
     ],
     "tool_calls": [{"name": "get_financial_fact", "status": "ok"}],
     "restarts": [],
+    "checks": True,
+    "overrides": [{"check": "company", "outcome": "pass"}],
     "model_used": "openrouter:openai/gpt-oss-20b",
     "degraded": False,
 }
+
+# The page asks the agent with the checks on, so its saved examples are agent answers too.
+EXAMPLE = {"question": "Q?", "answer": {"mode": "agent", "checks": True, "text": "A [1]."}}
 
 
 def api(**overrides: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
@@ -42,7 +47,7 @@ def api(**overrides: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
             200, json={"status": "ok", "model": "openrouter:openai/gpt-oss-20b"}
         ),
         "GET /companies": lambda r: httpx.Response(200, json=[{"ticker": "NFLX"}] * 25),
-        "GET /examples": lambda r: httpx.Response(200, json=[{"question": "Q?"}] * 5),
+        "GET /examples": lambda r: httpx.Response(200, json=[EXAMPLE] * 5),
         "POST /ask": lambda r: httpx.Response(200, json=ANSWER),
         "POST /ask agent": lambda r: httpx.Response(200, json=AGENT_ANSWER),
     }
@@ -204,6 +209,8 @@ def test_main_needs_an_https_url_and_returns_1_on_any_failure(
             {"restarts": ["openrouter 503 -"]},
             "the agent restarted with a fallback (openrouter 503 -)",
         ),
+        ({"checks": False}, "the checks were off"),
+        ({"overrides": []}, "the override log is empty"),
     ],
 )
 def test_the_agent_question_must_use_a_tool_and_cite_a_fact(
@@ -212,3 +219,24 @@ def test_the_agent_question_must_use_a_tool_and_cite_a_fact(
     answer = AGENT_ANSWER | fields
     client = api(**{"POST_ask agent": lambda r: httpx.Response(200, json=answer)})
     assert failures(smoke.run_checks(BASE, client)) == [f"FAIL POST /ask (agent): {reason}"]
+
+
+@pytest.mark.parametrize(
+    ("examples", "reason"),
+    [
+        ([], "empty list"),
+        (
+            [EXAMPLE, {"question": "Old?", "answer": {"text": "A [1]."}}],
+            "example 2 is not an agent answer with the checks on",
+        ),
+        (
+            [{"question": "Off?", "answer": {"mode": "agent", "checks": False}}],
+            "example 1 is not an agent answer with the checks on",
+        ),
+    ],
+)
+def test_the_saved_examples_must_be_agent_answers_with_the_checks_on(
+    examples: list[Any], reason: str
+) -> None:
+    client = api(GET_examples=lambda r: httpx.Response(200, json=examples))
+    assert failures(smoke.run_checks(BASE, client)) == [f"FAIL GET /examples: {reason}"]

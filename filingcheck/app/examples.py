@@ -1,13 +1,16 @@
 """The cached example answers the page shows.
 
-`python -m filingcheck.app.examples [--questions FILE]` refreshes them: batch mode, so every
-answer comes from the primary model. The questions come from a JSONL file ("id", "question",
-"ticker" and "fiscal_year" on each line; the search is narrowed to that company and year)
-that can be swapped with `make examples EXAMPLES=path`. The cached answers are replaced only
-when every answer is complete and not degraded.
+`python -m filingcheck.app.examples [--questions FILE] [--mode agent|baseline]` refreshes
+them: batch mode, so every answer comes from the primary model. The page asks the agent with
+its checks on, so the examples do too unless `--mode baseline` is given. The questions come
+from a JSONL file ("id", "question", "ticker" and "fiscal_year" on each line; the question
+is narrowed to that company and year) that can be swapped with `make examples
+EXAMPLES=path`. The cached answers are replaced only when every answer is complete and not
+degraded.
 
 `python -m filingcheck.app.examples --export FILE` writes the stored answers, unchanged
-apart from each citation's passage number, to the JSON file the page builds in
+apart from each citation's passage number and the company's official name, to the JSON file
+the page builds in
 (`make examples-export`); no model is called.
 """
 
@@ -21,18 +24,28 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from filingcheck.agent import run_agent
 from filingcheck.answer.baseline import K
 from filingcheck.answer.citations import cited_numbers
 from filingcheck.answer.examples import EXAMPLES_FILE, answer_examples, load_example_questions
-from filingcheck.answer.run import hybrid_retriever
+from filingcheck.answer.run import format_cost, format_incomplete, hybrid_retriever
 from filingcheck.app.store import ExampleAnswer, PostgresStore, Store
+from filingcheck.checks import reference_data
 from filingcheck.console import use_utf8_output
 from filingcheck.db import connect
-from filingcheck.llm import ChatModel, router_from_env
+from filingcheck.facts.lookup import PostgresFacts
+from filingcheck.llm import ChatModel, IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
 from filingcheck.retrieval import Retriever
+from filingcheck.tools import ToolDeps
+from filingcheck.tools.inputs import TICKER_NAMES
 
-__all__ = ["export_examples", "load_example_questions", "refresh_examples"]
+__all__ = [
+    "export_examples",
+    "load_example_questions",
+    "refresh_agent_examples",
+    "refresh_examples",
+]
 EXPORT_FILE = REPO_ROOT / "web" / "data" / "examples.json"
 
 
@@ -64,6 +77,59 @@ def refresh_examples(
     return 0
 
 
+def refresh_agent_examples(
+    examples: list[dict[str, Any]],
+    *,
+    deps: ToolDeps,
+    model: ChatModel,
+    store: Store,
+    out: Callable[[str], None] = print,
+) -> int:
+    """Answer every example with the agent, checks on, as the page asks; then save them.
+
+    A cut-off or degraded answer stops the run and keeps the old cached answers.
+    """
+    rows: list[tuple[dict[str, Any], str]] = []
+    for example in examples:
+        try:
+            answer = run_agent(
+                example["question"],
+                model=model,
+                deps=deps,
+                ticker=example.get("ticker"),
+                fiscal_year=example.get("fiscal_year"),
+                checks=True,
+            )
+        except IncompleteAnswer as exc:
+            out(f"{example['id']}: stopped, nothing saved")
+            out(format_incomplete(exc))
+            return 1
+        if answer.degraded:
+            out(
+                f"{example['id']}: degraded (keyword search answered alone because the question "
+                "could not be embedded); stopped, nothing saved"
+            )
+            return 1
+        out(
+            f"{example['id']}: {answer.model_used}, {len(answer.tool_calls)} tool calls, "
+            f"cost {format_cost(answer.cost_usd)}"
+        )
+        rows.append((example, answer.model_dump_json()))
+    store.replace_examples(
+        [
+            ExampleAnswer(
+                question=example["question"],
+                ticker=example.get("ticker"),
+                fiscal_year=example.get("fiscal_year"),
+                answer=json.loads(answer_json),
+            )
+            for example, answer_json in rows
+        ]
+    )
+    out(f"saved {len(rows)} example answers")
+    return 0
+
+
 def with_citation_numbers(example: ExampleAnswer) -> dict[str, Any]:
     """The example as JSON, each citation carrying its passage number.
 
@@ -87,6 +153,8 @@ def with_citation_numbers(example: ExampleAnswer) -> dict[str, Any]:
         "question": example.question,
         "ticker": example.ticker,
         "fiscal_year": example.fiscal_year,
+        # The page shows the filters an example was asked with, and builds without the API.
+        "company_name": TICKER_NAMES.get(example.ticker) if example.ticker else None,
         "answer": answer,
     }
 
@@ -107,6 +175,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m filingcheck.app.examples")
     parser.add_argument("--questions", type=Path, default=EXAMPLES_FILE)
     parser.add_argument("--export", type=Path, help="write the stored answers to this file")
+    parser.add_argument(
+        "--mode",
+        choices=["agent", "baseline"],
+        default="agent",
+        help="who answers: the agent with its checks on, as the page asks (the default)",
+    )
     args = parser.parse_args(argv)
     if args.export is not None:
         load_dotenv(REPO_ROOT / ".env")
@@ -117,6 +191,16 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     router = router_from_env("batch")
     with connect() as conn:
+        if args.mode == "agent":
+            deps = ToolDeps(
+                retriever=hybrid_retriever(conn), facts=PostgresFacts(conn), **reference_data()
+            )
+            return refresh_agent_examples(
+                load_example_questions(args.questions),
+                deps=deps,
+                model=router,
+                store=PostgresStore(),
+            )
         return refresh_examples(
             load_example_questions(args.questions),
             retriever=hybrid_retriever(conn),

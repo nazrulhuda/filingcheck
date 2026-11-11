@@ -1,7 +1,7 @@
 """The HTTP API: /ask, /ask/stream, /health, /companies, /examples and /stats.
 
 Questions go through the plain-RAG baseline (the default) or, with `mode: "agent"`, the
-agent, both with the models in live mode. Every
+agent with its checks on (what the page sends), both with the models in live mode. Every
 question that reaches the limits is logged; a provider failure is logged as a short code
 (provider, HTTP status, the provider's error code) and never as the provider's message.
 """
@@ -53,6 +53,7 @@ from filingcheck.paths import REPO_ROOT
 from filingcheck.retrieval import HybridRetriever, KeywordRetriever, Retriever, VectorRetriever
 from filingcheck.retrieval.query import QueryEmbedder
 from filingcheck.tools import ToolDeps
+from filingcheck.tools.inputs import TICKER_NAMES
 
 log = logging.getLogger(__name__)
 
@@ -61,12 +62,56 @@ DAILY_CAP = "The demo has reached today's limit of questions; please come back t
 UNAVAILABLE = "The language models are busy or unavailable right now; please try again soon."
 CUT_OFF = "The answer was cut off before it finished; please try again."
 DISCONNECTED = "client_disconnected"  # error code of a stream the visitor abandoned
-# What the page may show while the agent works, one event per tool call.
-TOOL_LABELS = {
-    "search_filings": "Searching the filings",
-    "get_financial_fact": "Looking up a reported number",
-    "calculate": "Calculating",
+# Sent when a provider fails mid-run and the next model starts the question again; the
+# provider's code stays in the request log.
+RESTARTED = "The first model stopped; starting again with another model."
+# The 13 metrics in the words the page shows while the agent looks one up.
+METRIC_WORDS = {
+    "revenue": "revenue",
+    "net_income": "net income",
+    "diluted_eps": "diluted EPS",
+    "operating_income": "operating income",
+    "pretax_income": "pretax income",
+    "total_assets": "total assets",
+    "total_liabilities": "total liabilities",
+    "stockholders_equity": "stockholders' equity",
+    "operating_cash_flow": "operating cash flow",
+    "capital_expenditures": "capital expenditures",
+    "cash_and_equivalents": "cash and equivalents",
+    "long_term_debt": "long-term debt",
+    "shares_outstanding": "shares outstanding",
 }
+QUERY_CHARS = 60  # a search query longer than this is cut in the label
+
+
+def tool_label(name: str, arguments: dict[str, Any]) -> str:
+    """A tool call in a few words, for the page to show while the agent works.
+
+    Built from the arguments the tool ran with; any argument missing gives a generic label.
+    """
+    if name == "get_financial_fact":
+        ticker, year, metric = (arguments.get(k) for k in ("ticker", "fiscal_year", "metric"))
+        if not (ticker and year and metric):
+            return "Looking up a reported number"
+        company = TICKER_NAMES.get(str(ticker), str(ticker))
+        words = METRIC_WORDS.get(str(metric), str(metric).replace("_", " "))
+        return f"Looking up {company} FY{year} {words}"
+    if name == "search_filings":
+        query = str(arguments.get("query") or "").strip()
+        if not query:
+            return "Searching the filings"
+        if len(query) > QUERY_CHARS:
+            query = query[:QUERY_CHARS].rstrip() + "…"
+        scope = []
+        if arguments.get("ticker"):
+            scope.append(TICKER_NAMES.get(str(arguments["ticker"]), str(arguments["ticker"])))
+        if arguments.get("fiscal_year"):
+            scope.append(f"FY{arguments['fiscal_year']}")
+        where = f" ({', '.join(scope)})" if scope else ""
+        return f"Searching the filings{where} for “{query}”"
+    if name == "calculate":
+        return "Calculating"
+    return name
 
 
 @dataclass
@@ -224,6 +269,7 @@ def create_app(services: Services | None = None) -> FastAPI:
         deps: ToolDeps,
         failed: list[FailedAttempt],
         on_tool_call: Callable[[ToolCallRecord], None] | None = None,
+        on_restart: Callable[[str], None] | None = None,
     ) -> AgentAnswer:
         return run_agent_with_fallbacks(
             body.question,
@@ -232,6 +278,7 @@ def create_app(services: Services | None = None) -> FastAPI:
             ticker=body.ticker,
             fiscal_year=body.fiscal_year,
             on_tool_call=on_tool_call,
+            on_restart=on_restart,
             failed=failed,
             checks=bool(body.checks_on()),
         )
@@ -423,7 +470,8 @@ def create_app(services: Services | None = None) -> FastAPI:
         """One "tool" event per tool call as it finishes, then the final text and answer.
 
         The agent runs in a worker thread so its tool calls can be sent while it works; only
-        the final answer's text is sent as tokens.
+        the final answer's text is sent as tokens. A "restart" event says the next model
+        started the question again, so the page drops the tool calls shown so far.
         """
         events_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         failed: list[FailedAttempt] = []  # filled by the worker before it reports a failure
@@ -436,6 +484,7 @@ def create_app(services: Services | None = None) -> FastAPI:
                         deps,
                         failed,
                         on_tool_call=lambda r: events_queue.put(("tool", r)),
+                        on_restart=lambda code: events_queue.put(("restart", code)),
                     )
                 events_queue.put(("answer", result))
             except ProviderError as exc:
@@ -454,10 +503,13 @@ def create_app(services: Services | None = None) -> FastAPI:
                         "tool",
                         {
                             "name": item.name,
-                            "label": TOOL_LABELS.get(item.name, item.name),
+                            "label": tool_label(item.name, item.arguments),
                             "status": item.status,
                         },
                     )
+                    continue
+                if kind == "restart":
+                    yield sse("restart", {"detail": RESTARTED})
                     continue
                 latency = (datetime.now(UTC) - start).total_seconds() * 1000
                 if kind == "answer":

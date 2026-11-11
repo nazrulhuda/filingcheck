@@ -3,3 +3,5 @@
 {"id": "ret-040", "question": "How much of UnitedHealth's debt carries a fixed rate that isn't swapped?", "ticker": "UNH", "fiscal_year": 2023}
 {"id": "ret-016", "question": "What does Netflix say about others claiming it infringed their intellectual property?", "ticker": "NFLX", "fiscal_year": 2023}
 {"id": "ret-010", "question": "What framework did American Express management use to judge its internal controls?", "ticker": "AXP", "fiscal_year": 2025}
+{"id": "fact-001", "question": "What was Costco's operating income in fiscal 2025?", "ticker": "COST", "fiscal_year": 2025}
+{"id": "fact-002", "question": "How much revenue did Nike make last year?", "ticker": "NKE", "fiscal_year": null}

@@ -5,9 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from filingcheck.app.examples import export_examples, load_example_questions, refresh_examples
+from filingcheck.app.examples import (
+    export_examples,
+    load_example_questions,
+    refresh_agent_examples,
+    refresh_examples,
+)
 from filingcheck.app.store import ExampleAnswer, MemoryStore
-from filingcheck.llm import FakeChat
+from filingcheck.llm import FakeChat, scripted_tool_calls
+from tests.agent.test_agent import cut_off
+from tests.agent.test_agent_checks import checked_deps
 from tests.answer.test_baseline import FakeRetriever, ask
 
 QUESTIONS = [
@@ -62,34 +69,44 @@ def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
     assert (saved.ticker, saved.fiscal_year) == ("WMT", 2026)
 
 
-def test_the_page_examples_file_holds_five_questions_with_a_pinned_filing_each() -> None:
+TEXT_IDS = ["ret-008", "ret-024", "ret-040", "ret-016", "ret-010"]
+NUMBER_IDS = ["fact-001", "fact-002"]
+
+
+def test_the_page_examples_file_holds_five_text_and_two_number_questions() -> None:
     repo = Path(__file__).resolve().parents[2]
-    pinned = {
-        (f["ticker"], f["fiscal_year"])
-        for f in json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))[
-            "filings"
-        ]
-    }
-    retrieval = {
-        q["id"]: q for q in load_example_questions(repo / "eval" / "questions" / "retrieval.jsonl")
-    }
-    page = load_example_questions(repo / "eval" / "questions" / "page_examples.jsonl")
-    assert [q["id"] for q in page] == [
-        "ret-008",
-        "ret-024",
-        "ret-040",
-        "ret-016",
-        "ret-010",
-    ]
+    questions = repo / "eval" / "questions"
+    filings = json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))["filings"]
+    pinned = {(f["ticker"], f["fiscal_year"]) for f in filings}
+    companies = {f["ticker"] for f in filings}
+    retrieval = {q["id"]: q for q in load_example_questions(questions / "retrieval.jsonl")}
+    page = load_example_questions(questions / "page_examples.jsonl")
+    assert [q["id"] for q in page] == TEXT_IDS + NUMBER_IDS
     for q in page:
         assert set(q) == {"id", "question", "ticker", "fiscal_year"}
-        assert (q["ticker"], q["fiscal_year"]) in pinned
+        assert q["ticker"] in companies
+        # A number question may leave the year open, so the page shows the check resolving it.
+        assert q["fiscal_year"] is None or (q["ticker"], q["fiscal_year"]) in pinned
+    # The five text questions are the retrieval set's, unchanged.
+    for q in page[:5]:
         source = retrieval[q["id"]]
         assert (q["question"], q["ticker"], q["fiscal_year"]) == (
             source["question"],
             source["ticker"],
             source["fiscal_year"],
         )
+    # The two number questions were written for the page and are in no evaluation set.
+    evaluated = {
+        json.loads(line)["question"]
+        for path in questions.glob("*.jsonl")
+        if path.name != "page_examples.jsonl"
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    plain, relative = page[5:]
+    assert plain["question"] not in evaluated and relative["question"] not in evaluated
+    assert plain["fiscal_year"] is not None
+    assert "last year" in relative["question"] and relative["fiscal_year"] is None
 
 
 # ---------------------------------------------------------------- make examples-export
@@ -117,6 +134,16 @@ def test_the_export_writes_every_example_with_each_citations_number(tmp_path: Pa
     assert example["answer"]["text"] == "Swaps [3] and rates [1]."
 
 
+def test_the_export_names_the_company_each_example_was_asked_with(tmp_path: Path) -> None:
+    # The page shows the filters an example was asked with, and builds without the API.
+    walmart = stored("Swaps [1].", [101], numbered=True)
+    open_question = ExampleAnswer(question="Any?", answer=walmart.answer)
+    store = MemoryStore(examples=[walmart, open_question])
+    export_examples(store, tmp_path / "examples.json")
+    saved = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
+    assert [e["company_name"] for e in saved] == ["Walmart Inc.", None]
+
+
 def test_the_export_refuses_an_answer_whose_markers_do_not_match_its_citations(
     tmp_path: Path,
 ) -> None:
@@ -131,3 +158,56 @@ def test_the_export_keeps_numbers_that_are_already_stored(tmp_path: Path) -> Non
     export_examples(store, tmp_path / "examples.json")
     (example,) = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
     assert [c["number"] for c in example["answer"]["citations"]] == [1, 2]
+
+
+APPLE_PAGE = {
+    "id": "page-001",
+    "question": "What were Apple's total net sales in fiscal 2025?",
+    "ticker": "AAPL",
+    "fiscal_year": 2025,
+}
+APPLE_FACT = {"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"}
+
+
+def test_the_page_examples_are_answered_by_the_agent_with_the_checks_on() -> None:
+    old = ExampleAnswer(question="Old question?", answer={"text": "old"})
+    store = MemoryStore(examples=[old])
+    sales = "Sales were $416,161 million [F1]."
+    model = FakeChat([scripted_tool_calls(("get_financial_fact", APPLE_FACT)), sales])
+    printed: list[str] = []
+    code = refresh_agent_examples(
+        [APPLE_PAGE], deps=checked_deps(), model=model, store=store, out=printed.append
+    )
+    assert code == 0
+    (saved,) = store.examples()
+    assert (saved.question, saved.ticker, saved.fiscal_year) == (
+        APPLE_PAGE["question"],
+        "AAPL",
+        2025,
+    )
+    answer = saved.answer
+    assert answer["mode"] == "agent" and answer["checks"] is True
+    assert [o["check"] for o in answer["overrides"]][:2] == ["company", "fiscal_year"]
+    assert answer["fact_citations"][0]["number"] == 1
+    # Stored as JSON: the fact's value is a string of digits, the dates are ISO strings.
+    json.dumps(answer)
+    assert "page-001" in "\n".join(printed)
+
+
+def test_the_agent_examples_run_with_the_page_filters() -> None:
+    store = MemoryStore()
+    model = FakeChat(["Nothing to look up."])
+    refresh_agent_examples([APPLE_PAGE], deps=checked_deps(), model=model, store=store, out=print)
+    user = model.calls[0]["messages"][1]["content"]
+    assert "AAPL" in user and "2025" in user
+
+
+def test_a_cut_off_agent_answer_leaves_the_cached_answers_untouched() -> None:
+    old = ExampleAnswer(question="Old question?", answer={"text": "old"})
+    store = MemoryStore(examples=[old])
+    model = FakeChat([cut_off()])
+    printed: list[str] = []
+    code = refresh_agent_examples(
+        [APPLE_PAGE], deps=checked_deps(), model=model, store=store, out=printed.append
+    )
+    assert code == 1 and store.examples() == [old] and "page-001" in "\n".join(printed)

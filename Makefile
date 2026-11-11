@@ -78,7 +78,7 @@ baseline-examples:  # the 6 example questions, batch mode, no filters; writes do
 
 # The example questions come from a file that can be swapped: make examples EXAMPLES=path.jsonl
 EXAMPLES ?= eval/questions/examples.jsonl
-examples:  # answer the example questions (batch mode) and replace the cached answers /examples serves (costs money)
+examples:  # answer the example questions with the agent, checks on (batch mode), and replace the cached answers /examples serves (costs money)
 	uv run python -m filingcheck.app.examples --questions $(EXAMPLES)
 
 examples-export:  # write the stored example answers to web/data/examples.json for the page; no model call

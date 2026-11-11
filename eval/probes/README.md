@@ -127,3 +127,15 @@ The first attempt at the before batch stopped on that same error after 43 runs. 
 - Before: $0.0244, for the rows kept.
 - After: $0.0205.
 - The 43 lost runs cost about $0.023, by the kept runs' average.
+
+## Day 26 page examples (2026-11-11)
+
+The two refreshes of the page's seven saved examples (`eval/questions/page_examples.jsonl`), agent with the checks on and each question's page filters, the same model and settings as above, code at `c72be30`. **Run 1 is the one on the page, kept whole and unedited**; run 2 was made to see how stable the answers are and was not kept.
+
+| File | Rows | No tool call | Stored with no citation, though a marker is in the text | Cost |
+|---|---:|---:|---:|---:|
+| `2026-11-11_day26-examples-run1.jsonl` | 7 | 0 | 0 | $0.0025 |
+| `2026-11-11_day26-examples-run2.jsonl` | 7 | 1 | 2 | $0.0023 |
+
+- **`kept_on_page`** says which run the page shows. **`markers_read_now`** is what the parser reads in the stored text after the dagger-marker change (decisions, 2026-11-11): run 2's ret-040 and ret-010 answers wrote `【1†number=1】`, which the parser of the time did not read, so they were stored with no citation; it now reads them as passage 1.
+- Run 1's Walmart answer says "10-year-old", which the filing does not; the page shows a review note under it. Run 2's Walmart run made no tool call and abstained, and its Netflix answer has "allegate" for "allege".

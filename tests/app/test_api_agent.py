@@ -4,10 +4,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
-from filingcheck.app.api import Services, create_app
+from filingcheck.app.api import RESTARTED, Services, create_app, tool_label
 from filingcheck.app.store import MemoryStore
+from filingcheck.facts.metrics import METRICS
 from filingcheck.llm import ChatModel, FakeChat, ProviderUnavailable, scripted_tool_calls
 from filingcheck.retrieval import Retriever
 from filingcheck.tools import ToolDeps
@@ -117,7 +119,7 @@ def test_the_agent_stream_sends_one_event_per_tool_call_then_only_the_final_text
     assert names[0] == "tool" and names[-1] == "final"
     tool = sent[0][1]
     assert (tool["name"], tool["status"]) == ("get_financial_fact", "ok")
-    assert tool["label"] == "Looking up a reported number"
+    assert tool["label"] == "Looking up Apple Inc. FY2025 revenue"
     text = "".join(data["text"] for name, data in sent if name == "token")
     assert text == "Sales were $416,161 million [F1]."
     assert sent[-1][1]["answer"]["mode"] == "agent"
@@ -280,3 +282,79 @@ def test_a_daily_cap_refusal_of_an_agent_question_records_the_checks_it_would_ha
     client, store = make_agent(FakeChat([]), [agent_script()], daily_cap=0)
     client.post("/ask", json={"question": APPLE_Q, "mode": "agent"})
     assert (store.rows[0].mode, store.rows[0].checks) == ("agent", True)
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments", "label"),
+    [
+        (
+            "get_financial_fact",
+            {"ticker": "WMT", "fiscal_year": 2026, "metric": "revenue"},
+            "Looking up Walmart Inc. FY2026 revenue",
+        ),
+        (
+            "get_financial_fact",
+            {"ticker": "AAPL", "fiscal_year": 2025, "metric": "diluted_eps"},
+            "Looking up Apple Inc. FY2025 diluted EPS",
+        ),
+        ("get_financial_fact", {"ticker": "AAPL"}, "Looking up a reported number"),
+        ("get_financial_fact", {}, "Looking up a reported number"),
+        (
+            "get_financial_fact",
+            {"ticker": "XYZ", "fiscal_year": 2025, "metric": "revenue"},
+            "Looking up XYZ FY2025 revenue",
+        ),
+        (
+            "search_filings",
+            {"query": "currency swaps"},
+            "Searching the filings for “currency swaps”",
+        ),
+        (
+            "search_filings",
+            {"query": "currency swaps", "ticker": "WMT", "fiscal_year": 2024},
+            "Searching the filings (Walmart Inc., FY2024) for “currency swaps”",
+        ),
+        (
+            "search_filings",
+            {"query": "currency swaps", "fiscal_year": 2024},
+            "Searching the filings (FY2024) for “currency swaps”",
+        ),
+        ("search_filings", {}, "Searching the filings"),
+        ("calculate", {"expression": "1 + 2"}, "Calculating"),
+        ("some_new_tool", {}, "some_new_tool"),
+    ],
+)
+def test_each_tool_event_says_what_the_call_looks_up(
+    name: str, arguments: dict[str, Any], label: str
+) -> None:
+    assert tool_label(name, arguments) == label
+
+
+def test_a_long_search_query_is_cut_in_the_label() -> None:
+    label = tool_label("search_filings", {"query": "word " * 40})
+    assert label.startswith("Searching the filings for “word word")
+    assert label.endswith("…”") and len(label) < 120
+
+
+def test_every_metric_has_words_for_the_label() -> None:
+    for metric in METRICS:
+        arguments = {"ticker": "KO", "fiscal_year": 2024, "metric": metric}
+        label = tool_label("get_financial_fact", arguments)
+        assert "_" not in label, label
+
+
+def test_the_agent_stream_tells_the_page_when_it_starts_again_with_another_model() -> None:
+    failing = FakeChat(
+        [
+            scripted_tool_calls(("get_financial_fact", FACT)),
+            ProviderUnavailable("primary down", provider="fake", status=503, code="busy"),
+        ]
+    )
+    client, store = make_agent(FakeChat([]), [failing, agent_script()])
+    sent = events(client.post("/ask/stream", json={"question": APPLE_Q, "mode": "agent"}).text)
+    assert [name for name, _ in sent] == ["tool", "restart", "tool", "token", "final"]
+    # The page is told only that the run started again, never the provider's code.
+    assert sent[1][1] == {"detail": RESTARTED}
+    assert sent[-1][1]["answer"]["restarts"] == ["fake 503 busy"]
+    assert store.rows[0].tool_calls is not None
+    assert store.rows[0].tool_calls["restarts"] == ["fake 503 busy"]
