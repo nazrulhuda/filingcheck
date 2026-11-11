@@ -135,7 +135,17 @@ def test_a_marker_whose_passage_was_not_recorded_is_noted_and_has_no_source() ->
     sources, _, notes = sources_for_row(
         row, passage_text=texts, lookup_fact=no_lookup, filing_facts=None
     )
-    assert sources.passages == [] and notes == ["the cited passages were not recorded"]
+    assert sources.passages == [] and notes == ["passage markers [1] have no recorded passage"]
+    # A citation the run dropped (an empty list beside a marker) is noted the same way.
+    row = {"mode": "agent", "answer": "X【1†number=1】.", "citations": [], "facts_used": []}
+    _, _, notes = sources_for_row(row, passage_text=texts, lookup_fact=no_lookup, filing_facts=None)
+    assert notes == ["passage markers [1] have no recorded passage"]
+
+
+def test_fact_markers_with_no_fact_behind_them_are_noted() -> None:
+    row = {"mode": "agent", "answer": "A [F1]. B [F4].", "facts_used": [FACT], "tool_calls": []}
+    _, _, notes = sources_for_row(row, passage_text=texts, lookup_fact=no_lookup, filing_facts=None)
+    assert notes == ["fact markers [F4] have no fact (the run has 1)"]
 
 
 def test_a_calculation_is_recomputed_with_the_calculate_tool() -> None:
