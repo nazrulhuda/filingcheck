@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' filings, and the model is asked to cite a passage for each claim. It uses the plain baseline: the agent runs only from the command line and the API so far, and there are no skeptical checks or number labels yet, so answers are not checked and numbers may be wrong.
+**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' 10-K filings with an agent that searches the text and looks up the filings' own XBRL numbers, and the model is asked to cite a passage or a fact for each claim. Before the agent fetches a number, the server checks the company, fiscal year, metric, units and segment it asked for. Numbers are not yet labeled against the SEC data, and text answers are not checked, so an answer can still be wrong.
 
 FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
 
-What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before a tool runs, the server will check every argument the model sent (the company, the fiscal year, the metric, the units) against SEC data, fix what it can and reject the rest. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent is built, without checks (week 3); the checks arrive in week 4, the number labels in week 5 and the results in week 6.
+What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before the number tool runs, the server checks the arguments the model sent (the company, the fiscal year, the metric, the units, the segment) against SEC data, fixes what the question settles and sends the rest back to the model. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent was built in week 3 and the checks in week 4; the number labels come in week 5 and the results in week 6.
 
-**Status: week 3 of 7 done.** Search, baseline answers, the API and the web page are built and deployed: the page on Vercel, the API on Render and the database on Neon. The filings' own XBRL numbers, three tools and the agent are built; the agent is not on the page yet. The only graded results so far are on 6 example questions, which prove nothing ([week 3 summary](docs/week3_summary.md)).
+**Status: week 4 of 7 done.** The page on Vercel, the API on Render and the database on Neon are deployed, and the page now runs the agent with its checks on. The only graded results so far are on 6 example questions, which prove nothing about accuracy; the measurement is week 6's ([week 4 summary](docs/week4_summary.md)).
 
 ## What works today
 
@@ -16,8 +16,18 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 - **Hybrid search, measured:** vector, keyword and hybrid search over the passages, scored on 40 questions with and without a company and year filter. Hybrid search did not beat vector search on these questions, and the report says so ([retrieval report](docs/retrieval_report.md)).
 - **Baseline answers with citations:** plain retrieval-augmented answers from one model call, asked to cite every claim to its passage; an answer with an uncited figure is flagged. They are not checked, and on the example trap questions they guess the company or the year, or decline to answer ([baseline answers](docs/baseline_examples.md)).
 - **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
-- **The web page:** a Next.js page with a citation chip for each source and seven saved example answers, each checked against the passages and numbers it cites ([web](web/)).
-- **The numbers and the agent:** company totals from each filing's own XBRL facts, cross-checked against the SEC's companyfacts; three tools with typed inputs (`search_filings`, `get_financial_fact`, `calculate`); and an agent that chooses between them and cites the passages and facts it used. It runs from the command line (`make ask MODE=agent`) and the API (`mode: "agent"`); the page still runs the baseline, and the agent has no skeptical checks yet ([facts report](docs/facts_report.md), [metric coverage](docs/facts_coverage.md), [week 3 summary](docs/week3_summary.md)).
+- **The web page:** a Next.js page that asks the agent with its checks on and shows each tool step as it runs, a chip for each cited passage or number (a number's chip opens to the value as filed, its period and the SEC document), a "What was checked" panel, and seven saved example answers ([web](web/)).
+- **The numbers and the agent:** company totals from each filing's own XBRL facts, cross-checked against the SEC's companyfacts; three tools with typed inputs (`search_filings`, `get_financial_fact`, `calculate`); and an agent that chooses between them and cites the passages and facts it used. It runs on the page, from the command line (`make ask MODE=agent`) and from the API (`mode: "agent"`) ([facts report](docs/facts_report.md), [metric coverage](docs/facts_coverage.md), [week 3 summary](docs/week3_summary.md)).
+- **Skeptical checks on the number tool:** before `get_financial_fact` runs, five checks compare its arguments with the question's words and the SEC data: the company, the fiscal year (including "last year"), the metric and period, the units and the segment. Each passes the call, repairs it when the question settles the answer, or sends it back to the model with the options, once. Every decision, passes included, goes into an override log that is kept with each answer, in the request log and in the evaluation rows ([week 4 summary](docs/week4_summary.md)).
+- **A deterministic gate in CI:** 21 scripted scenarios run the real agent, checks, lookup and grader with no model, and fail the build if a check's decision changes (`make eval-smoke`, [eval](eval/README.md)).
+
+## Known limits
+
+- The checks cover the arguments of `get_financial_fact` only. A text answer is not compared with the passage it cites, so it can be confidently unsupported: one answer gave a reason for a Goldman Sachs decision that the filing does not give, and a saved example calls Walmart's currency swaps "10-year-old", which the filing does not say.
+- The model sometimes says it can't find the answer without searching at all.
+- A passage's preview shows the start of the passage, not the part the answer cites.
+- A number's chip can show the metric's standard line name instead of the company's own wording ("Revenues" for Verizon's "Total Operating Revenues").
+- Accuracy has not been measured; that is week 6.
 
 ## How to run
 

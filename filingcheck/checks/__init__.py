@@ -5,7 +5,7 @@
 
 The rules are frozen from the Day 23 merge on 2026-11-09, like the agent's prompt: the
 Week 6 measurement compares the agent with the checks off and on, so a change to any check
-means re-running both arms (docs/decisions.md, docs/week4_summary.md).
+means re-running both arms (docs/decisions.md, docs/week4_notes.md).
 """
 
 from pathlib import Path
