@@ -189,3 +189,28 @@ def test_the_page_examples_become_rows_with_their_stored_answers() -> None:
         [FACT],
     )
     assert is_agent_answer(row)
+
+
+def test_rows_that_recorded_only_the_values_are_looked_up_again_and_checked() -> None:
+    def lookup(ticker: str, fiscal_year: int, metric: str) -> FactResult | None:
+        return FactResult.model_validate(FACT)
+
+    call = {
+        "name": "get_financial_fact",
+        "arguments": {"ticker": "WMT", "fiscal_year": 2025, "metric": "revenue"},
+        "status": "ok",
+    }
+    row = {
+        "mode": "agent",
+        "answer": "R [F1].",
+        "facts_used": ["680985000000"],
+        "tool_calls": [call],
+    }
+    sources, facts_from, notes = sources_for_row(
+        row, passage_text=texts, lookup_fact=lookup, filing_facts=None
+    )
+    assert facts_from == "looked up again" and notes == []
+    assert [f.value for f in sources.facts] == [Decimal(680985000000)]
+    row["facts_used"] = ["1"]
+    _, _, notes = sources_for_row(row, passage_text=texts, lookup_fact=lookup, filing_facts=None)
+    assert notes == ["the facts looked up again (680985000000) differ from the recorded values (1)"]
