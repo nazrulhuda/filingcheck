@@ -3,6 +3,8 @@
   "cases": [
     {"text": "Revenue was $648.1 billion [F1].", "facts": 2, "numbers": [1]},
     {"text": "Two facts [F1, F2].", "facts": 2, "numbers": [1, 2]},
+    {"text": "A fact with a dagger tail 【F1†number=1】.", "facts": 2, "numbers": [1]},
+    {"text": "A passage and a fact with a dagger tail 【1, F2†source】.", "facts": 2, "numbers": [2]},
     {"text": "Two facts [F1][F2].", "facts": 2, "numbers": [1, 2]},
     {"text": "A range [F1-3].", "facts": 3, "numbers": [1, 2, 3]},
     {"text": "Spaces inside [ F1 , F2 ].", "facts": 2, "numbers": [1, 2]},

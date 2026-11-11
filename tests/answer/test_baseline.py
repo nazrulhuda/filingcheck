@@ -450,6 +450,15 @@ def test_a_figure_cited_with_lenticular_brackets_is_not_flagged_and_the_text_is_
     assert not answer.has_uncited_claims
 
 
+def test_a_figure_cited_with_a_dagger_marker_keeps_its_citation_and_is_not_flagged() -> None:
+    # The form two Day 26 example answers used, which left them with no citation at all.
+    text = f"$44 billion of its debt was non-swapped fixed-rate term debt{OPEN}1†number=1{CLOSE}."
+    assert not has_uncited_claims(text)
+    answer = ask(text)
+    assert answer.text == text and [c.chunk_id for c in answer.citations] == [101]
+    assert not answer.has_uncited_claims
+
+
 # ---------------------------------------------------------------- the rule the page shares
 
 MARKERS = json.loads(

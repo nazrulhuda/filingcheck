@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Answer } from "./api.ts";
-import { NO_NEW_CALL, costLine, pageQuestion } from "./display.ts";
+import { NO_NEW_CALL, askedWith, costLine, pageQuestion } from "./display.ts";
 
 const ANSWER: Answer = {
   text: "Peso swings [1].",
@@ -67,4 +67,12 @@ test("the page asks the agent, with the checks left on by default", () => {
   });
   // A year only counts with a company, as the page's year list depends on the company.
   assert.deepEqual(pageQuestion("Risks?", "", "2025"), { question: "Risks?", mode: "agent" });
+});
+
+test("a saved example says which company and year it was asked with", () => {
+  assert.equal(askedWith("Citigroup Inc.", "C", 2025), "Asked with: Citigroup Inc. · fiscal 2025");
+  assert.equal(askedWith("NIKE, Inc.", "NKE", null), "Asked with: NIKE, Inc. · any year");
+  assert.equal(askedWith(null, null, null), "Asked with: any company · any year");
+  // Without the name, the ticker stands in for it.
+  assert.equal(askedWith(null, "WMT", 2024), "Asked with: WMT · fiscal 2024");
 });

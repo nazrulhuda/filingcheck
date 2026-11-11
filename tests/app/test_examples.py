@@ -134,6 +134,16 @@ def test_the_export_writes_every_example_with_each_citations_number(tmp_path: Pa
     assert example["answer"]["text"] == "Swaps [3] and rates [1]."
 
 
+def test_the_export_names_the_company_each_example_was_asked_with(tmp_path: Path) -> None:
+    # The page shows the filters an example was asked with, and builds without the API.
+    walmart = stored("Swaps [1].", [101], numbered=True)
+    open_question = ExampleAnswer(question="Any?", answer=walmart.answer)
+    store = MemoryStore(examples=[walmart, open_question])
+    export_examples(store, tmp_path / "examples.json")
+    saved = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
+    assert [e["company_name"] for e in saved] == ["Walmart Inc.", None]
+
+
 def test_the_export_refuses_an_answer_whose_markers_do_not_match_its_citations(
     tmp_path: Path,
 ) -> None:

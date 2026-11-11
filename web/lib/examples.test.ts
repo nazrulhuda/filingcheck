@@ -6,7 +6,13 @@ import { test } from "node:test";
 import type { Answer } from "./api.ts";
 import { citedFacts, citedNumbers } from "./citations.ts";
 
-type Example = { question: string; ticker: string | null; fiscal_year: number | null; answer: Answer };
+type Example = {
+  question: string;
+  ticker: string | null;
+  fiscal_year: number | null;
+  company_name: string | null;
+  answer: Answer;
+};
 
 const examples = JSON.parse(
   readFileSync(new URL("../data/examples.json", import.meta.url), "utf8"),
@@ -52,5 +58,12 @@ test("every marker in an example opens a passage or a fact", () => {
       // [Fn] is the n-th fact the run looked up; its printed line label comes from there.
       assert.equal(answer.facts_used?.[f.number - 1]?.concept, f.concept, question);
     }
+  }
+});
+
+test("every example names the company it was asked with", () => {
+  for (const { question, ticker, company_name } of examples) {
+    assert.equal(ticker === null, company_name === null, question);
+    assert.ok(company_name === null || company_name.length > ticker!.length, question);
   }
 });
