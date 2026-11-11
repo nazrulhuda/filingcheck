@@ -11,7 +11,20 @@ export type FactDetail = {
   link: string;
 };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** "2026-01-25" as "Jan 25, 2026", read as written (no time zone); anything else unchanged. */
 export function formatDate(iso: string): string {
@@ -33,7 +46,10 @@ function formatValue(value: string, unit: string): string {
 }
 
 /** The detail of fact [Fn]: its line label comes from the n-th fact the run looked up. */
-export function factDetail(citation: FactCitation, factsUsed: FactUsed[]): FactDetail {
+export function factDetail(
+  citation: FactCitation,
+  factsUsed: FactUsed[],
+): FactDetail {
   const used = factsUsed[citation.number - 1];
   const matches = used !== undefined && used.concept === citation.concept;
   const period =
@@ -51,4 +67,9 @@ export function factDetail(citation: FactCitation, factsUsed: FactUsed[]): FactD
     period,
     link: citation.source_url,
   };
+}
+
+/** The heading of the chip's line label: the company's own wording, or the standard name. */
+export function lineHeading(citation: FactCitation): "Line" | "Standard name" {
+  return citation.standard_label ? "Standard name" : "Line";
 }

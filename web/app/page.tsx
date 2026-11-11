@@ -14,7 +14,12 @@ import {
   type Health,
   type Progress,
 } from "@/lib/api";
-import { type AnswerSource, askedWith, cachedNotice, pageQuestion } from "@/lib/display";
+import {
+  type AnswerSource,
+  askedWith,
+  cachedNotice,
+  pageQuestion,
+} from "@/lib/display";
 import { reviewNote } from "@/lib/notes";
 
 type Example = {
@@ -142,7 +147,11 @@ export default function Home() {
       answer: example.answer,
       source: "example",
       notice: null,
-      asked: askedWith(example.company_name, example.ticker, example.fiscal_year),
+      asked: askedWith(
+        example.company_name,
+        example.ticker,
+        example.fiscal_year,
+      ),
       note: reviewNote(example.question),
     });
   }
@@ -153,25 +162,28 @@ export default function Home() {
         role="status"
         className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
       >
-        Week 4: the agent checks the company, year and metric before it fetches a number. Numbers
-        are not yet labeled verified; that comes next.
+        Week 5: numbers are labeled against the SEC data the answer used.
+        Verified means the number is in a cited source, not that the sentence is
+        right.
       </div>
 
       <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
       <p className="mt-1 text-sm text-slate-600">
-        Questions about the 10-K filings of 25 public companies, answered from the filings&apos;
-        text and their own XBRL numbers; the model is asked to cite a passage or a fact for each
-        claim.
+        Questions about the 10-K filings of 25 public companies, answered from
+        the filings&apos; text and their own XBRL numbers; the model is asked to
+        cite a passage or a fact for each claim.
       </p>
 
       {backend === "waking" && (
         <p className="mt-4 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
-          The backend is waking up (up to a minute). The saved examples below work meanwhile.
+          The backend is waking up (up to a minute). The saved examples below
+          work meanwhile.
         </p>
       )}
       {backend === "unreachable" && (
         <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
-          The backend is not answering right now. The saved examples below still work.
+          The backend is not answering right now. The saved examples below still
+          work.
         </p>
       )}
       {backend === "no-model" && (
@@ -194,10 +206,10 @@ export default function Home() {
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none"
         />
         <p className="text-xs text-slate-500">
-          Each question stands alone (no chat history). Questions are logged to improve the demo.
-          Each question is sent to OpenAI to search the filings, and through OpenRouter to Groq, or
-          to Google if that is busy, to write the answer; please don&apos;t enter personal
-          information.
+          Each question stands alone (no chat history). Questions are logged to
+          improve the demo. Each question is sent to OpenAI to search the
+          filings, and through OpenRouter to Groq, or to Google if that is busy,
+          to write the answer; please don&apos;t enter personal information.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
@@ -243,7 +255,13 @@ export default function Home() {
             {busy ? "Answering…" : "Ask"}
           </button>
           <label className="ml-auto flex cursor-not-allowed items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" checked disabled readOnly className="h-4 w-4" />
+            <input
+              type="checkbox"
+              checked
+              disabled
+              readOnly
+              className="h-4 w-4"
+            />
             Skeptical checks: on
           </label>
         </div>
@@ -269,13 +287,18 @@ export default function Home() {
         {shown.kind === "streaming" && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
             {shown.progress.restarted && (
-              <p className="mb-2 text-sm text-slate-500">{shown.progress.restarted}</p>
+              <p className="mb-2 text-sm text-slate-500">
+                {shown.progress.restarted}
+              </p>
             )}
             {shown.progress.steps.length > 0 && (
               <ul className="mb-3 space-y-1 text-sm text-slate-600">
                 {shown.progress.steps.map((step, i) => (
                   <li key={i}>
-                    {step.label}… <span className="text-slate-400">{statusWords(step.status)}</span>
+                    {step.label}…{" "}
+                    <span className="text-slate-400">
+                      {statusWords(step.status)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -288,17 +311,27 @@ export default function Home() {
         {shown.kind === "answer" && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
             {shown.notice ? (
-              <p role="status" className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <p
+                role="status"
+                className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+              >
                 {shown.notice}
               </p>
             ) : (
               <div className="mb-3">
-                <p className="text-sm font-medium text-slate-600">{shown.question}</p>
-                {shown.asked && <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>}
+                <p className="text-sm font-medium text-slate-600">
+                  {shown.question}
+                </p>
+                {shown.asked && (
+                  <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>
+                )}
               </div>
             )}
             {/* A new answer starts with every citation closed. */}
-            <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
+            <AnswerText
+              key={`${shown.question}\n${shown.answer.text}`}
+              answer={shown.answer}
+            />
             {shown.note && (
               <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 {shown.note}
@@ -309,7 +342,10 @@ export default function Home() {
           </div>
         )}
         {shown.kind === "error" && (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p
+            role="alert"
+            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+          >
             {shown.message}
           </p>
         )}
