@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -142,6 +143,53 @@ def test_the_export_names_the_company_each_example_was_asked_with(tmp_path: Path
     export_examples(store, tmp_path / "examples.json")
     saved = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
     assert [e["company_name"] for e in saved] == ["Walmart Inc.", None]
+
+
+NET_INCOME = {
+    "ticker": "AAPL",
+    "fiscal_year": 2025,
+    "metric": "net_income",
+    "value": "112010000000",
+    "unit": "USD",
+    "period_start": "2024-09-29",
+    "period_end": "2025-09-27",
+    "instant": None,
+    "concept": "us-gaap:NetIncomeLoss",
+    "accession": "a",
+    "source_url": "u",
+    "decimals": "-6",
+    "line_label": "Net income",
+    "note": None,
+}
+
+
+def test_the_export_adds_the_number_labels_and_whether_each_line_label_is_standard(
+    tmp_path: Path,
+) -> None:
+    answer = {
+        "mode": "agent",
+        "text": "Net income was $112,010 million [F1].",
+        "citations": [],
+        "facts_used": [NET_INCOME],
+        "fact_citations": [{"number": 1, "concept": "us-gaap:NetIncomeLoss"}],
+        "tool_calls": [],
+    }
+    store = MemoryStore(examples=[ExampleAnswer(question="Q?", ticker="AAPL", answer=answer)])
+    seen: list[str] = []
+
+    def label_answer(stored: dict[str, Any]) -> list[dict[str, Any]]:
+        seen.append(stored["text"])
+        return [{"figure": "$112,010 million", "label": "verified"}]
+
+    export_examples(store, tmp_path / "examples.json", label_answer=label_answer)
+    (example,) = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
+    assert seen == [answer["text"]]
+    assert example["answer"]["number_labels"] == [
+        {"figure": "$112,010 million", "label": "verified"}
+    ]
+    # Apple prints no wording of its own for net income, so the chip shows the standard name.
+    assert example["answer"]["fact_citations"][0]["standard_label"] is True
+    assert example["answer"]["text"] == answer["text"]
 
 
 def test_the_export_refuses_an_answer_whose_markers_do_not_match_its_citations(

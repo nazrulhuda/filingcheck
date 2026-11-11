@@ -463,3 +463,84 @@ def test_a_fact_citation_that_points_to_no_fact_leaves_the_figure_uncited() -> N
     )
     answer = run_agent("Sales?", model=chat, deps=apple_deps())
     assert answer.fact_citations == [] and answer.has_uncited_claims
+
+
+# ---------------------------------------------------------------- number labels
+
+
+def test_the_agent_labels_its_figures_after_the_model_has_answered() -> None:
+    chat = FakeChat(
+        [
+            fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"),
+            "Apple's total net sales in fiscal 2025 were $416,161 million [F1]; "
+            "it also said $500 billion [F1].",
+        ]
+    )
+    answer = run_agent("Apple sales in fiscal 2025?", model=chat, deps=apple_deps())
+    verified, conflict = answer.number_labels
+    assert (verified.label, verified.basis, verified.fact) == ("verified", "fact", 1)
+    assert (conflict.label, conflict.cited_value) == ("conflict", Decimal("416161000000"))
+    # The model saw no label: its second call got only the tool result.
+    assert "number_labels" not in json.dumps(chat.calls[1]["messages"])
+
+
+def test_a_figure_from_another_period_of_the_same_filing_is_labeled_with_that_year() -> None:
+    before = (date(2023, 10, 1), date(2024, 9, 28))
+    deps = apple_deps(
+        [
+            duration(
+                "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax", "416161000000", *YEAR
+            ),
+            duration(
+                "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+                "391035000000",
+                *before,
+            ),
+        ]
+    )
+    chat = FakeChat(
+        [
+            fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"),
+            "Sales were $416,161 million in fiscal 2025, up from $391,035 million [F1].",
+        ]
+    )
+    answer = run_agent("Apple sales?", model=chat, deps=deps)
+    assert [(lab.basis, lab.fiscal_year) for lab in answer.number_labels] == [
+        ("fact", 2025),
+        ("fact_other_period", 2024),
+    ]
+
+
+def test_a_fact_citation_says_whether_its_line_label_is_the_standard_name() -> None:
+    chat = FakeChat(
+        [
+            scripted_tool_calls(
+                (
+                    "get_financial_fact",
+                    {"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"},
+                ),
+                (
+                    "get_financial_fact",
+                    {"ticker": "AAPL", "fiscal_year": 2025, "metric": "net_income"},
+                ),
+            ),
+            "Sales $416,161 million [F1], net income $112,010 million [F2].",
+        ]
+    )
+    answer = run_agent("Apple sales and income?", model=chat, deps=apple_deps())
+    # Apple prints its own wording for sales ("Total net sales"); net income is the standard name.
+    assert [c.standard_label for c in answer.fact_citations] == [False, True]
+
+
+def test_make_ask_prints_each_figures_label() -> None:
+    from filingcheck.answer.run import format_agent_answer
+
+    chat = FakeChat(
+        [
+            fact_call(ticker="AAPL", fiscal_year=2025, metric="revenue"),
+            "Sales were $416,161 million [F1].",
+        ]
+    )
+    text = format_agent_answer(run_agent("Apple sales?", model=chat, deps=apple_deps()))
+    assert "Number labels:" in text
+    assert "$416,161 million: Verified, fact (F1, us-gaap:" in text

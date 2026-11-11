@@ -498,3 +498,18 @@ def test_a_citation_that_points_to_no_passage_leaves_the_figure_uncited() -> Non
     assert not has_uncited_claims("Sales were $416.2 billion [9].")  # without counts: as before
     answer = ask("Peso swings cost $1.3 billion [9].")
     assert answer.citations == [] and answer.has_uncited_claims
+
+
+# ---------------------------------------------------------------- number labels
+
+
+def test_a_baseline_answer_labels_its_figures_against_the_passages_it_was_given() -> None:
+    swaps = hit(1).model_copy(update={"text": "The swaps would change by $0.7 billion."})
+    answer = ask("The swaps would change by $0.7 billion [1].", FakeRetriever([swaps, hit(2)]))
+    (label,) = answer.number_labels
+    assert (label.label, label.basis, label.passage) == ("verified", "passage", 1)
+
+
+def test_a_baseline_answer_that_cites_nothing_has_unverified_figures() -> None:
+    (label,) = ask("Revenue was $5 billion.").number_labels
+    assert label.label == "unverified"
