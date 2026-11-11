@@ -4,22 +4,22 @@ This is the "hybrid RAG, no agent, no checks" row of the evaluation; the agent a
 skeptical checks are measured against it.
 """
 
-import re
 import time
 from collections.abc import Iterator
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from filingcheck.answer.abstain import ABSTAIN, is_abstain
 from filingcheck.answer.citations import (
     Citation,
     has_uncited_claims,
-    normalize_text,
     parse_citations,
 )
+from filingcheck.labels import NumberLabel, SourcePassage, Sources, label_numbers
 from filingcheck.llm import ChatModel, Completion, Message
 from filingcheck.retrieval import Hit, Retriever, SearchResult
 
-ABSTAIN = "I can't find this in the filings I have."
+__all__ = ["ABSTAIN", "Answer", "answer_question", "is_abstain", "stream_answer"]
 K = 8
 MAX_TOKENS = 700  # the same cap the live API uses
 SYSTEM_PROMPT = (
@@ -30,8 +30,6 @@ SYSTEM_PROMPT = (
     "- Never guess a number.\n"
     "- When you give a figure, state the fiscal year and the period it covers."
 )
-QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
-EMPHASIS_RE = re.compile(r"[*_`]")
 
 
 class Answer(BaseModel):
@@ -48,6 +46,9 @@ class Answer(BaseModel):
     abstained: bool
     has_uncited_claims: bool
     degraded: bool
+    # Each figure's label against the sources this answer used, computed after the model
+    # finished; the model never sees them.
+    number_labels: list[NumberLabel] = Field(default_factory=list)
 
 
 def passage_header(hit: Hit) -> str:
@@ -63,16 +64,6 @@ def build_messages(question: str, hits: list[Hit]) -> list[Message]:
     )
     user = f"Passages:\n\n{passages or '(none found)'}\n\nQuestion: {question}"
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
-
-
-def _normalize(text: str) -> str:
-    text = EMPHASIS_RE.sub("", normalize_text(text).translate(QUOTES))
-    return " ".join(text.split()).lower().rstrip(".!?").strip()
-
-
-def is_abstain(text: str) -> bool:
-    """True if the answer is the abstain sentence and nothing else, whatever its formatting."""
-    return _normalize(text) == _normalize(ABSTAIN)
 
 
 def answer_question(
@@ -130,4 +121,11 @@ def _answer(completion: Completion, result: SearchResult, start: float) -> Answe
         has_uncited_claims=not abstained
         and has_uncited_claims(completion.text, passages=len(result.hits)),
         degraded=result.degraded,
+        number_labels=baseline_labels(completion.text, result.hits),
     )
+
+
+def baseline_labels(text: str, hits: list[Hit]) -> list[NumberLabel]:
+    """The labels of a baseline answer: no facts, and the passages it was given as [1]..[k]."""
+    passages = [SourcePassage(number=n, text=hit.text) for n, hit in enumerate(hits, 1)]
+    return label_numbers(text, Sources(passages=passages))

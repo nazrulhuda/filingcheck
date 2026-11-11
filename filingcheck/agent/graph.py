@@ -33,7 +33,16 @@ from filingcheck.checks import (
     Override,
     run_checks,
 )
-from filingcheck.facts.lookup import FactResult
+from filingcheck.facts.lookup import FactResult, FactsSource
+from filingcheck.facts.metrics import has_company_label
+from filingcheck.labels import (
+    NumberLabel,
+    SourceCalculation,
+    SourceFact,
+    SourcePassage,
+    Sources,
+    label_numbers,
+)
 from filingcheck.llm import (
     ChatModel,
     Completion,
@@ -50,6 +59,7 @@ from filingcheck.tools import (
     tool_schemas,
     validate_call,
 )
+from filingcheck.tools.calculate import CalculateInput, CalculationError, calculate
 
 MAX_MODEL_CALLS = 6
 MAX_TOOL_CALLS = 8
@@ -104,6 +114,9 @@ class FactCitation(BaseModel):
     instant: date | None
     accession: str
     source_url: str
+    # Whether the fact's line label is the metric's standard name, because no wording of the
+    # company's own is mapped for it; the page then says "Standard name" instead of "Line".
+    standard_label: bool = False
 
 
 class FailedAttempt(BaseModel):
@@ -523,7 +536,7 @@ def run_agent(
         "final": None,
     }
     final_state = agent.invoke(state, config={"recursion_limit": 4 * MAX_MODEL_CALLS + 4})
-    return _answer(final_state, start, checks)
+    return _answer(final_state, start, checks, deps.facts)
 
 
 def run_agent_with_fallbacks(
@@ -599,7 +612,9 @@ def run_agent_with_fallbacks(
     raise ValueError("no models to run the agent with")
 
 
-def _answer(state: AgentState, start: float, checks: bool = False) -> AgentAnswer:
+def _answer(
+    state: AgentState, start: float, checks: bool = False, filing_facts: FactsSource | None = None
+) -> AgentAnswer:
     final = state["final"]
     assert final is not None
     completions = state["completions"]
@@ -639,6 +654,7 @@ def _answer(state: AgentState, start: float, checks: bool = False) -> AgentAnswe
                 instant=facts[n - 1].instant,
                 accession=facts[n - 1].accession,
                 source_url=facts[n - 1].source_url,
+                standard_label=not has_company_label(facts[n - 1].concept, facts[n - 1].ticker),
             )
             for n in parse_fact_citations(text, len(facts))
         ]
@@ -664,4 +680,39 @@ def _answer(state: AgentState, start: float, checks: bool = False) -> AgentAnswe
         stopped_by=state["stopped_by"],  # type: ignore[arg-type]
         checks=checks,
         overrides=state["overrides"],
+        number_labels=agent_labels(text, state, filing_facts),
     )
+
+
+def agent_labels(
+    text: str, state: AgentState, filing_facts: FactsSource | None
+) -> list[NumberLabel]:
+    """The answer's labels against what this run used; computed after the model finished."""
+    calculations = []
+    for record in state["tool_records"]:
+        if record.name == "calculate" and record.status == "ok":
+            expression = str(record.arguments.get("expression", ""))
+            try:
+                value = calculate(CalculateInput(expression=expression)).value
+            except (CalculationError, ValueError):
+                continue
+            calculations.append(SourceCalculation(expression=expression, value=value))
+    sources = Sources(
+        facts=[
+            SourceFact(
+                number=n,
+                concept=f.concept,
+                value=f.value,
+                unit=f.unit,
+                period_start=f.period_start,
+                period_end=f.period_end,
+                instant=f.instant,
+                accession=f.accession,
+            )
+            for n, f in enumerate(state["facts"], 1)
+        ],
+        passages=[SourcePassage(number=p.number, text=p.text) for p in state["passages"]],
+        calculations=calculations,
+        filing_facts=filing_facts,
+    )
+    return label_numbers(text, sources)

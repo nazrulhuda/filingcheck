@@ -42,6 +42,7 @@ BATCH_FIELDS = (
     "stopped_by",
     "checks",
     "overrides",
+    "number_labels",
     "error",
 )
 
@@ -96,6 +97,7 @@ def _row(qid: str, repeat: int, mode: str, question: str, settings: str) -> dict
         "tool_calls": [],
         "facts_used": [],
         "overrides": [],
+        "number_labels": [],
     }
 
 
@@ -175,6 +177,7 @@ def run_batch(
                     "abstained": data["abstained"],
                     "has_uncited_claims": data["has_uncited_claims"],
                     "model_calls": data.get("model_calls", 1),
+                    "number_labels": data["number_labels"],
                 }
                 if mode == "agent":
                     row |= {

@@ -28,7 +28,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from filingcheck.answer.baseline import ABSTAIN, is_abstain
+from filingcheck.answer.abstain import ABSTAIN, is_abstain
 from filingcheck.answer.citations import (
     MONTH,
     NOT_FIGURES,
