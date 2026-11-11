@@ -62,7 +62,7 @@ Two page findings from the Day 26 review, for later:
 
 **The gain from the checks shrank from five to three, and the checks did not cause the drop.** The checks-off arm is 13 of 18 again.
 - The checks-on arm lost two answers in runs with no fact call: a question back about the year on trap-003, and on trap-004 a wrong claim that there is no FY2025 filing. A check cannot act when the model makes no call, the limit stated above.
-- The three extra correct answers with the checks on all follow from a check's action: one company reject on trap-001 and two year repairs on trap-003.
+- Three correct answers with the checks on came from a check's action: a company reject in trap-001 run 2 and year repairs in trap-003 runs 1 and 3. The rest of the difference is the lenient clarify rule (checks-on trap-001 runs 1 and 3 and checks-off trap-001 run 1 asked only which fiscal year, with no tool call and no check acting) and model variance (checks-on trap-004 run 1 asked for a year instead of calling the tool) (corrected 2026-11-11, Day 27 review).
 - With the strict clarify rule, which does not count an answer that asks only which year, the count is 12 against 14.
 - None of the six questions needs a text search. Eighteen runs per arm cannot tell whether the shorter search schema moved these two runs or whether it was the model's variance (temperature 0.6).
 
