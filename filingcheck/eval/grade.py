@@ -29,7 +29,14 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from filingcheck.answer.baseline import ABSTAIN, is_abstain
-from filingcheck.answer.citations import MONTH, NOT_FIGURES, normalize_text, sentences
+from filingcheck.answer.citations import (
+    MONTH,
+    NOT_FIGURES,
+    cited_numbers,
+    normalize_text,
+    parse_fact_citations,
+    sentences,
+)
 from filingcheck.eval.questions import Question
 
 Outcome = Literal[
@@ -160,6 +167,22 @@ class Number(BaseModel):
     amount: bool = True
 
 
+class Figure(BaseModel):
+    """A figure as read by `read_figures`: its value and what the number labeler needs beside it."""
+
+    value: Decimal  # raw units, signed
+    percent: bool
+    amount: bool
+    text: str  # as written, after spaces, dashes and brackets are normalized
+    decimals: int  # digits shown after the decimal point
+    scale: int  # the scale word or letter it was written with, else 1
+    currency: bool  # written with a dollar sign
+    sentence: str  # its sentence, citation markers kept
+    after: str  # the rest of its sentence after it, citation markers removed
+    passage_refs: list[int]  # passages its sentence cites, in first-cited order
+    fact_refs: list[int]  # facts ([Fn]) its sentence cites, in first-cited order
+
+
 class Grade(BaseModel):
     """How one answer was graded, and what the grader found in it."""
 
@@ -192,11 +215,18 @@ def _scale(match: re.Match[str]) -> int | None:
     return None
 
 
-def find_numbers(text: str) -> list[Number]:
-    """Every figure in the text in raw units; years, dates, citations and labels are skipped."""
+# Citation numbers in one sentence are read up to this bound (a run numbers far fewer).
+MAX_CITED = 1000
+
+
+def read_figures(text: str) -> list[Figure]:
+    """Every figure in the text, as `find_numbers` reads them, with how each was written."""
     text = DATE_RE.sub(PLACEHOLDER, _prepare(text))
-    numbers: list[Number] = []
-    for sentence in sentences(text):
+    figures: list[Figure] = []
+    for original in sentences(text):
+        passage_refs = cited_numbers(original, MAX_CITED)
+        fact_refs = parse_fact_citations(original, MAX_CITED)
+        sentence = original
         for pattern in NOT_FIGURES:
             sentence = pattern.sub(PLACEHOLDER, sentence)
         matches = list(NUMBER_RE.finditer(sentence))
@@ -218,8 +248,27 @@ def find_numbers(text: str) -> list[Number]:
                 value = -value
             if scale:
                 value *= scale
-            numbers.append(Number(value=value, percent=percent, amount=amount))
-    return numbers
+            figures.append(
+                Figure(
+                    value=value,
+                    percent=percent,
+                    amount=amount,
+                    text=match.group(0).strip(),
+                    decimals=len(digits.partition(".")[2]),
+                    scale=scale or 1,
+                    currency=bool(match["cur"]),
+                    sentence=original,
+                    after=sentence[match.end() : match.end() + 40],
+                    passage_refs=passage_refs,
+                    fact_refs=fact_refs,
+                )
+            )
+    return figures
+
+
+def find_numbers(text: str) -> list[Number]:
+    """Every figure in the text in raw units; years, dates, citations and labels are skipped."""
+    return [Number(value=f.value, percent=f.percent, amount=f.amount) for f in read_figures(text)]
 
 
 def _year(digits: str) -> int:
