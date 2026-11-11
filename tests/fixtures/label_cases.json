@@ -1,0 +1,1961 @@
+{
+ "about": "Number labeling cases for filingcheck/labels: an answer, the sources its run used (facts the run's get_financial_fact returned, numbered as [Fn]; the cited passages' text; the run's calculate results; and the filings' facts for other periods, read-only), and the labels expected for its figures in order. Each expected entry is checked on the keys it gives. Written by hand before the labeler.",
+ "cases": [
+  {
+   "name": "fact, exact raw dollars glued to a lenticular marker",
+   "answer": "Walmart's revenue for fiscal 2025 was $680,985,000,000【F1】.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680985000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1,
+     "figure": "$680,985,000,000"
+    }
+   ]
+  },
+  {
+   "name": "fact, in millions",
+   "answer": "Revenue was $680,985 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680985000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, in billions with one decimal",
+   "answer": "Revenue was $681.0 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "681000000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, whole billions",
+   "answer": "Revenue was about $681 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "681000000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, rounded wrong to one decimal is a Conflict",
+   "answer": "Revenue was $680.9 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680900000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    }
+   ]
+  },
+  {
+   "name": "fact, narrow no-break spaces between digit groups",
+   "answer": "Revenue was USD 619 003 000 000 [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "619003000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2025-06-30",
+     "accession": "M1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "619003000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, no-break space before the scale word",
+   "answer": "Total assets were $619,003 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "619003000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2025-06-30",
+     "accession": "M1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "619003000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, thin spaces between digit groups",
+   "answer": "Total assets were 619 003 000 000 USD【F1】.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "619003000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2025-06-30",
+     "accession": "M1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "619003000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, $10.6 billion matches 10,631 million",
+   "answer": "Net income was $10.6 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:NetIncomeLoss",
+     "value": "10631000000",
+     "unit": "USD",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "K1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "10600000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, per-share amount",
+   "answer": "Diluted EPS was $6.43 [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:EarningsPerShareDiluted",
+     "value": "6.43",
+     "unit": "USD/shares",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "6.43",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "fact, a share count",
+   "answer": "Shares outstanding were 15,204,137,000 shares [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:CommonStockSharesOutstanding",
+     "value": "15204137000",
+     "unit": "shares",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-09-28",
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "15204137000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "rounding edge: $1.35 billion matches 1,349,999,999",
+   "answer": "The value was $1.35 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "1349999999",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-12-31",
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1350000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "rounding edge: $1.3 billion does not reach 1,350,000,000",
+   "answer": "The value was $1.3 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "1350000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-12-31",
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1300000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "1350000000"
+    }
+   ]
+  },
+  {
+   "name": "rounding edge: $1.3 billion includes 1,250,000,000",
+   "answer": "The value was $1.3 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "1250000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-12-31",
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1300000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "sign: a net loss matches a negative fact",
+   "answer": "The company reported a net loss of $2 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:NetIncomeLoss",
+     "value": "-2000000000",
+     "unit": "USD",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "-2000000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "sign: a positive figure does not match a negative fact",
+   "answer": "Net income was $2 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:NetIncomeLoss",
+     "value": "-2000000000",
+     "unit": "USD",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "2000000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "-2000000000"
+    }
+   ]
+  },
+  {
+   "name": "sign: an amount in parentheses is negative",
+   "answer": "Operating cash flow was $(1,234) million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:NetCashProvidedByUsedInOperatingActivities",
+     "value": "-1234000000",
+     "unit": "USD",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "-1234000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "a returned fact verifies even when the sentence cites a passage",
+   "answer": "Revenue was $648.1 billion [1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "648125000000",
+     "unit": "USD",
+     "period_start": "2023-02-01",
+     "period_end": "2024-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The company sells general merchandise and groceries."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "648100000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "an answer that cites nothing: every figure is Unverified",
+   "answer": "Revenue was $680,985 million.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680985000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a fact marker with no fact behind it cites nothing",
+   "answer": "Revenue was $5 billion [F1].",
+   "facts": [],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "5000000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "another period: the prior year in the same filing, period named",
+   "answer": "Revenue was $680,985 million in fiscal 2025, up from $648,125 million in fiscal 2024 [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Revenues",
+     "value": "648125000000",
+     "unit": "USD",
+     "period_start": "2023-02-01",
+     "period_end": "2024-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "680985000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    },
+    {
+     "value": "648125000000",
+     "label": "verified",
+     "basis": "fact_other_period",
+     "fact": 1,
+     "fiscal_year": 2024
+    }
+   ]
+  },
+  {
+   "name": "another period: a balance at the prior year end",
+   "answer": "Total assets were $512.2 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "619003000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2025-06-30",
+     "accession": "M1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Assets",
+     "value": "512163000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-06-30",
+     "accession": "M1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "512200000000",
+     "label": "verified",
+     "basis": "fact_other_period",
+     "fact": 1,
+     "fiscal_year": 2024
+    }
+   ]
+  },
+  {
+   "name": "another period needs the same concept",
+   "answer": "Revenue was $648,125 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+     "value": "648125000000",
+     "unit": "USD",
+     "period_start": "2023-02-01",
+     "period_end": "2024-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "648125000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    }
+   ]
+  },
+  {
+   "name": "another period must be a year, not a quarter",
+   "answer": "Revenue was $180,554 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Revenues",
+     "value": "180554000000",
+     "unit": "USD",
+     "period_start": "2024-11-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "180554000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    }
+   ]
+  },
+  {
+   "name": "another period must be in the same filing",
+   "answer": "Revenue was $611,289 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Revenues",
+     "value": "611289000000",
+     "unit": "USD",
+     "period_start": "2022-02-01",
+     "period_end": "2023-01-31",
+     "instant": null,
+     "accession": "B9"
+    }
+   ],
+   "expected": [
+    {
+     "value": "611289000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    }
+   ]
+  },
+  {
+   "name": "another period, rounded",
+   "answer": "The year before, revenue was $648.1 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Revenues",
+     "value": "648125000000",
+     "unit": "USD",
+     "period_start": "2023-02-01",
+     "period_end": "2024-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "648100000000",
+     "label": "verified",
+     "basis": "fact_other_period",
+     "fact": 1,
+     "fiscal_year": 2024
+    }
+   ]
+  },
+  {
+   "name": "calculation: growth in percent from two facts",
+   "answer": "Walmart's revenue grew 4.7% from fiscal 2025 to fiscal 2026 [F1, F2].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    },
+    {
+     "number": 2,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "W25"
+    }
+   ],
+   "passages": [],
+   "calculations": [
+    {
+     "expression": "(713163 - 680985) / 680985 * 100",
+     "value": "4.725214211766779003942818123747219101742"
+    }
+   ],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "4.7",
+     "label": "verified",
+     "basis": "calculation"
+    }
+   ]
+  },
+  {
+   "name": "calculation: a difference in dollars",
+   "answer": "Revenue rose by $32,178 million [F1, F2].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    },
+    {
+     "number": 2,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "W25"
+    }
+   ],
+   "passages": [],
+   "calculations": [
+    {
+     "expression": "713163000000 - 680985000000",
+     "value": "32178000000"
+    }
+   ],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "32178000000",
+     "label": "verified",
+     "basis": "calculation"
+    }
+   ]
+  },
+  {
+   "name": "calculation with an input from nowhere does not verify",
+   "answer": "The gap is $113,163 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    }
+   ],
+   "passages": [],
+   "calculations": [
+    {
+     "expression": "713163 - 600000",
+     "value": "113163"
+    }
+   ],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "113163000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "713163000000"
+    }
+   ]
+  },
+  {
+   "name": "calculation from figures in a cited passage",
+   "answer": "The rest, about $0.4 billion, sits in reserves [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Citi's net investment was approximately $1.3 billion. Of that, the net exposure was approximately $0.9 billion."
+    }
+   ],
+   "calculations": [
+    {
+     "expression": "1.3 - 0.9",
+     "value": "0.4"
+    }
+   ],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "400000000",
+     "label": "verified",
+     "basis": "calculation"
+    }
+   ]
+  },
+  {
+   "name": "calculation: a ratio shown as a percent",
+   "answer": "Growth was 4.73% [F1, F2].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    },
+    {
+     "number": 2,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "W25"
+    }
+   ],
+   "passages": [],
+   "calculations": [
+    {
+     "expression": "(713163 - 680985) / 680985",
+     "value": "0.04725214211766779003942818123747219101742"
+    }
+   ],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "4.73",
+     "label": "verified",
+     "basis": "calculation"
+    }
+   ]
+  },
+  {
+   "name": "passage: the same figure",
+   "answer": "The swaps would change by $0.7 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "700000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: a different scale word in the answer",
+   "answer": "The swaps would change by $700 million [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "700000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: the answer rounds the passage's figure",
+   "answer": "The swaps would change by $0.7 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The change in value would be $698 million."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "700000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: an answer more precise than its passage is not verified",
+   "answer": "Revenue was $680,985 million [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Revenues were $681.0 billion for the year."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680985000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "passage: a percent written in words",
+   "answer": "The peso fell 5.4 percent [2].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Citi operates in Argentina."
+    },
+    {
+     "number": 2,
+     "text": "The official ARS exchange rate devalued by 5.4% against the USD."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "5.4",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 2
+    }
+   ]
+  },
+  {
+   "name": "passage: a percent does not match a plain number",
+   "answer": "Costs fell 5.4% [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Costs fell by 5.4 million units."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "5.4",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "passage: a passage the answer does not cite does not count",
+   "answer": "The exposure was $0.9 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Citi operates in Argentina."
+    },
+    {
+     "number": 2,
+     "text": "The net exposure was approximately $0.9 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "900000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "passage: any cited passage counts, not only the sentence's",
+   "answer": "The exposure was $0.9 billion [2]. Citi operates there [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The net exposure was approximately $0.9 billion."
+    },
+    {
+     "number": 2,
+     "text": "Citi operates in Argentina."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "900000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: the passage cited in the figure's sentence wins, in the order cited",
+   "answer": "The official rate was 1,455 ARS per USD【3】【2】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 2,
+     "text": "the official ARS exchange rate was 1455, which devalued by 5.4%"
+    },
+    {
+     "number": 3,
+     "text": "As of December 31, 2025, the official ARS exchange rate was 1455."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1455",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    }
+   ]
+  },
+  {
+   "name": "passage: a figure glued to a lenticular marker",
+   "answer": "Citi's net investment was $1.3 billion【3】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 3,
+     "text": "Citi's net investment in its Argentine operations was approximately $1.3 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1300000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    }
+   ]
+  },
+  {
+   "name": "passage: a marker with a dagger note",
+   "answer": "$44 billion of its debt was non-swapped fixed-rate term debt【1†number=1】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "As of December 31, 2023, $44 billion of our debt was non-swapped fixed-rate term debt."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "44000000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: a loss in both",
+   "answer": "It reported a net loss of $1.2 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The segment reported a net loss of $1.2 billion for the year."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "-1200000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: a sign that disagrees is not verified",
+   "answer": "The segment earned $1.2 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The segment reported a net loss of $1.2 billion for the year."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1200000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "passage: a range gets one label per end",
+   "answer": "Capital spending will be $10-12 billion [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "We expect capital expenditures of between $10 billion and $12 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "10000000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    },
+    {
+     "value": "12000000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "passage: one end of a range in the passage, the other not",
+   "answer": "Margins were 10-15% [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Margins ranged from 10% to 12% over the period."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "10",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    },
+    {
+     "value": "15",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a figure in an [F1] sentence that matches F2 is Verified, not a Conflict",
+   "answer": "Net income was $19,436 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    },
+    {
+     "number": 2,
+     "concept": "us-gaap:NetIncomeLoss",
+     "value": "19436000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "19436000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 2
+    }
+   ]
+  },
+  {
+   "name": "a percentage next to a dollar fact is not a Conflict",
+   "answer": "Revenue rose 7% to $713,163 million [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "7",
+     "label": "unverified",
+     "basis": null
+    },
+    {
+     "value": "713163000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "a Conflict needs the fact citation in the same sentence",
+   "answer": "Revenue was $713,163 million [F1]. It was $650 billion before.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "713163000000",
+     "unit": "USD",
+     "period_start": "2025-02-01",
+     "period_end": "2026-01-31",
+     "instant": null,
+     "accession": "W26"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "713163000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    },
+    {
+     "value": "650000000000",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a per-share figure next to a dollar fact is not a Conflict",
+   "answer": "That is $6.43 per share [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "6.43",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a per-share Conflict",
+   "answer": "Diluted EPS was $6.53 [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:EarningsPerShareDiluted",
+     "value": "6.43",
+     "unit": "USD/shares",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "6.53",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "6.43"
+    }
+   ]
+  },
+  {
+   "name": "a share-count Conflict",
+   "answer": "Shares outstanding were 15.1 billion shares [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:CommonStockSharesOutstanding",
+     "value": "15204137000",
+     "unit": "shares",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2024-09-28",
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "15100000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "15204137000"
+    }
+   ]
+  },
+  {
+   "name": "a plain number with no unit is not a Conflict",
+   "answer": "The count was 1,234 [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "5000",
+     "unit": "USD",
+     "period_start": "2024-01-01",
+     "period_end": "2024-12-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1234",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a scale word without a dollar sign is money",
+   "answer": "Revenue was 680.9 billion [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "680900000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    }
+   ]
+  },
+  {
+   "name": "two facts cited: the Conflict names the fact of the same kind",
+   "answer": "Revenue was $999 billion and EPS was $6.43 [F1, F2].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    },
+    {
+     "number": 2,
+     "concept": "us-gaap:EarningsPerShareDiluted",
+     "value": "6.43",
+     "unit": "USD/shares",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "999000000000",
+     "label": "conflict",
+     "basis": null,
+     "fact": 1,
+     "cited_value": "680985000000"
+    },
+    {
+     "value": "6.43",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 2
+    }
+   ]
+  },
+  {
+   "name": "years and dates get no label",
+   "answer": "In fiscal 2025, which ended January 31, 2025, and in FY2024, revenue grew [F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "list numbers and Item numbers get no label",
+   "answer": "1. Item 7A covers market risk [1].\n2. Item 1A lists the risks [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Item 7A. Quantitative and Qualitative Disclosures About Market Risk."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "small plain counts get no label",
+   "answer": "It operates in 3 regions across 25 countries [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "We operate in 3 regions."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "quarter names and form names get no label",
+   "answer": "Quarterly figures (Q3 2025) come from the 10-Q, not the 10-K [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Annual report on Form 10-K."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "a plain number of 100 or more gets a label",
+   "answer": "It has 150 stores [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The company operates 150 stores."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "150",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "a decimal gets a label",
+   "answer": "Coverage was 1.5 times [1].",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Interest coverage was a ratio of 1.5 times."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1.5",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "a citation marker alone gets no label",
+   "answer": "See passage [3] for the details.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 3,
+     "text": "Details."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "no citations and no sources: every figure Unverified",
+   "answer": "Revenue was $5 billion and grew 4%.",
+   "facts": [],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "5000000000",
+     "label": "unverified",
+     "basis": null
+    },
+    {
+     "value": "4",
+     "label": "unverified",
+     "basis": null
+    }
+   ]
+  },
+  {
+   "name": "a fact wins over a passage",
+   "answer": "Citi's net investment was $1.3 billion [1][F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Assets",
+     "value": "1300000000",
+     "unit": "USD",
+     "period_start": null,
+     "period_end": null,
+     "instant": "2025-12-31",
+     "accession": "A1"
+    }
+   ],
+   "passages": [
+    {
+     "number": 1,
+     "text": "The net investment was approximately $1.3 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1300000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "another period wins over a passage",
+   "answer": "Revenue was $648.1 billion in fiscal 2024 [1][F1].",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:Revenues",
+     "value": "680985000000",
+     "unit": "USD",
+     "period_start": "2024-02-01",
+     "period_end": "2025-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "passages": [
+    {
+     "number": 1,
+     "text": "Revenue was $648.1 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [
+    {
+     "concept": "us-gaap:Revenues",
+     "value": "648125000000",
+     "unit": "USD",
+     "period_start": "2023-02-01",
+     "period_end": "2024-01-31",
+     "instant": null,
+     "accession": "A1"
+    }
+   ],
+   "expected": [
+    {
+     "value": "648100000000",
+     "label": "verified",
+     "basis": "fact_other_period",
+     "fact": 1,
+     "fiscal_year": 2024
+    }
+   ]
+  },
+  {
+   "name": "page example: How much money does Citi have tied up in Argentina, and how does it handle the peso?",
+   "answer": "**Citi’s net investment in Argentina (fiscal year 2025, year‑end December 31, 2025)**  \n- Approximately **$1.3 billion** (inclusive of associated reserves)【3】.  \n\n**How Citi handles the Argentine peso**  \n- Citi uses the U.S. dollar as the functional currency for its Argentine operations and re‑measures its Argentine peso‑denominated assets into U.S. dollars using Argentina’s official market exchange rate.  \n- Exchange‑rate fluctuations are recorded directly in earnings.  \n- As of year‑end, the official ARS exchange rate was 1,455 ARS per USD, a 5.4 % devaluation against the dollar during Q4 2025【3】【2】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 3,
+     "text": "the Ukrainian hryvnia as its functional currency. As of December 31, 2025, Citi had $1.9 billion of direct exposures related to Ukraine (compared to $1.7 billion at September 30, 2025).\n\nArgentina\n\nCiti operates in Argentina through its Services, Markets and Banking businesses. As of December 31, 2025, Citi’s net investment in its Argentine operations, inclusive of associated reserves, was approximately $1.3 billion (compared to $1.4 billion at September 30, 2025). Citi uses the U.S. dollar (USD) as the functional currency for its operations in countries such as Argentina that are deemed highly inflationary in accordance with GAAP. Citi uses Argentina’s official market exchange rate to remeasure its net Argentine peso (ARS) - denominated assets into USD, with the impact of exchange rate fluctuations recorded directly in earnings. As of December 31, 2025, the official ARS exchange rate was 1455, which devalued by 5.4% against the USD during the fourth quarter of 2025."
+    },
+    {
+     "number": 2,
+     "text": "exchange rate fluctuations recorded directly in earnings. As of December 31, 2025, the official ARS exchange rate was 1455, which devalued by 5.4% against the USD during the fourth quarter of 2025.\n\nThe Central Bank of Argentina (BCRA) has generally maintained certain capital and currency controls that have broadly restricted Citi’s ability to access USD in Argentina and remit earnings from its Argentine operations.\n\nDuring the second quarter of 2025, Citi subscribed to approximately $340 million of par value of the latest series of certain USD-denominated bonds (BOPREALs) issued by the BCRA, which provided a mechanism for Argentine companies to pay dividends by selling the bonds and remitting the proceeds. Citi completed the sale of the BOPREALs during\n\n2025 and remitted the total proceeds of approximately $262 million from its Argentine operations, thereby reducing its net investment in the country."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "1300000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    },
+    {
+     "value": "1455",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    },
+    {
+     "value": "5.4",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 3
+    }
+   ]
+  },
+  {
+   "name": "page example: How much would Walmart's currency swaps change in value if the dollar weakened by ten percent?",
+   "answer": "Walmart’s 10‑year‑old currency swaps would have changed in value by **$0.7 billion** if the U.S. dollar had weakened uniformly by ten percent. This figure is provided directly in the 2024 10‑K: “The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion.” [1]",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "rates and the related impact on the translation of the balance sheets resulted in the $0.3 billion net gain in the currency translation and other category of accumulated other comprehensive loss.\n\nWe hedge a portion of our foreign currency risk by entering into currency swaps.  The aggregate fair value of these swaps was in a liability position of $1.3 billion and $1.4 billion as of January 31, 2024 and January 31, 2023, respectively.  The change in the fair value of these swaps was due to fluctuations in currency exchange rates, primarily due to the strengthening of certain currencies relative to the U.S. dollar in fiscal 2024.  The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion.  A hypothetical 10% change in interest rates underlying these swaps from the market rates in effect as of January 31, 2024 would have resulted in a change in the value of the swaps of $0.1 billion."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "700000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    },
+    {
+     "value": "10",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    },
+    {
+     "value": "700000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "page example: How much of UnitedHealth's debt carries a fixed rate that isn't swapped?",
+   "answer": "UnitedHealth’s 2023 Form 10‑K reports that **$44 billion of its debt was non‑swapped fixed‑rate term debt**【1】. This figure is for the fiscal year ended December 31, 2023.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "our financial liabilities, which include debt and deposit liabilities, were at interest rates which vary with market rates, either directly or through the use of related interest rate swap contracts.\n\nThe fair value of our fixed-rate investments and debt also varies with market interest rates. As of December 31, 2023, $43 billion of our investments were fixed-rate debt securities and $44 billion of our debt was non-swapped fixed-rate term debt. An increase in market interest rates decreases the market value of fixed-rate investments and fixed-rate debt. Conversely, a decrease in market interest rates increases the market value of fixed-rate investments and fixed-rate debt.\n\nWe manage exposure to market interest rates by diversifying investments across different fixed-income market sectors and debt across maturities, as well as by matching a portion of our floating-rate assets and liabilities, either directly or through the use of interest rate swap contracts. Unrealized gains and losses on investments in available-for-sale debt securities are reported in comprehensive income."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "44000000000",
+     "label": "verified",
+     "basis": "passage",
+     "passage": 1
+    }
+   ]
+  },
+  {
+   "name": "page example: What does Netflix say about others claiming it infringed their intellectual property?",
+   "answer": "Netflix acknowledges that “from time to time, third parties allege that we have infringed or otherwise violated their intellectual property rights” and explains that if it cannot obtain sufficient rights, successfully defend its use, or develop non‑infringing technology in a timely manner, “our business and competitive position may be adversely affected”【2】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 2,
+     "text": "rights related to, among other things, our website, streaming technology, our recommendation and merchandising technology, title selection processes, our content, and marketing activities.\n\nTrademark, copyright, patent and other intellectual property rights are important to us and other companies.  Our intellectual property rights extend to our technology, business processes, the content we produce and distribute through our service, and consumer products, experiences, and marketing assets based thereon.  We use the intellectual property of third parties in creating some of our content, merchandising our products and marketing our service.  From time to time, third parties allege that we have infringed or otherwise violated their intellectual property rights."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "page example: What framework did American Express management use to judge its internal controls?",
+   "answer": "American Express management used the **Committee of Sponsoring Organizations of the Treadway Commission (COSO) Internal Control – Integrated Framework (2013)** to judge its internal controls for fiscal year 2025【1】.",
+   "facts": [],
+   "passages": [
+    {
+     "number": 1,
+     "text": "to permit preparation of financial statements in accordance with GAAP and that our receipts and expenditures are being made only in accordance with authorizations of our management and directors; and\n\n•Provide reasonable assurance regarding prevention or timely detection of unauthorized acquisition, use or disposition of our assets that could have a material effect on the financial statements.\n\nBecause of its inherent limitations, internal control over financial reporting may not prevent or detect misstatements. Also, projections of any evaluation of effectiveness to future periods are subject to the risk that controls may become inadequate because of changes in conditions, or that the degree of compliance with the policies or procedures may deteriorate.\n\nOur management assessed the effectiveness of our internal control over financial reporting as of December 31, 2025. In making this assessment, our management used the criteria set forth by the Committee of Sponsoring Organizations of the Treadway Commission (COSO) in Internal Control —Integrated Framework (2013)."
+    }
+   ],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": []
+  },
+  {
+   "name": "page example: What was Costco's operating income in fiscal 2025?",
+   "answer": "Costco’s operating income for fiscal 2025 was **$10,383,000,000** (USD)【F1】. The figure covers the period from September 2, 2024 to August 31, 2025.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:OperatingIncomeLoss",
+     "value": "10383000000",
+     "unit": "USD",
+     "period_start": "2024-09-02",
+     "period_end": "2025-08-31",
+     "instant": null,
+     "accession": "0000909832-25-000101"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "10383000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  },
+  {
+   "name": "page example: How much revenue did Nike make last year?",
+   "answer": "Nike’s revenue for its most recent fiscal year (ended May 31, 2026) was **$46,398 million**【F1】. This figure covers the period from June 1, 2025 to May 31, 2026.",
+   "facts": [
+    {
+     "number": 1,
+     "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+     "value": "46398000000",
+     "unit": "USD",
+     "period_start": "2025-06-01",
+     "period_end": "2026-05-31",
+     "instant": null,
+     "accession": "0000320187-26-000088"
+    }
+   ],
+   "passages": [],
+   "calculations": [],
+   "filing_facts": [],
+   "expected": [
+    {
+     "value": "46398000000",
+     "label": "verified",
+     "basis": "fact",
+     "fact": 1
+    }
+   ]
+  }
+ ]
+}
