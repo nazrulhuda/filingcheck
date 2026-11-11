@@ -14,9 +14,16 @@ import {
   type Health,
   type Progress,
 } from "@/lib/api";
-import { type AnswerSource, cachedNotice, pageQuestion } from "@/lib/display";
+import { type AnswerSource, askedWith, cachedNotice, pageQuestion } from "@/lib/display";
+import { reviewNote } from "@/lib/notes";
 
-type Example = { question: string; ticker: string | null; fiscal_year: number | null; answer: Answer };
+type Example = {
+  question: string;
+  ticker: string | null;
+  fiscal_year: number | null;
+  company_name: string | null;
+  answer: Answer;
+};
 
 const EXAMPLES = examplesData as Example[];
 const MAX_QUESTION = 500;
@@ -43,6 +50,9 @@ type Shown =
       answer: Answer;
       source: AnswerSource;
       notice: string | null;
+      /** For a clicked example: the filters it was asked with, and any review note. */
+      asked?: string;
+      note?: string | null;
     }
   | { kind: "error"; message: string };
 
@@ -132,6 +142,8 @@ export default function Home() {
       answer: example.answer,
       source: "example",
       notice: null,
+      asked: askedWith(example.company_name, example.ticker, example.fiscal_year),
+      note: reviewNote(example.question),
     });
   }
 
@@ -280,10 +292,18 @@ export default function Home() {
                 {shown.notice}
               </p>
             ) : (
-              <p className="mb-3 text-sm font-medium text-slate-600">{shown.question}</p>
+              <div className="mb-3">
+                <p className="text-sm font-medium text-slate-600">{shown.question}</p>
+                {shown.asked && <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>}
+              </div>
             )}
             {/* A new answer starts with every citation closed. */}
             <AnswerText key={`${shown.question}\n${shown.answer.text}`} answer={shown.answer} />
+            {shown.note && (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {shown.note}
+              </p>
+            )}
             <ChecksPanel answer={shown.answer} />
             <CostLine answer={shown.answer} source={shown.source} />
           </div>

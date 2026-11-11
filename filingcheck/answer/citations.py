@@ -19,9 +19,11 @@ NORMALIZE = str.maketrans(
 )
 # One citation bracket: passages as [1], [1, 3] or [1-3], and the agent's facts from
 # get_financial_fact as [F1] or [F1, F2]; one bracket may hold both ([1, F2]), and each part
-# is read as written, so in [F1, 2] the 2 is passage 2. [1][3] is two matches.
+# is read as written, so in [F1, 2] the 2 is passage 2. [1][3] is two matches. gpt-oss
+# sometimes adds a dagger and a note after the numbers (【1†number=1】, 【3†L3-L5】); the
+# note is read past, so those cite passage 1 and passage 3.
 _PART = r"F?\d+(?:\s*-\s*\d+)?"
-CITATION_RE = re.compile(r"\[\s*(" + _PART + r"(?:\s*,\s*" + _PART + r")*)\s*\]")
+CITATION_RE = re.compile(r"\[\s*(" + _PART + r"(?:\s*,\s*" + _PART + r")*)\s*(?:\u2020[^\[\]]*)?\]")
 RANGE_RE = re.compile(r"\s*-\s*")
 
 

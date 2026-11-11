@@ -9,7 +9,8 @@ EXAMPLES=path`. The cached answers are replaced only when every answer is comple
 degraded.
 
 `python -m filingcheck.app.examples --export FILE` writes the stored answers, unchanged
-apart from each citation's passage number, to the JSON file the page builds in
+apart from each citation's passage number and the company's official name, to the JSON file
+the page builds in
 (`make examples-export`); no model is called.
 """
 
@@ -37,6 +38,7 @@ from filingcheck.llm import ChatModel, IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
 from filingcheck.retrieval import Retriever
 from filingcheck.tools import ToolDeps
+from filingcheck.tools.inputs import TICKER_NAMES
 
 __all__ = [
     "export_examples",
@@ -151,6 +153,8 @@ def with_citation_numbers(example: ExampleAnswer) -> dict[str, Any]:
         "question": example.question,
         "ticker": example.ticker,
         "fiscal_year": example.fiscal_year,
+        # The page shows the filters an example was asked with, and builds without the API.
+        "company_name": TICKER_NAMES.get(example.ticker) if example.ticker else None,
         "answer": answer,
     }
 

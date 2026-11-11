@@ -3,6 +3,7 @@
     "question": "How much money does Citi have tied up in Argentina, and how does it handle the peso?",
     "ticker": "C",
     "fiscal_year": 2025,
+    "company_name": "Citigroup Inc.",
     "answer": {
       "mode": "agent",
       "text": "**Citi’s net investment in Argentina (fiscal year 2025, year‑end December 31, 2025)**  \n- Approximately **$1.3 billion** (inclusive of associated reserves)【3】.  \n\n**How Citi handles the Argentine peso**  \n- Citi uses the U.S. dollar as the functional currency for its Argentine operations and re‑measures its Argentine peso‑denominated assets into U.S. dollars using Argentina’s official market exchange rate.  \n- Exchange‑rate fluctuations are recorded directly in earnings.  \n- As of year‑end, the official ARS exchange rate was 1,455 ARS per USD, a 5.4 % devaluation against the dollar during Q4 2025【3】【2】.",
@@ -67,6 +68,7 @@
     "question": "How much would Walmart's currency swaps change in value if the dollar weakened by ten percent?",
     "ticker": "WMT",
     "fiscal_year": 2024,
+    "company_name": "Walmart Inc.",
     "answer": {
       "mode": "agent",
       "text": "Walmart’s 10‑year‑old currency swaps would have changed in value by **$0.7 billion** if the U.S. dollar had weakened uniformly by ten percent. This figure is provided directly in the 2024 10‑K: “The hypothetical result of a uniform 10% weakening in the value of the U.S. dollar relative to other currencies underlying these swaps would have resulted in a change in the value of the swaps of $0.7 billion.” [1]",
@@ -122,6 +124,7 @@
     "question": "How much of UnitedHealth's debt carries a fixed rate that isn't swapped?",
     "ticker": "UNH",
     "fiscal_year": 2023,
+    "company_name": "UnitedHealth Group Incorporated",
     "answer": {
       "mode": "agent",
       "text": "UnitedHealth’s 2023 Form 10‑K reports that **$44 billion of its debt was non‑swapped fixed‑rate term debt**【1】. This figure is for the fiscal year ended December 31, 2023.",
@@ -177,6 +180,7 @@
     "question": "What does Netflix say about others claiming it infringed their intellectual property?",
     "ticker": "NFLX",
     "fiscal_year": 2023,
+    "company_name": "Netflix, Inc.",
     "answer": {
       "mode": "agent",
       "text": "Netflix acknowledges that “from time to time, third parties allege that we have infringed or otherwise violated their intellectual property rights” and explains that if it cannot obtain sufficient rights, successfully defend its use, or develop non‑infringing technology in a timely manner, “our business and competitive position may be adversely affected”【2】.",
@@ -232,6 +236,7 @@
     "question": "What framework did American Express management use to judge its internal controls?",
     "ticker": "AXP",
     "fiscal_year": 2025,
+    "company_name": "American Express Company",
     "answer": {
       "mode": "agent",
       "text": "American Express management used the **Committee of Sponsoring Organizations of the Treadway Commission (COSO) Internal Control – Integrated Framework (2013)** to judge its internal controls for fiscal year 2025【1】.",
@@ -287,6 +292,7 @@
     "question": "What was Costco's operating income in fiscal 2025?",
     "ticker": "COST",
     "fiscal_year": 2025,
+    "company_name": "Costco Wholesale Corporation",
     "answer": {
       "mode": "agent",
       "text": "Costco’s operating income for fiscal 2025 was **$10,383,000,000** (USD)【F1】. The figure covers the period from September 2, 2024 to August 31, 2025.",
@@ -406,6 +412,7 @@
     "question": "How much revenue did Nike make last year?",
     "ticker": "NKE",
     "fiscal_year": null,
+    "company_name": "NIKE, Inc.",
     "answer": {
       "mode": "agent",
       "text": "Nike’s revenue for its most recent fiscal year (ended May 31, 2026) was **$46,398 million**【F1】. This figure covers the period from June 1, 2025 to May 31, 2026.",

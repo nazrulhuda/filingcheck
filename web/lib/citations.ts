@@ -1,6 +1,6 @@
 // Citation markers in an answer, read with the same rule as the API's parser
 // (filingcheck/answer/citations.py): passages as [1], [1, 3], [1-3] and the lenticular 【1】
-// form, and the agent's facts from get_financial_fact as [F1] or [F1, F2]; one bracket may
+// form (with or without a dagger note, 【1†number=1】), and the agent's facts from get_financial_fact as [F1] or [F1, F2]; one bracket may
 // hold both ([1, F2]). The API's `citations` and `fact_citations` lists decide what each
 // number points to; a marker whose numbers match nothing stays plain text. Both parsers are
 // tested against tests/fixtures/citation_markers.json and tests/fixtures/fact_markers.json.
@@ -56,8 +56,13 @@ const NORMALIZE = new Map<string, string>([
   [String.fromCharCode(0x3011), "]"],
 ]);
 // One part is a passage (2), a passage range (1-3), a fact (F2) or a fact range (F1-3).
+// gpt-oss sometimes adds a dagger and a note after the numbers (【1†number=1】, 【3†L3-L5】);
+// the note is read past, so those cite passage 1 and passage 3.
 const PART = String.raw`F?\d+(?:\s*-\s*\d+)?`;
-const CITATION = new RegExp(String.raw`\[\s*(${PART}(?:\s*,\s*${PART})*)\s*\]`, "g");
+const CITATION = new RegExp(
+  String.raw`\[\s*(${PART}(?:\s*,\s*${PART})*)\s*(?:\u2020[^\[\]]*)?\]`,
+  "g",
+);
 
 /** The text with the dashes, spaces and brackets models write mapped to plain ones. */
 export function normalize(text: string): string {

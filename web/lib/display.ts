@@ -44,3 +44,15 @@ export function pageQuestion(text: string, ticker: string, year: string): Questi
     ...(ticker && year ? { fiscal_year: Number(year) } : {}),
   };
 }
+
+/** The filters a saved example was asked with: its company (the ticker if the name is
+ * missing) and fiscal year, or "any" for a filter left open. */
+export function askedWith(
+  companyName: string | null,
+  ticker: string | null,
+  fiscalYear: number | null,
+): string {
+  const company = companyName ?? ticker ?? "any company";
+  const year = fiscalYear ? `fiscal ${fiscalYear}` : "any year";
+  return `Asked with: ${company} · ${year}`;
+}
