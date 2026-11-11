@@ -1,10 +1,15 @@
-"""`search_filings`: passages from the 10-K text, through the hybrid retriever."""
+"""`search_filings`: passages from the 10-K text, through the hybrid retriever.
+
+The model can narrow a search to a company and a fiscal year but not to 10-K Items: given an
+Items filter it often chose Items that did not hold the answer (docs/decisions.md,
+2026-11-10). The retriever keeps its Items parameter for other callers.
+"""
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from filingcheck.answer.baseline import passage_header
 from filingcheck.retrieval.models import Retriever
-from filingcheck.tools.inputs import COMPANY_LIST, Item, Ticker, WholeNumber
+from filingcheck.tools.inputs import COMPANY_LIST, Ticker, WholeNumber
 
 
 class SearchFilingsInput(BaseModel):
@@ -19,13 +24,6 @@ class SearchFilingsInput(BaseModel):
     )
     fiscal_year: WholeNumber | None = Field(
         default=None, description="Only this fiscal year's 10-K (the company's own fiscal year)."
-    )
-    items: list[Item] | None = Field(
-        default=None,
-        description=(
-            'Only these 10-K Items: "1" business, "1A" risk factors, "7" MD&A, "7A" market '
-            'risk, "8" financial statements and notes ("1-7A" is used by some banks).'
-        ),
     )
     k: WholeNumber = Field(
         default=8, ge=1, le=10, description="How many passages to return (1 to 10)."
@@ -57,7 +55,6 @@ def search_filings(arguments: SearchFilingsInput, retriever: Retriever) -> Searc
         arguments.query,
         ticker=arguments.ticker,
         fiscal_year=arguments.fiscal_year,
-        items=list(arguments.items) if arguments.items else None,
         k=arguments.k,
     )
     return SearchFilingsResult(

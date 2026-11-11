@@ -163,7 +163,7 @@ class ItemsRecorder:
 
 def test_search_filings_searches_every_item_of_the_filing() -> None:
     recorder = ItemsRecorder()
-    tool_deps = ToolDeps(retriever=recorder, facts=FakeFacts([]))  # type: ignore[arg-type]
+    tool_deps = ToolDeps(retriever=recorder, facts=FakeFacts([]))
     call(
         "search_filings",
         {"query": "currency swaps", "ticker": "WMT", "fiscal_year": 2024},
