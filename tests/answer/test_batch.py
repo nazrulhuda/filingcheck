@@ -321,3 +321,19 @@ def test_make_ask_and_the_batch_command_run_the_checks_by_default() -> None:
     assert checks_on(one.checks) and checks_on(batch.checks)
     off = answer_parser().parse_args(["Apple's sales?", "--mode", "agent", "--checks", "0"])
     assert not checks_on(off.checks)
+
+
+def test_every_row_carries_its_number_labels(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=FakeChat(agent_replies(1)),
+        deps=apple_deps(),
+        settings="fake settings",
+    )
+    (row,) = lines(out)
+    assert "number_labels" in BATCH_FIELDS
+    (label,) = row["number_labels"]
+    assert (label["label"], label["basis"], label["value"]) == ("verified", "fact", "416161000000")

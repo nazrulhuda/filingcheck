@@ -102,6 +102,7 @@ class Citation(BaseModel):
     item: str
     source_url: str
     quote: str  # the passage's first 200 characters
+    text: str = ""  # the whole passage, for the page; built after the model finished
 
 
 def cited_numbers(text: str, passages: int) -> list[int]:
@@ -131,6 +132,7 @@ def parse_citations(text: str, hits: list[Hit]) -> list[Citation]:
             item=hit.item,
             source_url=hit.source_url,
             quote=hit.text[:QUOTE_CHARS],
+            text=hit.text,
         )
         for n, hit in ((n, hits[n - 1]) for n in cited_numbers(text, len(hits)))
     ]

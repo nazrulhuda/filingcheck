@@ -80,3 +80,11 @@ def test_deep_health_needs_embeddings_meta(store: PostgresStore, db: psycopg.Con
 def test_deep_health_reports_an_unreachable_database() -> None:
     down = PostgresStore("postgresql://nobody:x@127.0.0.1:1/none?connect_timeout=1")
     assert down.deep_health() == {"database": False, "embeddings": False}
+
+
+def test_the_number_labels_read_back_unchanged(store: PostgresStore) -> None:
+    labels = [{"figure": "$5 billion", "value": "5000000000", "label": "unverified"}]
+    logged = row(2, mode="agent", number_labels=labels)
+    store.log_request(logged)
+    (back,) = store.requests_since(datetime.now(UTC) - timedelta(hours=1))
+    assert back.number_labels == labels

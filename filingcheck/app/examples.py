@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import psycopg
 from dotenv import load_dotenv
 
 from filingcheck.agent import run_agent
@@ -33,7 +34,10 @@ from filingcheck.app.store import ExampleAnswer, PostgresStore, Store
 from filingcheck.checks import reference_data
 from filingcheck.console import use_utf8_output
 from filingcheck.db import connect
-from filingcheck.facts.lookup import PostgresFacts
+from filingcheck.facts.lookup import PostgresFacts, lookup
+from filingcheck.facts.metrics import has_company_label
+from filingcheck.labels import label_numbers
+from filingcheck.labels.stored import sources_for_row
 from filingcheck.llm import ChatModel, IncompleteAnswer, router_from_env
 from filingcheck.paths import REPO_ROOT
 from filingcheck.retrieval import Retriever
@@ -159,14 +163,88 @@ def with_citation_numbers(example: ExampleAnswer) -> dict[str, Any]:
     }
 
 
-def export_examples(store: Store, path: Path) -> int:
-    """Write every stored example answer to `path`; nothing is written if one is refused."""
+LabelAnswer = Callable[[dict[str, Any]], list[dict[str, Any]]]
+
+
+def _mark_standard_labels(answer: dict[str, Any]) -> None:
+    """Say on each fact citation whether its fact's line label is the standard name."""
+    facts = answer.get("facts_used") or []
+    for citation in answer.get("fact_citations") or []:
+        number = citation.get("number")
+        if isinstance(number, int) and 1 <= number <= len(facts):
+            fact = facts[number - 1]
+            citation["standard_label"] = not has_company_label(fact["concept"], fact["ticker"])
+
+
+def export_examples(
+    store: Store,
+    path: Path,
+    label_answer: LabelAnswer | None = None,
+    passage_text: Callable[[list[int]], dict[int, str]] | None = None,
+) -> int:
+    """Write every stored example answer to `path`; nothing is written if one is refused.
+
+    With `label_answer`, each answer gets its number labels, computed from the stored answer
+    (no model call), and each fact citation says whether its line label is the standard name.
+    With `passage_text`, a citation stored without its whole passage gets it, for the page.
+    """
     examples = [with_citation_numbers(e) for e in store.examples()]
+    for example in examples:
+        answer = example["answer"]
+        _mark_standard_labels(answer)
+        missing = [c for c in answer.get("citations", []) if not c.get("text")]
+        if passage_text is not None and missing:
+            texts = passage_text([c["chunk_id"] for c in missing])
+            for citation in missing:
+                citation["text"] = texts.get(citation["chunk_id"], citation.get("quote", ""))
+        if label_answer is not None:
+            answer["number_labels"] = label_answer(answer)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(examples, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
     return len(examples)
+
+
+def chunk_texts(conn: psycopg.Connection) -> Callable[[list[int]], dict[int, str]]:
+    """The passages' text by chunk id, read from the database."""
+
+    def read(ids: list[int]) -> dict[int, str]:
+        rows = conn.execute("SELECT id, text FROM chunks WHERE id = ANY(%s)", (ids,)).fetchall()
+        return {int(i): str(t) for i, t in rows}
+
+    return read
+
+
+def stored_answer_labeler(conn: psycopg.Connection) -> LabelAnswer:
+    """A labeler for stored answers, reading what they recorded.
+
+    The facts come from the answer; the cited passages' text and the filings' facts are read
+    from the database.
+    """
+    facts_source = PostgresFacts(conn)
+    passage_text = chunk_texts(conn)
+
+    def label_answer(answer: dict[str, Any]) -> list[dict[str, Any]]:
+        row = {
+            "answer": answer.get("text", ""),
+            "facts_used": answer.get("facts_used") or [],
+            "citations": answer.get("citations") or [],
+            "tool_calls": answer.get("tool_calls") or [],
+        }
+        sources, _, notes = sources_for_row(
+            row,
+            passage_text=passage_text,
+            lookup_fact=lambda t, y, m: lookup(facts_source, t, y, m),
+            filing_facts=facts_source,
+        )
+        if notes:
+            raise ValueError(f"{row['answer'][:60]!r}: {'; '.join(notes)}")
+        return [
+            json.loads(label.model_dump_json()) for label in label_numbers(row["answer"], sources)
+        ]
+
+    return label_answer
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -184,7 +262,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.export is not None:
         load_dotenv(REPO_ROOT / ".env")
-        count = export_examples(PostgresStore(), args.export)
+        with connect() as conn:
+            count = export_examples(
+                PostgresStore(),
+                args.export,
+                stored_answer_labeler(conn),
+                passage_text=chunk_texts(conn),
+            )
         print(f"wrote {count} example answers to {args.export}")
         return 0
     load_dotenv(REPO_ROOT / ".env")

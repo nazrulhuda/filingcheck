@@ -13,7 +13,7 @@ REFUSED = "refused:"  # error codes of requests the API turned away without call
 COLUMNS = (
     "id, created_at, question_hash, question, ticker, fiscal_year, model_used, retriever, "
     "degraded, latency_ms, prompt_tokens, completion_tokens, cost_usd, abstained, error, "
-    "client_ip_hash, mode, tool_calls, checks, overrides"
+    "client_ip_hash, mode, tool_calls, checks, overrides, number_labels"
 )
 
 
@@ -44,6 +44,9 @@ class RequestRow(BaseModel):
     # override log, one record per check per checked tool call.
     checks: bool | None = None
     overrides: list[dict[str, Any]] | None = None
+    # Each figure's label against the sources the answer used (NULL where no answer was given
+    # and for rows written before migration 0010).
+    number_labels: list[dict[str, Any]] | None = None
 
 
 class CompanyInfo(BaseModel):
@@ -170,7 +173,7 @@ class PostgresStore:
     def log_request(self, row: RequestRow) -> None:
         """Insert one row."""
         values = row.model_dump()
-        for name in ("tool_calls", "overrides"):
+        for name in ("tool_calls", "overrides", "number_labels"):
             if values[name] is not None:
                 values[name] = Jsonb(values[name])
         with self._connect() as conn:

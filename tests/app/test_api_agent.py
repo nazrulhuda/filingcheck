@@ -358,3 +358,20 @@ def test_the_agent_stream_tells_the_page_when_it_starts_again_with_another_model
     assert sent[-1][1]["answer"]["restarts"] == ["fake 503 busy"]
     assert store.rows[0].tool_calls is not None
     assert store.rows[0].tool_calls["restarts"] == ["fake 503 busy"]
+
+
+def test_the_answer_and_the_request_log_carry_the_number_labels() -> None:
+    client, store = make_agent(FakeChat([]), [agent_script()])
+    body = client.post("/ask", json={"question": APPLE_Q, "mode": "agent"}).json()
+    (label,) = body["number_labels"]
+    assert (label["label"], label["basis"], label["fact"]) == ("verified", "fact", 1)
+    (row,) = store.rows
+    assert row.number_labels is not None
+    assert [(x["label"], x["basis"]) for x in row.number_labels] == [("verified", "fact")]
+
+
+def test_a_baseline_answer_is_labeled_and_logged_too() -> None:
+    client, store = make_agent(FakeChat(["Revenue was $5 billion."]), [])
+    body = client.post("/ask", json={"question": QUESTION}).json()
+    assert [x["label"] for x in body["number_labels"]] == ["unverified"]
+    assert [x["label"] for x in store.rows[0].number_labels or []] == ["unverified"]

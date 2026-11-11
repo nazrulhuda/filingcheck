@@ -7,10 +7,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from filingcheck.answer.citations import cited_numbers, parse_fact_citations
-from filingcheck.eval.grade import Figure, read_figures
+from filingcheck.answer.citations import cited_numbers, normalize_text, parse_fact_citations
+from filingcheck.eval.grade import GROUP_SPACE_RE, RIGHT_QUOTE, Figure, read_figures
 from filingcheck.facts.lookup import TotalFact
 from filingcheck.facts.metrics import ANNUAL_DAYS
 
@@ -95,6 +95,10 @@ class NumberLabel(BaseModel):
     calculation: str | None = None  # the expression
     cited_value: Decimal | None = None  # for a Conflict: what the cited fact says
     source: str | None = None  # the source in words
+    inputs: list[str] = Field(default_factory=list)  # a calculation's sources: "F1", "passage 2"
+    # Where the figure ends in the answer text, in UTF-16 code units (how the page counts),
+    # so the page can put the label right after it; None if it could not be placed.
+    end: int | None = None
 
 
 @dataclass(frozen=True)
@@ -190,20 +194,32 @@ def _other_periods(fact: SourceFact, filing_facts: FilingFacts) -> list[TotalFac
     return sorted(found.values(), key=lambda f: f.instant or f.period_end or date.min, reverse=True)
 
 
-def _inputs_known(expression: str, known: list[Decimal]) -> bool:
-    """Whether each input of the expression is a returned fact or a cited passage's figure."""
+def _calculation_inputs(expression: str, known: list[tuple[Decimal, str]]) -> list[str] | None:
+    """The sources of the expression's inputs ("F1", "passage 2"), or None if one is unknown.
+
+    Each input must be a returned fact or a cited passage's figure, written in units, thousands,
+    millions or billions; a power of ten is a unit change or a percent factor, not an input.
+    """
+    names: list[str] = []
     for token in INPUT_RE.findall(expression):
         value = Decimal(token.replace(",", ""))
         if value in POWERS_OF_TEN:
             continue
         decimals = len(token.partition(".")[2])
-        if not any(
-            _agrees(value * scale, decimals, scale, abs(source))
-            for scale in INPUT_SCALES
-            for source in known
-        ):
-            return False
-    return True
+        name = next(
+            (
+                source_name
+                for source, source_name in known
+                for scale in INPUT_SCALES
+                if _agrees(value * scale, decimals, scale, abs(source))
+            ),
+            None,
+        )
+        if name is None:
+            return None
+        if name not in names:
+            names.append(name)
+    return names
 
 
 def _results(value: Decimal, percent: bool) -> list[Decimal]:
@@ -242,8 +258,10 @@ def label_numbers(answer_text: str, sources: Sources) -> list[NumberLabel]:
     passage_figures = {
         p.number: read_figures(p.text) for p in sources.passages if p.number in cited_passages
     }
-    known_inputs = [f.value for f in sources.facts] + [
-        figure.value for figures in passage_figures.values() for figure in figures
+    known_inputs = [(f.value, f"F{f.number}") for f in sources.facts] + [
+        (figure.value, f"passage {number}")
+        for number, figures in passage_figures.items()
+        for figure in figures
     ]
     labels: list[NumberLabel] = []
     for figure in read_figures(answer_text):
@@ -253,7 +271,7 @@ def label_numbers(answer_text: str, sources: Sources) -> list[NumberLabel]:
             labels.append(_new(figure, "unverified"))
             continue
         labels.append(_label(figure, sources, facts, cited_passages, passage_figures, known_inputs))
-    return labels
+    return _placed(answer_text, labels)
 
 
 def _label(
@@ -262,7 +280,7 @@ def _label(
     facts: dict[int, SourceFact],
     cited_passages: list[int],
     passage_figures: dict[int, list[Figure]],
-    known_inputs: list[Decimal],
+    known_inputs: list[tuple[Decimal, str]],
 ) -> NumberLabel:
     if not figure.percent:
         for fact in sources.facts:  # 1. a returned fact
@@ -287,14 +305,18 @@ def _label(
                             ),
                         )
     for calculation in sources.calculations:  # 3. a calculation from known inputs
-        if any(
+        if not any(
             _matches(figure, result) for result in _results(calculation.value, figure.percent)
-        ) and _inputs_known(calculation.expression, known_inputs):
+        ):
+            continue
+        inputs = _calculation_inputs(calculation.expression, known_inputs)
+        if inputs is not None:
             return _new(
                 figure,
                 "verified",
                 basis="calculation",
                 calculation=calculation.expression,
+                inputs=inputs,
                 source=f"calculation: {calculation.expression}",
             )
     # 4. a cited passage: the ones its sentence cites first, in the order cited
@@ -313,3 +335,38 @@ def _label(
             if cited is not None and UNIT_KINDS.get(cited.unit) == kind:
                 return _new(figure, "conflict", cited_value=cited.value, **_fact_found(cited))
     return _new(figure, "unverified")
+
+
+NUMBER_CORE_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _prepared(text: str) -> str:
+    """The text as the number reader sees it, one character for one character."""
+    return normalize_text(GROUP_SPACE_RE.sub(",", text)).replace(RIGHT_QUOTE, "'")
+
+
+def _placed(text: str, labels: list[NumberLabel]) -> list[NumberLabel]:
+    """Each label with where its figure ends in the text, found in order, in UTF-16 units."""
+    prepared = _prepared(text)
+    position = 0
+    placed: list[NumberLabel] = []
+    for label in labels:
+        match = re.compile(r"(?<![\d.,])" + re.escape(label.figure) + r"(?!\d)").search(
+            prepared, position
+        )
+        if match is None:  # written across a line break: place it after its digits
+            core = NUMBER_CORE_RE.search(label.figure)
+            match = (
+                re.compile(r"(?<![\d.,])" + re.escape(core.group(0)) + r"(?!\d)").search(
+                    prepared, position
+                )
+                if core
+                else None
+            )
+        if match is None:
+            placed.append(label)
+            continue
+        position = match.end()
+        end = len(text[:position].encode("utf-16-le")) // 2
+        placed.append(label.model_copy(update={"end": end}))
+    return placed

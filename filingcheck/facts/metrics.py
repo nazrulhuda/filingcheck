@@ -244,6 +244,11 @@ def line_label(tag: str, ticker: str) -> str:
     return COMPANY_LABELS.get((tag, ticker), LABELS[tag])
 
 
+def has_company_label(tag: str, ticker: str) -> bool:
+    """Whether the company's own wording is mapped for `tag`; if not, `line_label` is generic."""
+    return (tag, ticker) in COMPANY_LABELS
+
+
 def candidate_tags(metric: str, revenue_rule: str) -> tuple[str, ...]:
     """The tags tried for `metric`, in order; banks have their own revenue order."""
     if metric == "revenue" and revenue_rule == "bank":

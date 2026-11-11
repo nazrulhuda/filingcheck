@@ -46,6 +46,28 @@ def format_incomplete(error: IncompleteAnswer) -> str:
     )
 
 
+BASIS_WORDS = {
+    "fact": "fact",
+    "fact_other_period": "another period",
+    "calculation": "calculation",
+    "passage": "passage",
+}
+
+
+def format_labels(answer: Answer) -> list[str]:
+    """One line per figure: its label and where it was found."""
+    lines = ["Number labels:"]
+    for label in answer.number_labels:
+        if label.label == "verified" and label.basis is not None:
+            words = f"Verified, {BASIS_WORDS[label.basis]} ({label.source})"
+        elif label.label == "conflict":
+            words = f"Conflict ({label.source}; the source says {label.cited_value})"
+        else:
+            words = "Unverified"
+        lines.append(f"  {label.figure}: {words}")
+    return lines if answer.number_labels else [*lines, "  (none)"]
+
+
 def format_answer(answer: Answer, completion: Completion | None) -> str:
     """The answer, its citations and what it cost, for the terminal."""
     lines = [answer.text, "", "Citations:"]
@@ -53,6 +75,7 @@ def format_answer(answer: Answer, completion: Completion | None) -> str:
         f"  {c.ticker} FY{c.fiscal_year} Item {c.item} (chunk {c.chunk_id}): {c.source_url}"
         for c in answer.citations
     ] or ["  (none)"]
+    lines += format_labels(answer)
     lines += [
         "",
         f"model used: {answer.model_used}",
@@ -100,6 +123,7 @@ def format_agent_answer(answer: "AgentAnswer") -> str:
         f"{c.instant or f'{c.period_start} to {c.period_end}'}: {c.source_url}"
         for c in answer.fact_citations
     ] or ["  (none)"]
+    lines += format_labels(answer)
     lines.append(f"checks: {'on' if answer.checks else 'off'}")
     for record in answer.overrides:
         options = f"; options: {', '.join(record.options)}" if record.options else ""

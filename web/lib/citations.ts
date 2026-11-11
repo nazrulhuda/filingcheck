@@ -13,6 +13,8 @@ export type Citation = {
   item: string;
   source_url: string;
   quote: string;
+  /** The whole passage, for the chip; absent in answers saved before it was sent. */
+  text?: string;
 };
 
 /** A number from get_financial_fact, cited as [Fn]; the value is a string as filed. */
@@ -26,6 +28,8 @@ export type FactCitation = {
   instant: string | null;
   accession: string;
   source_url: string;
+  /** True when the line label is the metric's standard name, not the company's own wording. */
+  standard_label?: boolean;
 };
 
 /** A fact the run looked up: [Fn] is the n-th one. Only the fields the page reads. */
@@ -129,7 +133,12 @@ export function segments(
     plain += text.slice(last, start);
     if (plain) parts.push({ kind: "text", text: plain });
     plain = "";
-    parts.push({ kind: "cite", raw: text.slice(start, end), citations: passages, facts: factsCited });
+    parts.push({
+      kind: "cite",
+      raw: text.slice(start, end),
+      citations: passages,
+      facts: factsCited,
+    });
     last = end;
   }
   plain += text.slice(last);

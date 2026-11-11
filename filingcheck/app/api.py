@@ -222,6 +222,9 @@ def create_app(services: Services | None = None) -> FastAPI:
             "completion_tokens": answer.usage.get("completion_tokens"),
             "cost_usd": answer.cost_usd,
             "abstained": answer.abstained,
+            "number_labels": [
+                json.loads(label.model_dump_json()) for label in answer.number_labels
+            ],
         }
 
     def agent_fields(answer: AgentAnswer) -> dict[str, Any]:

@@ -2,12 +2,12 @@
 
 import type { Override } from "./checks.ts";
 import type { Citation, FactCitation, FactUsed } from "./citations.ts";
+import type { NumberLabel } from "./labels.ts";
 import { createSseParser } from "./sse.ts";
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
-  /\/$/,
-  "",
-);
+export const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+).replace(/\/$/, "");
 
 export type Answer = {
   text: string;
@@ -21,6 +21,8 @@ export type Answer = {
   abstained: boolean;
   has_uncited_claims: boolean;
   degraded: boolean;
+  // Each figure's label against the sources the answer used; absent in answers saved before.
+  number_labels?: NumberLabel[];
   // The agent's answers only: what it looked up and what its checks did.
   mode?: "agent";
   checks?: boolean;
@@ -33,10 +35,18 @@ export type Answer = {
 export type Company = { ticker: string; name: string; fiscal_years: number[] };
 
 /** The example question a cached answer belongs to (not the visitor's question). */
-export type ExampleRef = { question: string; ticker: string | null; fiscal_year: number | null };
+export type ExampleRef = {
+  question: string;
+  ticker: string | null;
+  fiscal_year: number | null;
+};
 
 /** An answer, and whether it is a saved example's answer served after the daily limit. */
-export type AskResult = { answer: Answer; cached: boolean; example: ExampleRef | null };
+export type AskResult = {
+  answer: Answer;
+  cached: boolean;
+  example: ExampleRef | null;
+};
 
 export type Question = {
   question: string;
@@ -66,7 +76,8 @@ async function apiError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as { detail?: unknown };
     if (typeof body.detail === "string") detail = body.detail;
-    else if (response.status === 422) detail = "The question could not be read; please edit it.";
+    else if (response.status === 422)
+      detail = "The question could not be read; please edit it.";
   } catch {
     // keep the generic message
   }
@@ -84,10 +95,14 @@ export async function checkHealth(timeoutMs: number): Promise<Health> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${API_URL}/health`, { signal: controller.signal });
+    const response = await fetch(`${API_URL}/health`, {
+      signal: controller.signal,
+    });
     if (response.status === 200) return "ok";
     if (response.status === 503) {
-      const body = (await response.json().catch(() => null)) as { status?: unknown } | null;
+      const body = (await response.json().catch(() => null)) as {
+        status?: unknown;
+      } | null;
       if (body?.status === "no model key") return "no-model";
     }
     return "unreachable";
@@ -165,25 +180,47 @@ export async function askStreaming(
           detail?: string;
         };
         if (event.event === "tool" && data.label) {
-          progress = { ...progress, steps: [...progress.steps, { label: data.label, status: data.status ?? "" }] };
+          progress = {
+            ...progress,
+            steps: [
+              ...progress.steps,
+              { label: data.label, status: data.status ?? "" },
+            ],
+          };
           onProgress(progress);
         } else if (event.event === "restart") {
-          progress = { steps: [], restarted: data.detail ?? "Starting again with another model." };
+          progress = {
+            steps: [],
+            restarted: data.detail ?? "Starting again with another model.",
+          };
           onProgress(progress);
         } else if (event.event === "token" && data.text) {
           received += data.text;
           onText(received);
         } else if (event.event === "final" && data.answer) {
-          return { answer: data.answer, cached: data.cached === true, example: data.example ?? null };
+          return {
+            answer: data.answer,
+            cached: data.cached === true,
+            example: data.example ?? null,
+          };
         } else if (event.event === "error") {
-          throw new ApiError(503, data.detail ?? "The answer could not be finished.");
+          throw new ApiError(
+            503,
+            data.detail ?? "The answer could not be finished.",
+          );
         }
       }
     }
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (!received) return ask(question);
-    throw new ApiError(0, "The connection dropped before the answer finished; please try again.");
+    throw new ApiError(
+      0,
+      "The connection dropped before the answer finished; please try again.",
+    );
   }
-  throw new ApiError(0, "The answer stopped before it finished; please try again.");
+  throw new ApiError(
+    0,
+    "The answer stopped before it finished; please try again.",
+  );
 }
