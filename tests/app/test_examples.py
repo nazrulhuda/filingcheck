@@ -192,6 +192,17 @@ def test_the_export_adds_the_number_labels_and_whether_each_line_label_is_standa
     assert example["answer"]["text"] == answer["text"]
 
 
+def test_the_export_fills_each_citations_whole_passage_when_it_was_not_stored(
+    tmp_path: Path,
+) -> None:
+    store = MemoryStore(examples=[stored("Swaps [1].", [101], numbered=True)])
+    export_examples(
+        store, tmp_path / "examples.json", passage_text=lambda ids: {i: f"text {i}" for i in ids}
+    )
+    (example,) = json.loads((tmp_path / "examples.json").read_text(encoding="utf-8"))
+    assert example["answer"]["citations"][0]["text"] == "text 101"
+
+
 def test_the_export_refuses_an_answer_whose_markers_do_not_match_its_citations(
     tmp_path: Path,
 ) -> None:

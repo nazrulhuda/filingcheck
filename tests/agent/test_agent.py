@@ -544,3 +544,12 @@ def test_make_ask_prints_each_figures_label() -> None:
     text = format_agent_answer(run_agent("Apple sales?", model=chat, deps=apple_deps()))
     assert "Number labels:" in text
     assert "$416,161 million: Verified, fact (F1, us-gaap:" in text
+
+
+def test_an_agent_citation_carries_its_whole_passage_for_the_page() -> None:
+    chat = FakeChat(
+        [scripted_tool_calls(("search_filings", {"query": "risks", "ticker": "WMT"})), "Risks [2]."]
+    )
+    answer = run_agent("Walmart's risks?", model=chat, deps=apple_deps())
+    (citation,) = answer.citations
+    assert citation.text == HITS[1].text

@@ -513,3 +513,8 @@ def test_a_baseline_answer_labels_its_figures_against_the_passages_it_was_given(
 def test_a_baseline_answer_that_cites_nothing_has_unverified_figures() -> None:
     (label,) = ask("Revenue was $5 billion.").number_labels
     assert label.label == "unverified"
+
+
+def test_each_citation_carries_its_whole_passage_for_the_page() -> None:
+    (citation,) = ask("Peso swings [2].").citations
+    assert citation.text == HITS[1].text and citation.quote == HITS[1].text[:200]
