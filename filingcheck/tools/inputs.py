@@ -74,10 +74,6 @@ COMPANY_LIST = "; ".join(
     for ticker, name in TICKER_NAMES.items()
 )
 
-# The saved 10-K Items; "1-7A" is the merged section of the banks that map Items to pages.
-Item = Literal["1", "1A", "7", "7A", "8", "1-7A"]
-ITEMS: tuple[str, ...] = ("1", "1A", "7", "7A", "8", "1-7A")
-
 
 _DIGITS = re.compile(r"-?[0-9]+")
 
