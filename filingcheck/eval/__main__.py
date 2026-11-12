@@ -315,7 +315,12 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
 
 
 def _write_arms(
-    set_name: str, out: Path, checks: bool, questions: Path, repeats: int, label: str | None
+    set_name: str,
+    out: Path,
+    checks: bool,
+    questions: Path,
+    repeats: int,
+    label: str | None = None,
 ) -> None:
     """After an agent run: the comparison with the newest finished file of the other arm."""
     from filingcheck.eval.arms import arm_name, arms_path, compare_arms, finished_arm
