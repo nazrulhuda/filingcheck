@@ -204,9 +204,10 @@ def test_the_summary_table_counts_each_outcome_per_question_and_in_total() -> No
     graded = [(r, grade(r, q)) for r in rows]
     table = summary_table(graded, mode="agent")
     # Correct, year not stated, other year, wrong number, no number, asked back, answered
-    # when it should have asked, abstained, errors, not graded.
-    assert "| control-001 | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
-    assert "| **All** | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |" in table
+    # when it should have asked, asked about another thing, abstained, answered (unanswerable),
+    # errors, not graded; then correct under the lenient clarify rule.
+    assert "| control-001 | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 |" in table
+    assert "| **All** | 3 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 |" in table
     assert "$0.000600" in table
 
 

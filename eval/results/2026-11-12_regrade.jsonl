@@ -1,0 +1,10 @@
+{"file": "eval/results/2026-11-05_examples_agent.jsonl", "id": "trap-001", "repeat": 1, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-05_examples_agent.jsonl", "id": "trap-001", "repeat": 2, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-05_examples_agent.jsonl", "id": "trap-001", "repeat": 3, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-09_examples_agent-checks-off.jsonl", "id": "trap-001", "repeat": 1, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-09_examples_agent-checks-on.jsonl", "id": "trap-001", "repeat": 3, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-10_examples_agent-checks-off.jsonl", "id": "trap-001", "repeat": 1, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-10_examples_agent-checks-on.jsonl", "id": "trap-001", "repeat": 3, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-11_examples_agent-checks-off.jsonl", "id": "trap-001", "repeat": 1, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-11_examples_agent-checks-on.jsonl", "id": "trap-001", "repeat": 1, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
+{"file": "eval/results/2026-11-11_examples_agent-checks-on.jsonl", "id": "trap-001", "repeat": 3, "before": "correct", "after": "asked_about_another_thing", "lenient": "correct"}
