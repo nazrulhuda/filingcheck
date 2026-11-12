@@ -147,7 +147,7 @@ class GradeCache:
             for line in path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     record = json.loads(line)
-                    self.records[record["key"]] = record
+                    self.records[record["input_sha256"]] = record
 
     def get(self, key: str) -> dict[str, Any] | None:
         """The cached grade for these inputs, if there is one."""
@@ -155,7 +155,7 @@ class GradeCache:
 
     def put(self, key: str, record: dict[str, Any]) -> None:
         """Keep a grade and append it to the file."""
-        self.records[key] = {"key": key, **record}
+        self.records[key] = {"input_sha256": key, **record}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(self.records[key], ensure_ascii=False) + "\n")
