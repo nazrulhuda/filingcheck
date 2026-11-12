@@ -98,8 +98,21 @@ def reply(payload: dict[str, Any], cost: float = 0.001) -> Completion:
 def test_the_prompt_is_a_versioned_file_with_the_any_year_rule() -> None:
     text, version = load_prompt()
     assert Path(__file__).resolve().parents[2] / "eval" / "grader_prompt.md" == PROMPT_FILE
-    assert text.startswith("Version: 1") and version.startswith("1-") and len(version) == 14
+    assert text.startswith("Version: 2") and version.startswith("2-") and len(version) == 14
     assert "Text questions name no year" in text
+
+
+def test_version_2_holds_the_one_fix_from_the_hand_graded_sample() -> None:
+    """The four patterns where the first sample's hand grades and the LLM differed."""
+    text, _ = load_prompt()
+    # A question back where an answer was expected is `asked`, whatever it asks.
+    assert "whatever it asks about" in text
+    # A claim made while declining or asking is still judged for support.
+    assert "`n/a` only when the answer states no fact" in text
+    # Specific facts or quoted wording missing from the sources count against support.
+    assert "quoted wording" in text
+    # A misstated figure or relation caps the verdict; a left-out side detail does not.
+    assert "misstates a figure or a relation" in text and "left out" in text
 
 
 def test_the_grader_sees_the_question_the_reference_the_answer_and_its_sources() -> None:
@@ -144,7 +157,7 @@ def test_a_verdict_is_read_from_the_models_json(tmp_path: Path) -> None:
         False,
         None,
     )
-    assert result.cost_usd == 0.001 and result.prompt_version.startswith("1-")
+    assert result.cost_usd == 0.001 and result.prompt_version.startswith("2-")
     call = model.calls[0]
     assert call["json_schema"] == VERDICT_SCHEMA and call["temperature"] is None
 
