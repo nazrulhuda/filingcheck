@@ -4,6 +4,8 @@ gold: fill the gold values of a question file from the facts table (filingcheck/
 run:  a question set through one mode in batch mode, graded (filingcheck/eval/run.py).
 gate-fixture: write the gate's facts fixture from data/facts.jsonl (filingcheck/eval/gate.py).
 grade: the LLM grader over a stored results file (filingcheck/eval/llm_grade.py), `make grade`.
+dry-run: the Day 33 report over a day's result files, and a hidden sample of text answers
+(filingcheck/eval/dryrun.py), `make dry-run`.
 """
 
 import argparse
@@ -125,8 +127,133 @@ def grade_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def dryrun_main(args: argparse.Namespace) -> int:
+    """Write the dry-run report for one day's result files, and the hidden text sample."""
+    import random
+
+    from filingcheck.db import connect
+    from filingcheck.eval.dryrun import report
+    from filingcheck.eval.grade import grade
+    from filingcheck.eval.llm_grade import LlmGrade
+    from filingcheck.eval.llm_sample import Candidate, HiddenRow, draw_sample, render_hidden
+    from filingcheck.eval.run import read_questions, set_names
+
+    arms: dict[str, dict[str, Any]] = {}
+    questions: dict[str, Any] = {}
+    pool: dict[str, tuple[dict[str, Any], Any, LlmGrade]] = {}
+    for set_name in set_names(args.sets):
+        by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
+        questions |= by_id
+        for arm, label in (("agent-checks-off", "checks off"), ("agent-checks-on", "checks on")):
+            path = REPO_ROOT / "eval" / "results" / f"{args.date}_{set_name}_{arm}.jsonl"
+            if not path.exists():
+                print(f"no {path.relative_to(REPO_ROOT)}: that arm is left out")
+                continue
+            rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x]
+            graded = [(r, grade(r, by_id[r["id"]])) for r in rows if r["id"] in by_id]
+            llm: dict[tuple[str, int], LlmGrade] = {}
+            llm_path = path.with_name(path.stem + "_llm.jsonl")
+            if llm_path.exists():
+                for line in llm_path.read_text(encoding="utf-8").splitlines():
+                    if line:
+                        g = LlmGrade.model_validate_json(line)
+                        llm[(g.id, g.repeat)] = g
+            else:
+                print(f"no {llm_path.relative_to(REPO_ROOT)}: no LLM grades for that arm")
+            arms.setdefault(set_name, {})[label] = (graded, llm)
+            for row, _ in graded:
+                found = llm.get((row["id"], row.get("repeat", 1)))
+                if found is not None and found.use == "text" and found.verdict:
+                    key = f"eval/results/{path.name}:{row['id']}:{row.get('repeat', 1)}"
+                    pool[key] = (row, by_id[row["id"]], found)
+    held: dict[str, set[int]] = {}
+    manifest = json.loads((REPO_ROOT / "data" / "manifest.json").read_text(encoding="utf-8"))
+    for filing in manifest["filings"]:
+        held.setdefault(filing["ticker"], set()).add(int(filing["fiscal_year"]))
+    page = REPO_ROOT / "eval" / "results" / f"{args.date}_dry-run.md"
+    page.write_text(
+        report(arms, questions, date=args.date, held=held), encoding="utf-8", newline="\n"
+    )
+    print(f"wrote {page.relative_to(REPO_ROOT)}")
+    if args.sample_key is None:
+        return 0
+    candidates = [Candidate(key=k, stratum="text") for k in pool]
+    sample = draw_sample(candidates, {"text": args.sample_size}, seed=args.seed)
+    random.Random(args.seed + 2).shuffle(sample)
+    hidden_rows, key_rows = [], []
+    with connect() as conn:
+        sources_for = sources_reader(conn)
+        for n, candidate in enumerate(sample, 1):
+            row, question, g = pool[candidate.key]
+            passages, facts = sources_for(row)
+            reference = []
+            if question.gold_value is not None:
+                reference.append(f"Gold value: {question.gold_value} {question.gold_unit}")
+            if question.gold_text:
+                reference.append(f"Gold text: {question.gold_text}")
+            if question.trap_note:
+                reference.append(f"Note: {question.trap_note}")
+            hidden_rows.append(
+                HiddenRow(
+                    key=candidate.key,
+                    question=row["question"],
+                    expected=f"{question.expected_behavior}; company {question.company}, "
+                    f"fiscal year {question.fiscal_year}",
+                    reference=reference,
+                    answer=row["answer"],
+                    passages=passages,
+                    facts=[_fact_text(f) for f in facts],
+                )
+            )
+            key_rows.append(
+                {
+                    "n": n,
+                    "key": candidate.key,
+                    "stratum": "text",
+                    "verdict": g.verdict,
+                    "supported": g.supported,
+                    "reason": g.reason,
+                }
+            )
+    hidden = REPO_ROOT / "eval" / "llm_grades" / f"{args.date}_sample3_hidden.md"
+    hidden.write_text(
+        render_hidden(
+            hidden_rows,
+            title=f"Hand-graded sample 3 for the LLM grader ({args.date})",
+            intro=f"Drawn by `python -m filingcheck.eval dry-run` with seed {args.seed}: "
+            f"{args.sample_size} text answers from the dry run's rows, both arms, with the "
+            "LLM verdicts hidden. Give each row a **verdict** (correct, wrong, partly, "
+            "abstained, asked) and **supported** (yes, partly, no, n/a), by the rules in "
+            "`eval/grader_prompt.md`.",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    args.sample_key.write_text(
+        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in key_rows), encoding="utf-8"
+    )
+    print(f"wrote {hidden.relative_to(REPO_ROOT)}; {len(pool)} text rows in the pool")
+    return 0
+
+
+def _fact_text(fact: dict[str, Any]) -> str:
+    period = fact.get("instant") or f"{fact.get('period_start')} to {fact.get('period_end')}"
+    return f"{fact['concept']} = {fact['value']} {fact['unit']} ({period})"
+
+
 def run_main(args: argparse.Namespace) -> int:
-    """Ask, grade and summarize one question set in one mode (batch mode, no fallback)."""
+    """Ask, grade and summarize each named question set in one mode, one after the other."""
+    from filingcheck.eval.run import set_names
+
+    for set_name in set_names(args.set):
+        code = _run_set(args, set_name)
+        if code:
+            return code
+    return 0
+
+
+def _run_set(args: argparse.Namespace, set_name: str) -> int:
+    """One question set in one mode (batch mode, no fallback); resumable like the batch runner."""
     from filingcheck.answer.batch import BatchFileError
     from filingcheck.answer.run import hybrid_retriever, settings_line
     from filingcheck.checks import reference_data
@@ -137,19 +264,19 @@ def run_main(args: argparse.Namespace) -> int:
     from filingcheck.llm import router_from_env
     from filingcheck.tools import ToolDeps
 
-    questions = QUESTIONS_DIR / f"{args.set}.jsonl"
+    questions = QUESTIONS_DIR / f"{set_name}.jsonl"
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
     name = arm_name(args.mode, args.checks)
     if args.date:
-        out = REPO_ROOT / results_path(args.set, name, args.date)
+        out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
         today = datetime.now(UTC).date().isoformat()
         ids = {q.id for q in read_questions(questions)}
         out = choose_results_path(
             REPO_ROOT,
-            args.set,
+            set_name,
             name,
             expected_rows=len(ids) * args.repeats,
             today=today,
@@ -160,7 +287,7 @@ def run_main(args: argparse.Namespace) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     router = router_from_env("batch")
     settings = settings_line(router.primary.name, filters="question text only, no filters")
-    print(f"mode: batch, {name}; {args.repeats} run(s) per question; {settings}")
+    print(f"{set_name}: mode batch, {name}; {args.repeats} run(s) per question; {settings}")
     with connect() as conn:
         extra = reference_data() if args.checks else {}
         deps = ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn), **extra)
@@ -181,7 +308,7 @@ def run_main(args: argparse.Namespace) -> int:
     print(summary.read_text(encoding="utf-8"))
     print(f"wrote {out.relative_to(REPO_ROOT)} and {summary.relative_to(REPO_ROOT)}")
     if args.checks is not None:
-        _write_arms(args.set, out, args.checks, questions, args.repeats)
+        _write_arms(set_name, out, args.checks, questions, args.repeats)
     return 0
 
 
@@ -226,7 +353,9 @@ def main(argv: list[str] | None = None) -> int:
     gold.add_argument("--questions", type=Path, default=QUESTIONS_DIR / "examples.jsonl")
     commands.add_parser("gate-fixture", help="write the gate's facts fixture from the facts file")
     run = commands.add_parser("run", help="ask and grade a question set in one mode")
-    run.add_argument("--set", required=True, help="a question file in eval/questions/, no .jsonl")
+    run.add_argument(
+        "--set", required=True, help="question files in eval/questions/, no .jsonl, comma-separated"
+    )
     run.add_argument("--mode", choices=["baseline", "agent"], required=True)
     run.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
     run.add_argument(
@@ -240,6 +369,12 @@ def main(argv: list[str] | None = None) -> int:
     llm.add_argument(
         "--cache", type=Path, default=REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl"
     )
+    dry = commands.add_parser("dry-run", help="the Day 33 report and the hidden text sample")
+    dry.add_argument("--date", default=datetime.now(UTC).date().isoformat())
+    dry.add_argument("--sets", default="dev_traps,dev_unanswerable,control")
+    dry.add_argument("--sample-key", type=Path, help="where the hidden sample's verdicts go")
+    dry.add_argument("--sample-size", type=int, default=20)
+    dry.add_argument("--seed", type=int, default=20261133)
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -249,6 +384,8 @@ def main(argv: list[str] | None = None) -> int:
         return gold_main(args)
     if args.command == "grade":
         return grade_main(args)
+    if args.command == "dry-run":
+        return dryrun_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument

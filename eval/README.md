@@ -6,6 +6,7 @@
 make eval SET=examples MODE=agent CHECKS=on REPEATS=3
 make eval SET=examples MODE=agent CHECKS=off REPEATS=3
 make eval SET=examples MODE=baseline REPEATS=3
+make eval SET=dev_traps,dev_unanswerable,control MODE=agent CHECKS=on REPEATS=3   # several sets, one after another, one file each
 ```
 
 - **What it does:** runs `eval/questions/<SET>.jsonl` through the batch runner in one mode, asks each question `REPEATS` times (default 1), grades every answer with the deterministic number grader (`filingcheck/eval/grade.py`), and writes `eval/results/<date>_<SET>_<ARM>.jsonl` (every batch row with its `grade`) and a `.md` file next to it with a one-table summary.
@@ -28,6 +29,10 @@ make eval SET=examples MODE=baseline REPEATS=3
   - **Numbers:** a minus sign attached to the number, an amount in parentheses, or a loss ("a net loss of $10.6 billion") makes a number negative; a dash with a space after it ("revenue - $681 billion", a subtraction) does not, and neither does the "(loss)" of a label. In a range ("$680.9-681.0 billion", "10-12%") both numbers are positive and take the second one's scale.
   - **Other outcomes:** `error` for a row with no answer; `not_graded` for a number question with no gold value.
 
+## `make dry-run`: the Day 33 report
+
+`make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>]` reads the day's result files for `dev_traps`, `dev_unanswerable` and `control`, both arms, with their `_llm.jsonl` grades, and writes `eval/results/<date>_dry-run.md` ("Dry run: pipeline check, not results"): per set and arm the outcomes, the lenient-rule count, the LLM verdicts, abstain rate, cost and p50/p95 latency; check activity per category; false repairs on control questions; label shares in correct and wrong-number answers; text support; every grader disagreement; and the relative_year runs with no tool call. With `KEY`, it also draws the third hand-graded sample: 20 text answers from the dry run's rows (seed 20261133), written to `eval/llm_grades/<date>_sample3_hidden.md` with the verdicts hidden and the key at `KEY`. No model call.
+
 ## `make eval-smoke`: the deterministic gate
 
 ```
@@ -48,12 +53,12 @@ uv run python -m filingcheck.answer batch --mode agent --questions eval/question
 uv run python -m filingcheck.answer batch --mode baseline --questions eval/questions/examples.jsonl --out eval/results/<name>.jsonl [--repeats 3]
 ```
 
-- **Mode and input:** it runs every question of a question file through one mode (`baseline`: plain RAG; `agent`: the agent with its three tools) in **batch mode**. Batch mode means waiting out rate limits, never falling back to another model, and stopping on a provider failure.
+- **Mode and input:** it runs every question of a question file through one mode (`baseline`: plain RAG; `agent`: the agent with its three tools) in **batch mode**. Batch mode means waiting out rate limits and never falling back to another model.
 - **Questions:** each is asked as its text only, with no company or year filter.
 - **Output:** one JSON line per question.
 - **Repeats:** with `--repeats N` each question is asked N times, one whole pass over the file after another; each row records its `repeat`.
 - **Resumable:** a (question, repeat) pair already in the output file is skipped. A last line cut off by a crash (no line end) is dropped and that question is asked again. Any other line that is not a JSON object with an `id` stops the run with its line number, and the file is left as it is. Run the same command again to continue.
-- **Failures:** a cut-off or empty answer is written with its error code and what the run spent up to it (see below). Any other provider failure stops the run, so no question is answered by another model.
+- **Failures:** a cut-off or empty answer is written with its error code and what the run spent up to it (see below). A provider failure on one row (after the client's own retries) is written as an error row too, with what the run spent on it, and the run goes on; a resume does not ask that row again (delete its line to retry it). Three failures in a row look like an outage and stop the run before the third is written, so it can be resumed. No question is ever answered by another model.
 
 ## Output format (one JSON object per line)
 

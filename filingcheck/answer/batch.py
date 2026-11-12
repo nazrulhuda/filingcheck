@@ -3,9 +3,11 @@
 Resumable: questions already in the output file are skipped, and a last line cut off by a
 crash is dropped before the run goes on; any other line that is not a complete result stops
 the run with its line number. A cut-off or empty answer is written with its error code and
-what the run spent; any other provider failure stops the run (batch mode never falls back),
-so it can be resumed later. This is the runner the evaluation uses; eval/README.md documents
-the format.
+what the run spent. A provider failure on one row (after the client's own retries; batch mode
+never falls back) is written as an error row too, and the run goes on; a resume does not ask
+that row again (delete its line to retry it). Three failures in a row look like an outage: the
+run stops before writing the third, so it can be resumed later. This is the runner the
+evaluation uses; eval/README.md documents the format.
 """
 
 import json
@@ -16,10 +18,12 @@ from typing import Any
 
 from filingcheck.agent import RunLog, run_agent, total_usage
 from filingcheck.answer.baseline import Answer, answer_question
-from filingcheck.llm import ChatModel, IncompleteAnswer
+from filingcheck.llm import ChatModel, IncompleteAnswer, ProviderError
 from filingcheck.retrieval import Retriever
 from filingcheck.tools import ToolDeps
 
+# Provider failures on this many rows in a row stop the run: an outage, not one bad row.
+MAX_CONSECUTIVE_FAILURES = 3
 BATCH_FIELDS = (
     "id",
     "repeat",
@@ -129,6 +133,7 @@ def run_batch(
     done = read_done(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     written = 0
+    failures = 0  # provider failures in a row
     for repeat in range(1, repeats + 1):
         for qid, question in questions:
             if (qid, repeat) in done:
@@ -164,6 +169,7 @@ def run_batch(
                         fiscal_year=fiscal_year,
                     )
             except IncompleteAnswer as exc:
+                failures = 0
                 completion = exc.completion
                 # Everything the run spent: for the agent every model call before the cut-off one.
                 completions = run_log.completions if mode == "agent" else [completion]
@@ -183,7 +189,28 @@ def run_batch(
                         "facts_used": [json.loads(f.model_dump_json()) for f in run_log.facts],
                         "overrides": [json.loads(o.model_dump_json()) for o in run_log.overrides],
                     }
+            except ProviderError as exc:
+                failures += 1
+                if failures >= MAX_CONSECUTIVE_FAILURES:
+                    raise
+                completions = run_log.completions if mode == "agent" else []
+                usage, cost = total_usage(completions)
+                row |= {
+                    "model": model.name,
+                    "error": exc.log_code,
+                    "usage": usage,
+                    "cost_usd": cost,
+                    "latency_ms": (time.perf_counter() - started) * 1000,
+                    "model_calls": len(completions),
+                }
+                if mode == "agent":
+                    row |= {
+                        "tool_calls": [json.loads(r.model_dump_json()) for r in run_log.tool_calls],
+                        "facts_used": [json.loads(f.model_dump_json()) for f in run_log.facts],
+                        "overrides": [json.loads(o.model_dump_json()) for o in run_log.overrides],
+                    }
             else:
+                failures = 0
                 data = json.loads(answer.model_dump_json())
                 row |= {
                     "model": data["model_used"],

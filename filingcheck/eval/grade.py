@@ -127,7 +127,8 @@ DATE_RE = re.compile(
 # The words before a date that make it a period's end ("the year ended", "through", "as of").
 PERIOD_END_BEFORE_RE = re.compile(
     r"(?:\bended|\bending|\bend(?:ed)?\s+on|\bthrough|\bthru|\bto|\buntil|\bas\s+of|\bat|-"
-    r"|(?<!filed )(?<!dated )(?<!issued )\bon)\s*(?:on\s+)?$"
+    r"|(?<!filed )(?<!dated )(?<!issued )\bon)\s*(?:on\s+)?"
+    r"(?:the\s+)?(?:(?:fiscal\s+)?year[\s-]*end\s+)?$"  # "as of the year-end December 31, 2025"
     r"|\d\s+$",  # a date right after another date or number ends a range
     re.IGNORECASE,
 )
@@ -214,7 +215,7 @@ def _plain(value: Decimal) -> str:
 
 
 def _prepare(text: str) -> str:
-    text = GROUP_SPACE_RE.sub(",", text)
+    text = GROUP_SPACE_RE.sub(",", text).replace("**", "")  # markdown bold hides a period end
     text = normalize_text(text).replace(RIGHT_QUOTE, "'")
     return SPLIT_SCALE_RE.sub(r"\1 ", text)
 
@@ -327,9 +328,11 @@ def declines(text: str) -> bool:
 
 
 # Asking which company: "which company", "which one", "which of them".
+# "which company", "which credit-card company", "which of the two", "specify the ticker".
 ASK_COMPANY_RE = re.compile(
-    r"\bwhich (?:company|one|firm|bank|business|of (?:them|these|the two))\b"
-    r"|\bwhat company\b",
+    r"\bwhich (?:[\w'-]+ ){0,2}(?:company|companies|one|firm|bank|business|issuer"
+    r"|of (?:them|these|the two))\b"
+    r"|\bwhat company\b|\bspecify the (?:ticker|company)\b",
     re.IGNORECASE,
 )
 # Asking which year or period: "which fiscal year", "specify the year", "what period".
@@ -350,16 +353,27 @@ def addresses_ambiguity(text: str, question: Question) -> bool:
 
     With no company resolved, the company is ambiguous: the answer must name at least two
     companies or ask which company. With a company but no fiscal year, the year is: the answer
-    must ask which year or period, or name at least two fiscal years.
+    must ask which year or period, or name at least two fiscal years. A page filter settles the
+    company when the question names no other company (then the year is the ambiguity); when
+    the question names a different company, the company is; when it names none the matcher
+    knows, either kind of question back counts.
     """
     text = _prepare(text)
-    if question.company is None:
-        named = {
-            next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
-        }
-        return len(named) >= 2 or ASK_COMPANY_RE.search(text) is not None
+    named = {
+        next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
+    }
+    company_ok = len(named) >= 2 or ASK_COMPANY_RE.search(text) is not None
     years = {_year(m.group(1)) for m in FISCAL_PHRASE_RE.finditer(text)}
-    return ASK_YEAR_RE.search(text) is not None or len(years) >= 2
+    year_ok = ASK_YEAR_RE.search(text) is not None or len(years) >= 2
+    if question.company is not None:
+        return year_ok
+    page = question.page_filter
+    if page is None or page.ticker is None:
+        return company_ok
+    in_question = {t for m in find_mentions(question.question, _companies()) for t in m.tickers}
+    if not in_question:
+        return company_ok or year_ok
+    return year_ok if in_question == {page.ticker} else company_ok
 
 
 def asks_or_declines(text: str) -> bool:
