@@ -148,3 +148,13 @@ def test_the_llm_grader_sees_the_alternative() -> None:
 def test_an_also_accept_that_says_nothing_new_is_rejected(also_accept: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         question(also_accept=also_accept)
+
+
+def test_an_alternative_answer_needs_a_year_for_its_gold_value() -> None:
+    with pytest.raises(ValidationError, match="answer"):
+        question(
+            expected_behavior="refuse",
+            gold_value=None,
+            gold_unit=None,
+            also_accept={"expected_behavior": "answer"},
+        )
