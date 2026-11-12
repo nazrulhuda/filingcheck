@@ -290,6 +290,8 @@ def test_the_stored_rows_grade_as_stored_or_as_listed_in_the_regrade(
 ) -> None:
     graded = grade(row, questions()[row["id"]]).model_dump()
     lenient = graded.pop("lenient_outcome")
+    # No stored row's question has `also_accept`, so neither field is ever set here.
+    assert (graded.pop("accepted_by"), graded.pop("llm_decides")) == (None, False)
     if key in REGRADED:
         listed = REGRADED[key]
         assert (row["grade"]["outcome"], graded["outcome"], lenient) == (
