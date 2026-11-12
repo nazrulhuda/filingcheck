@@ -38,3 +38,49 @@ def owner_subset(sample: list[Candidate], size: int, seed: int) -> list[str]:
     """The keys of the `size` rows the owner grades too, picked from the sample by the seed."""
     keys = sorted(c.key for c in sample)
     return sorted(random.Random(seed + 1).sample(keys, size))
+
+
+@dataclass(frozen=True)
+class HiddenRow:
+    """One sampled row as the hand graders see it: everything but the LLM verdict."""
+
+    key: str
+    question: str
+    expected: str  # "answer; company NKE, fiscal year 2025"
+    reference: list[str]  # gold value, gold text, note lines
+    answer: str
+    passages: list[tuple[int, str]]  # cited passages: (number, text)
+    facts: list[str]  # looked-up facts, one line each
+    owner: bool = False
+
+
+def render_hidden(rows: list[HiddenRow], *, title: str, intro: str) -> str:
+    """The hidden file: numbered rows in the order given, no strata, the verdicts left blank."""
+    parts = [f"# {title}", "", intro, ""]
+    for n, row in enumerate(rows, 1):
+        mark = " **[owner]**" if row.owner else ""
+        parts += [
+            f"## {n}{mark}",
+            "",
+            f"Row: `{row.key}`",
+            "",
+            f"**Question:** {row.question}",
+            "",
+            f"**Expected behavior:** {row.expected}",
+            "",
+            *[f"- {line}" for line in row.reference],
+            "",
+            "**Answer:**",
+            "",
+            "> " + row.answer.replace("\n", "\n> "),
+            "",
+            "**Cited passages:**" if row.passages else "**Cited passages:** none",
+            *[f"\n[{number}] {text}" for number, text in row.passages],
+            "",
+            "**Numbers looked up:**" if row.facts else "**Numbers looked up:** none",
+            *[f"- F{i}: {fact}" for i, fact in enumerate(row.facts, 1)],
+            "",
+            "Verdict: ______  Supported: ______",
+            "",
+        ]
+    return "\n".join(parts).rstrip() + "\n"
