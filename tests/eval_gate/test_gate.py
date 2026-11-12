@@ -51,9 +51,9 @@ def test_the_fixture_alone_gives_every_expected_result(fixture_facts: FactsSourc
         assert run_scenario(scenario, fixture_facts) == scenario.expected, scenario.id
 
 
-def test_there_are_21_scenarios_covering_what_the_gate_must_cover() -> None:
-    assert len(SCENARIOS) == 21
-    assert len({s.id for s in SCENARIOS}) == 21
+def test_there_are_24_scenarios_covering_what_the_gate_must_cover() -> None:
+    assert len(SCENARIOS) == 24
+    assert len({s.id for s in SCENARIOS}) == 24
     seen = {o for s in SCENARIOS for o in s.expected.overrides}
     for record in [
         "company:pass",

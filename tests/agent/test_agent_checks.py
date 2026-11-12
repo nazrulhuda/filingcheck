@@ -100,19 +100,49 @@ def test_a_pass_leaves_the_tool_result_as_it_is_and_is_still_logged() -> None:
     assert override.outcome == "pass" and override.sent == override.used == "AAPL"
 
 
-def test_search_filings_and_calculate_are_not_checked() -> None:
+def test_search_filings_goes_through_the_fiscal_year_check_and_calculate_does_not() -> None:
+    """A text question with no year: the search is repaired to the latest pinned year."""
     chat = FakeChat(
         [
-            scripted_tool_calls(("search_filings", {"query": "risks in Mexico", "ticker": "WMT"})),
+            scripted_tool_calls(
+                (
+                    "search_filings",
+                    {"query": "risks in Mexico", "ticker": "WMT", "fiscal_year": 2023},
+                )
+            ),
             scripted_tool_calls(("calculate", {"expression": "1 + 1"})),
             "Risks [1].",
         ]
     )
     answer = run_agent(
-        "What are Morgan's main risks?", model=chat, deps=checked_deps(), checks=True
+        "What are Walmart's main risks in Mexico?", model=chat, deps=checked_deps(), checks=True
     )
-    assert answer.overrides == [] and answer.checks is True
+    assert [(o.check, o.outcome, o.tool) for o in answer.overrides] == [
+        ("fiscal_year", "repair", "search_filings")
+    ]
+    assert answer.tool_calls[0].arguments["fiscal_year"] == 2026  # Walmart's latest pinned year
     assert [r.status for r in answer.tool_calls] == ["ok", "ok"]
+    # The model sees what changed, as for the fact tool.
+    result = json.loads(tool_messages(chat, 1)[0]["content"])
+    assert result["checked"][0]["used"] == 2026
+
+
+def test_with_the_checks_off_search_filings_runs_as_sent() -> None:
+    chat = FakeChat(
+        [
+            scripted_tool_calls(
+                (
+                    "search_filings",
+                    {"query": "risks in Mexico", "ticker": "WMT", "fiscal_year": 2023},
+                )
+            ),
+            "Risks [1].",
+        ]
+    )
+    answer = run_agent(
+        "What are Walmart's main risks in Mexico?", model=chat, deps=checked_deps(), checks=False
+    )
+    assert answer.overrides == [] and answer.tool_calls[0].arguments["fiscal_year"] == 2023
 
 
 def test_a_validation_error_comes_before_the_checks_and_is_unchanged() -> None:

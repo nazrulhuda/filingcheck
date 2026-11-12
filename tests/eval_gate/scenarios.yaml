@@ -297,3 +297,49 @@ scenarios:
       tool_arguments: [{ticker: JNJ, fiscal_year: 2023, metric: net_income}]
       values: ["35153000000"]
       grade: correct
+
+  # ------------------------------------------------- the fiscal-year check on search_filings
+  # Added after the freeze (docs/decisions.md, 2026-11-12): the dry run found the agent
+  # searching fiscal 2023 on text questions that name no year. The gate's retriever returns
+  # no passages, so these scenarios check the decision and the arguments, not the text.
+  - id: gate-022
+    covers: search_filings; no year in the question; the stale year is repaired to the latest pinned year
+    question: How does Apple describe its services business?
+    turns:
+      - [{name: search_filings, arguments: {query: services business, ticker: AAPL, fiscal_year: 2023}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: control, category: control, style: domain-relevant, company: AAPL, fiscal_year: 2026, metric: null, expected_behavior: answer, gold_text: Apple describes its services}
+    expected:
+      overrides: [fiscal_year:repair]
+      tool_arguments: []
+      search_arguments: [{query: services business, ticker: AAPL, fiscal_year: 2026, k: 8}]
+      values: []
+      grade: abstained
+
+  - id: gate-023
+    covers: search_filings; the question names a year the company does not hold; rejected with the years held
+    question: What did Walmart's 2023 10-K say about Mexico?
+    turns:
+      - [{name: search_filings, arguments: {query: Mexico, ticker: WMT, fiscal_year: 2023}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: trap, category: wrong_fiscal_year, company: WMT, fiscal_year: null, metric: null, expected_behavior: refuse}
+    expected:
+      overrides: [fiscal_year:reject]
+      tool_arguments: []
+      search_arguments: []
+      values: []
+      grade: correct
+
+  - id: gate-024
+    covers: search_filings; the question names a held year the model sent; pass
+    question: What did Netflix say about content costs in fiscal 2024?
+    turns:
+      - [{name: search_filings, arguments: {query: content costs, ticker: NFLX, fiscal_year: 2024}}]
+    final_answer: I can't find this in the filings I have.
+    grade_as: {set: control, category: control, style: domain-relevant, company: NFLX, fiscal_year: 2024, metric: null, expected_behavior: answer, gold_text: content costs}
+    expected:
+      overrides: [fiscal_year:pass]
+      tool_arguments: []
+      search_arguments: [{query: content costs, ticker: NFLX, fiscal_year: 2024, k: 8}]
+      values: []
+      grade: abstained
