@@ -222,3 +222,32 @@ def test_the_report_has_the_dry_run_heading_and_every_section() -> None:
         "## Relative-year runs with no tool call",
     ):
         assert heading in page, heading
+
+
+def test_search_years_compare_the_year_sent_with_the_years_the_company_holds() -> None:
+    from filingcheck.eval.dryrun import search_years
+
+    text = question(
+        "control-131", "control", gold_value=None, gold_unit=None, gold_text="Beaverton"
+    )
+    questions = {"control-131": text, "control-101": question("control-101", "control")}
+    held = {"AAPL": {2024, 2025, 2026}}
+
+    def call(year: int | None, ticker: str = "AAPL") -> dict[str, Any]:
+        return {"name": "search_filings", "arguments": {"ticker": ticker, "fiscal_year": year}}
+
+    rows = [
+        row("control-131", 1, tool_calls=[call(2026), call(2023)]),  # latest; not held
+        row("control-131", 2, tool_calls=[call(2024), call(None)]),  # earlier held year; no year
+        row("control-131", 3, tool_calls=[{"name": "get_financial_fact", "arguments": {}}]),
+        row("control-101", 1, tool_calls=[call(2023)]),  # a number question: not counted
+    ]
+    table = search_years(rows, questions, held)
+    assert table["calls"] == 4
+    assert table["by_year"] == {2026: 1, 2024: 1, 2023: 1, None: 1}
+    assert (table["latest"], table["earlier_held"], table["not_held"], table["no_year"]) == (
+        1,
+        1,
+        1,
+        1,
+    )
