@@ -80,6 +80,7 @@ class Result(BaseModel):
 
     overrides: list[str]  # "check:outcome", in order, across all calls
     tool_arguments: list[dict[str, Any]]  # what reached get_financial_fact, in order
+    search_arguments: list[dict[str, Any]] = []  # what reached search_filings, in order
     values: list[str]  # what those calls returned, raw units
     requested_scale: str | None = None
     grade: str
@@ -178,6 +179,11 @@ def run_scenario(scenario: Scenario, facts: FactsSource) -> Result:
         overrides=[f"{o.check}:{o.outcome}" for o in answer.overrides],
         tool_arguments=[
             r.arguments for r in answer.tool_calls if r.name == FACT_TOOL and r.status == "ok"
+        ],
+        search_arguments=[
+            r.arguments
+            for r in answer.tool_calls
+            if r.name == "search_filings" and r.status == "ok"
         ],
         values=[str(f.value) for f in answer.facts_used],
         requested_scale=next((s for s in scales if s), None),

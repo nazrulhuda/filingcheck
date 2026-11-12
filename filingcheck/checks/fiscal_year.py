@@ -273,6 +273,8 @@ class FiscalYearCheck:
     """Rules (a) to (e) of the Week 4 spec, with the page-filter and calendar rules from review."""
 
     name = NAME
+    # With no year in the question or the page filter, the model's choice stands if pinned.
+    latest_when_unnamed = False
 
     def run(self, call: CheckedCall, context: CheckContext) -> CheckResult:
         """Judge the `fiscal_year` argument against the question, the filter and the manifest."""
@@ -281,7 +283,14 @@ class FiscalYearCheck:
                 self.name, "fiscal_year", call.arguments, "no manifest; the year is not checked"
             )
         manifest = context.manifest
-        ticker, sent = call.arguments["ticker"], call.arguments["fiscal_year"]
+        ticker, sent = call.arguments.get("ticker"), call.arguments.get("fiscal_year")
+        if ticker is None:
+            return CheckResult.passed(
+                self.name,
+                "fiscal_year",
+                call.arguments,
+                "no company named; the year is not checked",
+            )
         pinned = _pinned(ticker, manifest)
         listed = ", ".join(str(y) for y in sorted(pinned))
 
@@ -306,7 +315,8 @@ class FiscalYearCheck:
             if target == sent:
                 reason = f"{why}; the model sent {sent}: {period(target)}"
                 return CheckResult.passed(self.name, "fiscal_year", call.arguments, reason)
-            reason = f"{why}; the model sent {sent}; used {period(target)}"
+            sent_text = "no year" if sent is None else str(sent)
+            reason = f"{why}; the model sent {sent_text}; used {period(target)}"
             used = {**call.arguments, "fiscal_year": target}
             return CheckResult.repaired(self.name, "fiscal_year", call.arguments, used, reason)
 
@@ -371,7 +381,31 @@ class FiscalYearCheck:
             return reject(reason, sorted(asked))
         if page is not None:
             return settle(page, f"no year in the question; the user selected fiscal {page}")
-        if sent not in pinned:
-            return unpinned(sent)
+        if self.latest_when_unnamed and pinned:
+            latest = max(pinned)
+            return settle(
+                latest, f"no year in the question; the latest annual report is fiscal {latest}"
+            )
+        if sent is None or sent not in pinned:
+            return (
+                unpinned(sent)
+                if sent is not None
+                else reject(
+                    f"no year in the question and none sent; the pinned fiscal years are {listed}",
+                    sorted(pinned),
+                )
+            )
         reason = f"no year in the question; the model's choice stands: {period(sent)}"
         return CheckResult.passed(self.name, "fiscal_year", call.arguments, reason)
+
+
+class SearchYearCheck(FiscalYearCheck):
+    """The fiscal-year rules on `search_filings`, added after the freeze (2026-11-12).
+
+    The Day 33 dry run found the agent searching fiscal 2023 on 124 of 159 text questions that
+    name no year, and a year the company does not hold on 32. The one difference from the fact
+    tool: with no year in the question or the page filter, the latest pinned year is used, as
+    a repair, instead of the model's choice standing.
+    """
+
+    latest_when_unnamed = True

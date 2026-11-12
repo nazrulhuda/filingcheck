@@ -5,7 +5,9 @@
 
 The rules are frozen from the Day 23 merge on 2026-11-09, like the agent's prompt: the
 Week 6 measurement compares the agent with the checks off and on, so a change to any check
-means re-running both arms (docs/decisions.md, docs/week4_notes.md).
+means re-running both arms (docs/decisions.md, docs/week4_notes.md). One check was added
+after the freeze, on 2026-11-12: the fiscal-year check on `search_filings` (`SEARCH_CHECKS`),
+with the Day 33 dry run as its evidence; both arms were re-run.
 """
 
 from pathlib import Path
@@ -21,7 +23,7 @@ from filingcheck.checks.base import (
     run_checks,
 )
 from filingcheck.checks.company import CompanyCheck
-from filingcheck.checks.fiscal_year import FiscalYearCheck
+from filingcheck.checks.fiscal_year import FiscalYearCheck, SearchYearCheck
 from filingcheck.checks.metric import MetricCheck
 from filingcheck.checks.segment import SegmentCheck
 from filingcheck.checks.units import UnitsCheck
@@ -37,6 +39,13 @@ CHECKS: tuple[Check, ...] = (
     UnitsCheck(),
     SegmentCheck(),
 )
+# The fiscal-year check on search_filings was added after the freeze, on 2026-11-12, with the
+# Day 33 dry run as evidence (docs/decisions.md); it applies in the checks-on arm only.
+SEARCH_CHECKS: tuple[Check, ...] = (SearchYearCheck(),)
+CHECKS_BY_TOOL: dict[str, tuple[Check, ...]] = {
+    CHECKED_TOOL: CHECKS,
+    "search_filings": SEARCH_CHECKS,
+}
 
 
 def reference_data(root: Path = DATA_DIR) -> dict[str, Any]:
@@ -52,6 +61,8 @@ def reference_data(root: Path = DATA_DIR) -> dict[str, Any]:
 __all__ = [
     "CHECKED_TOOL",
     "CHECKS",
+    "CHECKS_BY_TOOL",
+    "SEARCH_CHECKS",
     "Check",
     "CheckContext",
     "CheckResult",
@@ -59,6 +70,7 @@ __all__ = [
     "CompanyCheck",
     "Outcome",
     "Override",
+    "SearchYearCheck",
     "reference_data",
     "run_checks",
 ]
