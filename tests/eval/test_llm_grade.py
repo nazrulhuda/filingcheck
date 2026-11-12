@@ -207,14 +207,14 @@ def test_grading_stops_once_the_cost_cap_is_passed(tmp_path: Path) -> None:
 def test_the_summary_counts_verdicts_and_lists_every_disagreement() -> None:
     from filingcheck.eval.llm_grade import LlmGrade, summary
 
-    def g(qid: str, use: str, verdict: str, supported: str, det: str) -> tuple[LlmGrade, str]:
+    def g(qid: str, use: str, verdict: Any, supported: Any, det: str) -> tuple[LlmGrade, str]:
         return (
             LlmGrade(
                 id=qid,
                 repeat=1,
                 use=use,
                 verdict=verdict,
-                supported=supported,  # type: ignore[arg-type]
+                supported=supported,
                 reason=f"because {qid}",
                 evidence="",
                 model="fake:chat",
@@ -234,7 +234,7 @@ def test_the_summary_counts_verdicts_and_lists_every_disagreement() -> None:
         title="examples, agent",
     )
     assert "| text | 1 | 1 | 0 | 0 | 0 | 0 |" in page
-    assert "| second opinion | 2 | 1 | 1 | 0 | 0 | 0 |" in page
+    assert "| second opinion | 2 | 1 | 0 | 1 | 0 | 0 | 0 |" in page  # correct, partly, wrong
     # A second opinion of "correct" on a row the deterministic grader did not pass is listed.
     assert "control-101" in page and "wrong_number" in page and "because control-101" in page
     assert "because dev-050" not in page.split("## Disagreements")[1]
