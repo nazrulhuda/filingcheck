@@ -177,6 +177,10 @@ def test_the_same_inputs_are_graded_once_and_then_read_from_the_cache(tmp_path: 
         cache=GradeCache(tmp_path / "cache.jsonl"),
     )
     assert (again.verdict, again.cached, again.cost_usd) == (first.verdict, True, 0.0)
+    # The input hash is stored as `input_sha256`: a field named "key" holding 64 hex digits
+    # reads as an API key to the secret scanner.
+    stored = json.loads((tmp_path / "cache.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert "key" not in stored and len(stored["input_sha256"]) == 64
 
 
 def test_a_reply_that_is_not_a_valid_verdict_is_recorded_as_an_error(tmp_path: Path) -> None:
