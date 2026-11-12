@@ -28,7 +28,7 @@ from filingcheck.paths import REPO_ROOT
 PROMPT_FILE = REPO_ROOT / "eval" / "grader_prompt.md"
 # A different model family from the one being graded (decisions, 2026-11-12).
 GRADER_MODEL = "openrouter:anthropic/claude-haiku-5.5"
-MAX_TOKENS = 600
+MAX_TOKENS = 1500  # at 600, 3 of 99 text grades ran out (reasoning counts toward it)
 Verdict = Literal["correct", "wrong", "partly", "abstained", "asked"]
 Supported = Literal["yes", "partly", "no", "n/a"]
 Passages = list[tuple[int, str]]
