@@ -122,3 +122,19 @@ It does not re-measure whether the XBRL facts are right; the separate checks abo
 **Segment questions:** a segment's dollar total is usually in the filing's tables, which are not searched, while the text gives its change ("YouTube ads revenues increased $4.2 billion"). So a question about a segment's total expects a refusal that does not substitute the company total, and a question about a change the text states expects that figure.
 
 **Overlap:** `uv run python eval/check_overlap.py` checks that no new question copies an older one (word overlap above 0.6).
+
+## The LLM grader (`make grade`)
+
+`make grade SET=<question file> RUN=eval/results/<file>.jsonl [CAP=1.0]` grades a stored results file with `filingcheck/eval/llm_grade.py` and writes `<file>_llm.jsonl` and `<file>_llm.md` next to it. It costs money (about $0.0003 per graded row) and stops once the spend passes `CAP`; a second run picks up where it stopped, because every grade is cached.
+
+- **Model:** Claude Haiku 5.5 through OpenRouter, pinned to Anthropic's endpoint, a different model family from the one being graded. Its price is in `filingcheck/llm/pricing.yaml`, copied from OpenRouter.
+- **Prompt:** `eval/grader_prompt.md`. Its version (`1-<first 12 hex digits of its SHA-256>`) is in every grade, so a changed prompt never reuses an old grade.
+- **Inputs:** the question, the expected behavior, the gold value or `gold_text`, the `trap_note`, the answer, the text of the passages it cites and the facts it used (rebuilt from the database, so the local database must be loaded).
+- **Output:** JSON checked against a schema: `verdict` (correct, partly, wrong, abstained, asked), `supported` (yes, partly, no, n/a), `reason` (one sentence), `evidence` (a short quote from a source, or empty). A reply that does not fit is recorded with `error: "invalid verdict"`, never guessed.
+- **Uses:** the main grade for text questions (`gold_text` or `unanswerable_text`); a second opinion on every number question whose deterministic grade is not `correct`, where the deterministic grade stays the main one and each disagreement (an LLM `correct` on a row the deterministic grader failed) is listed for a person; and `supported` on every text answer.
+- **Text questions name no year,** so an answer drawn from any of the company's pinned fiscal years is accepted unless the answer depends on the year.
+- **Repeatability:** OpenRouter lists no temperature setting for this model, so none is sent; a grade is cached by the SHA-256 of the model, the prompt version and the messages (`eval/llm_grades/cache.jsonl`), and the same inputs always return the stored grade.
+
+## The hand-graded sample
+
+`uv run python eval/grade_stored.py --key <file outside the repo>` grades the stored probe rows (`eval/probes/`), with the development-only questions in `eval/llm_grades/probe_questions.jsonl` for the text probes, and draws a fixed sample of 40 graded rows by seed (in the script): 15 text answers, 15 number answers whose deterministic grade is not `correct` and 10 that are. `eval/llm_grades/<date>_sample_hidden.md` shows each row's question, reference, answer and sources with the LLM verdict hidden, and marks the ten rows the owner also grades, picked by the same seed; the rows are shuffled and their strata are not shown. The verdicts go to the key file; it, the grade files and the grade cache are committed only after the hand grades are in. The agreement on `verdict` must reach 90%; if it does not, the prompt is fixed once and a fresh sample is drawn, and the second sample's result is reported whatever it is.
