@@ -100,8 +100,37 @@ def fill_gold(
             else str(result.instant)
         )
         report.append((qid, "filled", f"{result.value} {result.unit}, {period}"))
-        out.append(filled)
+        out.append(_fill_also_accept(filled, facts, report))
     return out, report
+
+
+def _fill_also_accept(
+    row: dict[str, Any], facts: FactsSource, report: list[tuple[str, str, str]]
+) -> dict[str, Any]:
+    """Fill an `also_accept` fiscal year's value from the facts, the same way as the main one."""
+    also = row.get("also_accept")
+    year = also.get("fiscal_year") if isinstance(also, dict) else None
+    if not isinstance(also, dict) or year is None:
+        return row
+    if also.get("gold_value") is not None and also.get("gold_source") != "facts":
+        return row  # a value a person set is never overwritten
+    result = lookup(facts, row["company"], year, row["metric"])
+    if result is None:
+        report.append((row["id"], "also_accept unavailable", f"fiscal {year}"))
+        return row
+    also = {
+        **also,
+        "gold_value": _number(result.value),
+        "gold_unit": result.unit,
+        "gold_source": "facts",
+        "gold_concept": result.concept,
+        "gold_accession": result.accession,
+        "gold_period_start": result.period_start.isoformat() if result.period_start else None,
+        "gold_period_end": result.period_end.isoformat() if result.period_end else None,
+        "gold_instant": result.instant.isoformat() if result.instant else None,
+    }
+    report.append((row["id"], "also_accept filled", f"{result.value} {result.unit}, fiscal {year}"))
+    return {**row, "also_accept": also}
 
 
 def fill_gold_file(path: Path, facts: FactsSource) -> list[tuple[str, str, str]]:

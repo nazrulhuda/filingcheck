@@ -265,12 +265,45 @@ def stored_rows() -> list[Any]:
         for line in path.read_text(encoding="utf-8").splitlines():
             row = json.loads(line)
             if row.get("grade") is not None:
-                cases.append(
-                    pytest.param(row, id=f"{path.stem}-{row['id']}-{row.get('repeat', 1)}")
-                )
+                key = (f"eval/results/{path.name}", row["id"], row.get("repeat", 1))
+                cases.append(pytest.param(key, row, id="-".join(map(str, key))))
     return cases
 
 
-@pytest.mark.parametrize("row", stored_rows())
-def test_the_stored_day_20_rows_grade_as_stored(row: dict[str, Any]) -> None:
-    assert grade(row, questions()[row["id"]]).model_dump() == row["grade"]
+# The grades the Week 5 grader changed, listed with the re-grade
+# (eval/results/2026-11-12_regrade.md).
+REGRADED = {
+    (r["file"], r["id"], r["repeat"]): r
+    for r in (
+        json.loads(line)
+        for line in (REPO / "eval" / "results" / "2026-11-12_regrade.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line
+    )
+}
+
+
+@pytest.mark.parametrize(("key", "row"), stored_rows())
+def test_the_stored_rows_grade_as_stored_or_as_listed_in_the_regrade(
+    key: tuple[str, str, int], row: dict[str, Any]
+) -> None:
+    graded = grade(row, questions()[row["id"]]).model_dump()
+    lenient = graded.pop("lenient_outcome")
+    # No stored row's question has `also_accept`, so neither field is ever set here.
+    assert (graded.pop("accepted_by"), graded.pop("llm_decides")) == (None, False)
+    if key in REGRADED:
+        listed = REGRADED[key]
+        assert (row["grade"]["outcome"], graded["outcome"], lenient) == (
+            listed["before"],
+            listed["after"],
+            listed["lenient"],
+        )
+        graded["outcome"] = row["grade"]["outcome"]
+    assert graded == row["grade"]
+    assert lenient in (None, row["grade"]["outcome"]) or key in REGRADED
+
+
+def test_the_regrade_lists_only_rows_that_exist() -> None:
+    keys = {case.values[0] for case in stored_rows()}
+    assert set(REGRADED) <= keys and len(REGRADED) == 10

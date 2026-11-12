@@ -174,12 +174,12 @@ def test_the_two_arms_are_two_rows_one_under_the_other() -> None:
     off = next(i for i, line in enumerate(lines) if line.startswith("| Checks off |"))
     assert lines[off + 1].startswith("| Checks on |")
     assert (
-        lines[off]
-        == "| Checks off | 6 | 2 | 0 | 2 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | $0.000600 | 2.0 s |"
+        lines[off] == "| Checks off | 6 | 2 | 0 | 2 | 0 | 0 | 0 | 1 | 0 | 1 | 0 | 0 | 0 | 2 "
+        "| $0.000600 | 2.0 s |"
     )
     assert (
-        lines[off + 1]
-        == "| Checks on | 6 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | $0.001200 | 4.0 s |"
+        lines[off + 1] == "| Checks on | 6 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 5 "
+        "| $0.001200 | 4.0 s |"
     )
     assert "`off.jsonl`" in text and "`on.jsonl`" in text
 

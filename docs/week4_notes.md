@@ -137,3 +137,5 @@ Every model call of the week, from the committed rows, the merged PR description
 | Day 26 example refreshes, runs 1 and 2 | `eval/probes/2026-11-11_day26-examples-*` | $0.0048 |
 | Live API, 2026-11-06 to 2026-11-11: 21 questions, smoke tests and review questions included | the request log on Neon | $0.0044 |
 | **Total** | | **about $0.16** |
+
+**Re-graded with the Week 5 grader (2026-11-12):** 10 of the 314 stored graded rows change, all trap-001 under the strict clarify rule, each still correct under the lenient rule; the numbers above are kept as written. The list is `eval/results/2026-11-12_regrade.md`.

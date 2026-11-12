@@ -24,6 +24,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `gold_text` | For text answers: what a correct answer must say |
 | `trap_note` | Why the question is tricky and what a good answer does |
 | `style` | Control questions only, and required for them: the FinanceBench question style it follows, `metrics-generated`, `domain-relevant` or `novel-generated`; must be absent or `null` for trap questions |
+| `also_accept` | Optional: a second answer the question accepts, when its writer's note accepts two. Any of `expected_behavior` (an alternative behavior, different from the main one), `fiscal_year` with `gold_value` and `gold_unit` (an alternative value for that year, filled from the facts by the gold filler like the main one, with its own `gold_source`, tag, filing and period), and `note` (an acceptable answer the deterministic grader cannot check, which the LLM grader decides). The grade is correct if either expectation is met, the main one first, and records which in `accepted_by` (`main` or `also_accept`); a question whose note decides is marked `llm_decides` and sent to the LLM grader. A clarify alternative is about the company: the answer asks which company, names two or more, or asks whether the question's company is meant |
 | `page_filter` | Optional: the page filters the question is asked with, `{"ticker": ..., "fiscal_year": ...}`, as the page sends them; the batch runner passes them the same way. Either part may be `null`, but a year needs a company, because the page never sends a year on its own |
 
 ## Categories
@@ -56,6 +57,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `dev_traps.jsonl` | 85 | The development trap set (`dev-001`...), 10 to 13 per trap category, every company in at least two questions, 10 with a page filter |
 | `dev_unanswerable.jsonl` | 10 | Questions the filings cannot answer (`una-001`...) |
 | `control.jsonl` | 50 | Normal questions (`control-101`...; `control-001` is the example set's) in FinanceBench's three styles: 20 metrics-generated, 15 domain-relevant, 15 novel-generated |
+| `heldout_traps.jsonl` | 28 | The held-out trap set (`held-001`...), 4 per trap category. Written by a fresh AI agent that saw only the category names and the company list, not by a person; its prompt and raw output are in `heldout_source/`, converted by `eval/convert_heldout.py` without changing a word. Sealed by SHA-256 after review; first run in week 6 |
 | `retrieval.jsonl` | 40 | The Week 2 retrieval questions, in their own format |
 | `page_examples.jsonl` | 7 | The page's saved examples, not an evaluation set |
 

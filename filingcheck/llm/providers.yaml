@@ -67,3 +67,17 @@ models:
     # extra_content.google.thought_signature, sent back unchanged on the next turn.
     tool_calls: true
     source: https://ai.google.dev/gemini-api/docs/thinking
+  openrouter:anthropic/claude-haiku-5.5:
+    # The LLM grader (Week 5), a different model family from the one it grades. Read from
+    # GET https://openrouter.ai/api/v1/models/anthropic/claude-haiku-5.5/endpoints on 2026-11-12:
+    # no endpoint lists temperature, so none is sent (the grader caches its results, which keeps
+    # a run repeatable); reasoning is left at the model's default.
+    temperature: null
+    params:
+      # Only Anthropic's own endpoint: some other hosts charge 10% more for this model.
+      provider:
+        only: [anthropic]
+        allow_fallbacks: false
+    json_schema: true  # structured_outputs listed for this endpoint; checked with a live call on 2026-11-12
+    tool_calls: false
+    source: https://openrouter.ai/anthropic/claude-haiku-5.5
