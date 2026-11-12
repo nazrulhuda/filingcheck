@@ -145,6 +145,7 @@ def dryrun_main(args: argparse.Namespace) -> int:
         by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
         questions |= by_id
         for arm, label in (("agent-checks-off", "checks off"), ("agent-checks-on", "checks on")):
+            arm = f"{arm}-{args.label}" if args.label else arm
             path = REPO_ROOT / "eval" / "results" / f"{args.date}_{set_name}_{arm}.jsonl"
             if not path.exists():
                 print(f"no {path.relative_to(REPO_ROOT)}: that arm is left out")
@@ -170,7 +171,8 @@ def dryrun_main(args: argparse.Namespace) -> int:
     manifest = json.loads((REPO_ROOT / "data" / "manifest.json").read_text(encoding="utf-8"))
     for filing in manifest["filings"]:
         held.setdefault(filing["ticker"], set()).add(int(filing["fiscal_year"]))
-    page = REPO_ROOT / "eval" / "results" / f"{args.date}_dry-run.md"
+    suffix = f"-{args.label}" if args.label else ""
+    page = REPO_ROOT / "eval" / "results" / f"{args.date}_dry-run{suffix}.md"
     page.write_text(
         report(arms, questions, date=args.date, held=held), encoding="utf-8", newline="\n"
     )
@@ -215,7 +217,7 @@ def dryrun_main(args: argparse.Namespace) -> int:
                     "reason": g.reason,
                 }
             )
-    hidden = REPO_ROOT / "eval" / "llm_grades" / f"{args.date}_sample3_hidden.md"
+    hidden = REPO_ROOT / "eval" / "llm_grades" / f"{args.date}_sample3{suffix}_hidden.md"
     hidden.write_text(
         render_hidden(
             hidden_rows,
@@ -268,7 +270,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
-    name = arm_name(args.mode, args.checks)
+    name = arm_name(args.mode, args.checks, args.label)
     if args.date:
         out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
@@ -308,11 +310,13 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     print(summary.read_text(encoding="utf-8"))
     print(f"wrote {out.relative_to(REPO_ROOT)} and {summary.relative_to(REPO_ROOT)}")
     if args.checks is not None:
-        _write_arms(set_name, out, args.checks, questions, args.repeats)
+        _write_arms(set_name, out, args.checks, questions, args.repeats, args.label)
     return 0
 
 
-def _write_arms(set_name: str, out: Path, checks: bool, questions: Path, repeats: int) -> None:
+def _write_arms(
+    set_name: str, out: Path, checks: bool, questions: Path, repeats: int, label: str | None
+) -> None:
     """After an agent run: the comparison with the newest finished file of the other arm."""
     from filingcheck.eval.arms import arm_name, arms_path, compare_arms, finished_arm
     from filingcheck.eval.grade import Grade
@@ -322,12 +326,13 @@ def _write_arms(set_name: str, out: Path, checks: bool, questions: Path, repeats
     other = finished_arm(
         REPO_ROOT,
         set_name,
-        arm_name("agent", not checks),
+        arm_name("agent", not checks, label),
         expected_rows=len(ids) * repeats,
         question_ids=ids,
     )
     if other is None:
-        print(f"no finished {arm_name('agent', not checks)} file for {set_name} yet: no comparison")
+        other_name = arm_name("agent", not checks, label)
+        print(f"no finished {other_name} file for {set_name} yet: no comparison")
         return
 
     def graded(path: Path) -> list[tuple[dict[str, Any], Grade]]:
@@ -338,7 +343,7 @@ def _write_arms(set_name: str, out: Path, checks: bool, questions: Path, repeats
     text = compare_arms(
         graded(off), graded(on), set_name=set_name, off_file=off.name, on_file=on.name
     )
-    page = REPO_ROOT / arms_path(set_name, out.name[:10])
+    page = REPO_ROOT / arms_path(set_name, out.name[:10] + (f"_{label}" if label else ""))
     page.write_text(text, encoding="utf-8", newline="\n")
     print(text)
     print(f"wrote {page.relative_to(REPO_ROOT)}")
@@ -362,6 +367,7 @@ def main(argv: list[str] | None = None) -> int:
         "--date", help="the results file date (default: an unfinished file's, else today UTC)"
     )
     run.add_argument("--checks", help="agent only: on (default) or off; the file name says which")
+    run.add_argument("--label", help="a separate run of the same arm, named in the file")
     llm = commands.add_parser("grade", help="the LLM grader over a stored results file")
     llm.add_argument("--set", required=True, help="the question file the run answered, no .jsonl")
     llm.add_argument("--run", type=Path, required=True, help="a results file in eval/results/")
@@ -375,6 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     dry.add_argument("--sample-key", type=Path, help="where the hidden sample's verdicts go")
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
+    dry.add_argument("--label", help="the run label the result files carry")
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
