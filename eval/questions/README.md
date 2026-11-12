@@ -24,6 +24,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `gold_text` | For text answers: what a correct answer must say |
 | `trap_note` | Why the question is tricky and what a good answer does |
 | `style` | Control questions only, and required for them: the FinanceBench question style it follows, `metrics-generated`, `domain-relevant` or `novel-generated`; must be absent or `null` for trap questions |
+| `also_accept` | Optional: a second answer the question accepts, when its writer's note accepts two. Any of `expected_behavior` (an alternative behavior, different from the main one), `fiscal_year` with `gold_value` and `gold_unit` (an alternative value for that year, filled from the facts by the gold filler like the main one, with its own `gold_source`, tag, filing and period), and `note` (an acceptable answer the deterministic grader cannot check, which the LLM grader decides). The grade is correct if either expectation is met, the main one first, and records which in `accepted_by` (`main` or `also_accept`); a question whose note decides is marked `llm_decides` and sent to the LLM grader. A clarify alternative is about the company: the answer asks which company, names two or more, or asks whether the question's company is meant |
 | `page_filter` | Optional: the page filters the question is asked with, `{"ticker": ..., "fiscal_year": ...}`, as the page sends them; the batch runner passes them the same way. Either part may be `null`, but a year needs a company, because the page never sends a year on its own |
 
 ## Categories
