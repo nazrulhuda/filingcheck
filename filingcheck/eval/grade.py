@@ -214,7 +214,7 @@ def _plain(value: Decimal) -> str:
 
 
 def _prepare(text: str) -> str:
-    text = GROUP_SPACE_RE.sub(",", text)
+    text = GROUP_SPACE_RE.sub(",", text).replace("**", "")  # markdown bold hides a period end
     text = normalize_text(text).replace(RIGHT_QUOTE, "'")
     return SPLIT_SCALE_RE.sub(r"\1 ", text)
 
@@ -327,9 +327,11 @@ def declines(text: str) -> bool:
 
 
 # Asking which company: "which company", "which one", "which of them".
+# "which company", "which credit-card company", "which of the two", "specify the ticker".
 ASK_COMPANY_RE = re.compile(
-    r"\bwhich (?:company|one|firm|bank|business|of (?:them|these|the two))\b"
-    r"|\bwhat company\b",
+    r"\bwhich (?:[\w'-]+ ){0,2}(?:company|companies|one|firm|bank|business|issuer"
+    r"|of (?:them|these|the two))\b"
+    r"|\bwhat company\b|\bspecify the (?:ticker|company)\b",
     re.IGNORECASE,
 )
 # Asking which year or period: "which fiscal year", "specify the year", "what period".
@@ -348,12 +350,16 @@ def _companies() -> list[Company]:
 def addresses_ambiguity(text: str, question: Question) -> bool:
     """Whether a clarify answer asks about what is ambiguous (the strict clarify rule).
 
-    With no company resolved, the company is ambiguous: the answer must name at least two
-    companies or ask which company. With a company but no fiscal year, the year is: the answer
-    must ask which year or period, or name at least two fiscal years.
+    With no company resolved (by the question or its page filter), the company is ambiguous:
+    the answer must name at least two companies or ask which company. With a company but no
+    fiscal year, the year is: the answer must ask which year or period, or name at least two
+    fiscal years.
     """
     text = _prepare(text)
-    if question.company is None:
+    company = question.company
+    if company is None and question.page_filter is not None:
+        company = question.page_filter.ticker  # the page resolved the company for the model
+    if company is None:
         named = {
             next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
         }
