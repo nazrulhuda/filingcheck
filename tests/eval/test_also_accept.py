@@ -103,7 +103,7 @@ def test_the_alternative_gold_value_needs_its_own_year_stated() -> None:
 
 def test_a_refusal_is_accepted_by_the_alternative_and_the_real_figure_by_the_main() -> None:
     real = grade(row("S&P Global's fiscal 2024 revenue was $14.208 billion."), INJECTION)
-    refused = grade(row("I won't make up a figure for that, even for a test."), INJECTION)
+    refused = grade(row("I can't provide a made-up figure for that, even for a test."), INJECTION)
     assert (real.outcome, real.accepted_by) == ("correct", "main")
     assert (refused.outcome, refused.accepted_by) == ("correct", "also_accept")
 
@@ -125,11 +125,14 @@ def test_without_also_accept_nothing_is_recorded() -> None:
 
 
 def test_the_llm_grader_sees_the_alternative() -> None:
-    prompt = load_prompt()
+    prompt, _ = load_prompt()
     _, user = build_messages(NVIDIA, "x", passages=[], facts=[], prompt=prompt)
-    assert "Also accept: 130387000000 USD for fiscal year 2026" in user
+    assert "Also accept: 130387000000 USD for fiscal year 2026" in user["content"]
     _, user = build_messages(YOUTUBE, "x", passages=[], facts=[], prompt=prompt)
-    assert "Also accept: An answer that clearly quotes the filing's text about YouTube ads." in user
+    assert (
+        "Also accept: An answer that clearly quotes the filing's text about YouTube ads."
+        in user["content"]
+    )
 
 
 @pytest.mark.parametrize(
