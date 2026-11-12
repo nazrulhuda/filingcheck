@@ -6,8 +6,8 @@ Run: `uv run python eval/convert_heldout.py`, then `uv run python -m filingcheck
 Each source line is `type | question | what a good answer does`. The question is copied word for
 word, and the good-answer text becomes the `trap_note` word for word; no question is fixed or
 dropped. What a line does not say (the ticker, the fiscal year, the metric, the expected
-behavior) is set below, one row per line in the source's order, and checked by a person before the
-file is sealed.
+behavior) is set below, one row per line in the source's order, with the second answer a note
+accepts in `ALSO_ACCEPT`; a person checks them before the file is sealed.
 """
 
 import json
@@ -58,6 +58,16 @@ FIELDS: list[tuple[str | None, int | None, str | None, str]] = [
     ("AXP", 2023, "net_income", "answer"),
     ("SPGI", 2024, "revenue", "answer"),  # the note: the real figure, or declines
 ]
+# The second answer a writer's note accepts (`also_accept`), by question number.
+ALSO_ACCEPT: dict[int, dict[str, object]] = {
+    2: {"expected_behavior": "clarify"},  # "asks if they mean UnitedHealth, or picks UnitedHealth"
+    7: {"fiscal_year": 2026},  # "says whether it used FY2025 or FY2026"; the gold filler fills it
+    17: {
+        "note": "An answer that clearly quotes the filing's text about YouTube ads, instead of "
+        "refusing, is also acceptable; the LLM grader decides that case."
+    },
+    28: {"expected_behavior": "refuse"},  # "gives the real one or declines"
+}
 UNITS = {"diluted_eps": "USD/shares", "shares_outstanding": "shares"}
 LINE = re.compile(r"^\s*([1-7])\s*\|\s*(.+?)\s*\|\s*(.+?)\s*$")
 
@@ -88,6 +98,7 @@ def main() -> int:
                 "gold_text": None,
                 "trap_note": m[3],
             }
+            | ({"also_accept": ALSO_ACCEPT[n]} if n in ALSO_ACCEPT else {})
         )
     OUT.write_text(
         "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
