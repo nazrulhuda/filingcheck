@@ -125,12 +125,39 @@ def test_a_cut_off_answer_is_written_with_its_error_and_the_run_goes_on(tmp_path
     assert second["error"] is None
 
 
-def test_a_provider_failure_stops_the_run_so_it_can_be_resumed(tmp_path: Path) -> None:
+def test_one_provider_failure_is_written_as_an_error_row_and_the_run_goes_on(
+    tmp_path: Path,
+) -> None:
+    """One row's call failing after the client's retries must not stop a run of hundreds."""
     out = tmp_path / "run.jsonl"
-    model = FakeChat([*agent_replies(1), ProviderError("down", provider="fake", status=500)])
+    failure = ProviderError("no choices", provider="fake", status=200, code="no_choices")
+    model = FakeChat([*agent_replies(1), failure, *agent_replies(1)])
+    run_batch(QUESTIONS, mode="agent", out=out, model=model, deps=apple_deps(), settings="s")
+    first, second, third = lines(out)
+    assert (first["error"], third["error"]) == (None, None)
+    assert (second["id"], second["error"], second["answer"]) == ("q-2", "fake 200 no_choices", None)
+    assert second["model_calls"] == 0 and second["latency_ms"] is not None
+    # A resume does not ask it again: delete its line to retry it.
+    assert read_done(out) == {("q-1", 1), ("q-2", 1), ("q-3", 1)}
+
+
+def test_three_provider_failures_in_a_row_stop_the_run_so_it_can_be_resumed(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "run.jsonl"
+    down = [ProviderError("down", provider="fake", status=500) for _ in range(3)]
+    model = FakeChat([*agent_replies(1), *down])
     with pytest.raises(ProviderError):
-        run_batch(QUESTIONS, mode="agent", out=out, model=model, deps=apple_deps(), settings="s")
-    assert [r["id"] for r in lines(out)] == ["q-1"]
+        run_batch(
+            QUESTIONS * 2, mode="agent", out=out, model=model, deps=apple_deps(), settings="s"
+        )
+    rows = lines(out)
+    # q-1 answered, q-2 and q-3 written with their error, the third failure (q-1 again) not written.
+    assert [(r["id"], r["error"] is None) for r in rows] == [
+        ("q-1", True),
+        ("q-2", False),
+        ("q-3", False),
+    ]
 
 
 def test_a_cut_off_agent_answer_records_everything_the_run_spent(tmp_path: Path) -> None:
