@@ -204,7 +204,7 @@ def report(
         "## Per set and arm",
         "",
     ]
-    shown = [o for o in OUTCOMES if o not in ("error", "not_graded")]
+    shown = list(OUTCOMES)  # "Not graded" is the text answers: the LLM grader's columns hold them
     lines += [
         "| Set | Arm | Runs | "
         + " | ".join(LABELS[o] for o in shown)

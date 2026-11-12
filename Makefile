@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: grade setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: dry-run grade setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -107,6 +107,9 @@ run:  # the API on http://localhost:8000 (live mode: short waits, fallback model
 grade:  # the LLM grader over a stored results file: make grade SET=examples RUN=eval/results/<file>.jsonl [CAP=1.0] (costs money)
 	@test -n "$(SET)" -a -n "$(RUN)" || { echo "give SET and RUN: make grade SET=examples RUN=eval/results/<file>.jsonl"; exit 1; }
 	uv run python -m filingcheck.eval grade --set $(SET) --run $(RUN) $(if $(CAP),--cap $(CAP))
+
+dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 20 text answers: make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>] (no model call)
+	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY))
 
 smoke-live:  # check a deployed API: make smoke-live URL=https://... (asks two questions, one baseline and one agent: 2 toward the daily cap)
 	uv run python -m filingcheck.app.smoke "$(URL)"
