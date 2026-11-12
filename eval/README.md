@@ -112,3 +112,13 @@ Because the gold values come from the same facts the tool reads, the evaluation 
 - reports the number correctly (value, unit and period).
 
 It does not re-measure whether the XBRL facts are right; the separate checks above cover that.
+
+## The Week 5 question sets
+
+`eval/questions/dev_traps.jsonl` (85), `dev_unanswerable.jsonl` (10) and `control.jsonl` (50), described in `eval/questions/README.md`. Gold values come from `python -m filingcheck.eval gold`, through the agent's own lookup, except four set by hand from the filing text (three segment changes and one fee), each with the 10-K wording in its `trap_note`.
+
+**The control set follows FinanceBench's three question styles** (Islam et al., *FinanceBench: A New Benchmark for Financial Question Answering*, arXiv:2311.11944, CC BY-NC 4.0): metrics-generated, domain-relevant and novel-generated. FinanceBench's own questions are not used, because none of them is about the pinned filings; the questions here are written for this dataset in those styles, with FinanceBench credited as the template.
+
+**Segment questions:** a segment's dollar total is usually in the filing's tables, which are not searched, while the text gives its change ("YouTube ads revenues increased $4.2 billion"). So a question about a segment's total expects a refusal that does not substitute the company total, and a question about a change the text states expects that figure.
+
+**Overlap:** `uv run python eval/check_overlap.py` checks that no new question copies an older one (word overlap above 0.6).

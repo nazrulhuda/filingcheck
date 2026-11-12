@@ -221,3 +221,26 @@ def test_stale_rows_do_not_make_an_unfinished_file_look_finished(tmp_path: Path)
         question_ids={"control-001", "trap-001"},
     )
     assert pick == old  # only one of its two rows belongs to a current question
+
+
+def test_a_question_with_a_page_filter_is_asked_with_it_like_the_page(tmp_path: Path) -> None:
+    path = tmp_path / "dev.jsonl"
+    filtered = row(
+        id="dev-001",
+        set="trap",
+        category="relative_year",
+        question="What was revenue last year?",
+        company="AAPL",
+        style=None,
+        page_filter={"ticker": "AAPL", "fiscal_year": 2025},
+    )
+    path.write_text(json.dumps(filtered) + "\n", encoding="utf-8")
+    chat = FakeChat(
+        [scripted_tool_calls(("get_financial_fact", FACT)), "Sales were $416,161 million [F1]."]
+    )
+    out = tmp_path / "2026-11-12_dev_agent.jsonl"
+    run_eval(path, mode="agent", repeats=1, model=chat, deps=apple_deps(), out=out, settings="s")
+    user = chat.calls[0]["messages"][1]["content"]
+    assert "AAPL" in user and "2025" in user
+    (line,) = [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines()]
+    assert line["page_filter"] == {"ticker": "AAPL", "fiscal_year": 2025}

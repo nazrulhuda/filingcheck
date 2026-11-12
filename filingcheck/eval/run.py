@@ -86,6 +86,11 @@ def run_eval(
     by_id = {q.id: q for q in questions}
     run_batch(
         [(q.id, q.question) for q in questions],
+        filters={
+            q.id: (q.page_filter.ticker, q.page_filter.fiscal_year)
+            for q in questions
+            if q.page_filter is not None
+        },
         mode=mode,
         out=out,
         model=model,

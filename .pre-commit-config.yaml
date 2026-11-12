@@ -9,9 +9,15 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # Each runs as a Python module: Windows Smart App Control on the development machine blocks
+      # this package's .exe launchers (detect-private-key and check-yaml so far). Same checks,
+      # same package and version.
       - id: end-of-file-fixer
+        entry: python -m pre_commit_hooks.end_of_file_fixer
       - id: check-yaml
+        entry: python -m pre_commit_hooks.check_yaml
       - id: detect-private-key
+        entry: python -m pre_commit_hooks.detect_private_key
   # Blocks API keys and other secrets from being committed (the repo is public). The scanner
   # runs in a Docker container (image pinned to the same version as `rev`), so committing
   # needs Docker running; the Go binary the plain `gitleaks` hook builds is blocked by

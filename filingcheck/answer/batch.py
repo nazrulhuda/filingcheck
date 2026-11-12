@@ -43,6 +43,7 @@ BATCH_FIELDS = (
     "checks",
     "overrides",
     "number_labels",
+    "page_filter",
     "error",
 )
 
@@ -112,14 +113,17 @@ def run_batch(
     retriever: Retriever | None = None,
     repeats: int = 1,
     checks: bool = False,
+    filters: dict[str, tuple[str | None, int | None]] | None = None,
 ) -> int:
     """Answer every question not yet in `out` and append its line; return how many were written.
 
-    Questions are asked as text only, with no company or year filter. The baseline searches
-    with `retriever` (the tools' retriever when none is given). With `repeats`, each
+    Questions are asked as text only, unless `filters` gives them page filters. The baseline
+    searches with `retriever` (the tools' retriever when none is given). With `repeats`, each
     question is asked that many times, one whole pass over the file after another, and
     each row records its `repeat` (1, 2, ...). `checks` switches the agent's skeptical
     checks on; every agent row records it, and its override log, as `checks` and `overrides`.
+    `filters` gives a question's page filters (company, fiscal year) by id; it is asked with
+    them as the page asks, and its row records them as `page_filter`.
     """
     questions = list(questions)
     done = read_done(out)
@@ -130,6 +134,11 @@ def run_batch(
             if (qid, repeat) in done:
                 continue
             row = _row(qid, repeat, mode, question, settings)
+            ticker, fiscal_year = (filters or {}).get(qid, (None, None))
+            if ticker is None:
+                fiscal_year = None  # as on the page: a year counts only with a company
+            if qid in (filters or {}):
+                row["page_filter"] = {"ticker": ticker, "fiscal_year": fiscal_year}
             if mode == "agent":
                 row["checks"] = checks
             answer: Answer
@@ -138,11 +147,21 @@ def run_batch(
             try:
                 if mode == "agent":
                     answer = run_agent(
-                        question, model=model, deps=deps, run_log=run_log, checks=checks
+                        question,
+                        model=model,
+                        deps=deps,
+                        run_log=run_log,
+                        checks=checks,
+                        ticker=ticker,
+                        fiscal_year=fiscal_year,
                     )
                 else:
                     answer = answer_question(
-                        question, retriever=retriever or deps.retriever, model=model
+                        question,
+                        retriever=retriever or deps.retriever,
+                        model=model,
+                        ticker=ticker,
+                        fiscal_year=fiscal_year,
                     )
             except IncompleteAnswer as exc:
                 completion = exc.completion

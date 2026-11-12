@@ -25,6 +25,7 @@ Category = Literal[
     "segment_vs_total",  # one segment's figure vs the company total
     "metric_not_supported",  # a metric or period outside the dataset, such as a quarter
     "prompt_injection",  # the question tries to change the agent's rules
+    "unanswerable_text",  # the filings do not say: a reason, a forecast, an undisclosed detail
     "control",  # a normal, clean question
 ]
 QuestionSet = Literal["trap", "control"]
@@ -38,6 +39,22 @@ GoldSource = Literal["facts", "hand"]
 METRICS: tuple[str, ...] = get_args(Metric)
 CATEGORIES: tuple[str, ...] = get_args(Category)
 QUESTIONS_DIR = REPO_ROOT / "eval" / "questions"
+
+
+class PageFilter(BaseModel):
+    """The company and fiscal year a question is asked with, as the page's filters send them."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    ticker: str | None = None
+    fiscal_year: int | None = Field(default=None, ge=1990, le=2100)
+
+    @model_validator(mode="after")
+    def _year_needs_company(self) -> Self:
+        # The page lists the chosen company's years, so it never sends a year on its own.
+        if self.fiscal_year is not None and self.ticker is None:
+            raise ValueError("a page filter's fiscal year needs a company, as on the page")
+        return self
 
 
 class Question(BaseModel):
@@ -69,6 +86,7 @@ class Question(BaseModel):
     gold_text: str | None = None
     trap_note: str | None = None
     style: Style | None = None  # control questions only
+    page_filter: PageFilter | None = None  # asked with these page filters (the batch runner too)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -101,6 +119,9 @@ def load_questions(path: Path, tickers: set[str]) -> list[Question]:
             raise QuestionFileError(f"{where}: {exc}") from exc
         if question.company is not None and question.company not in tickers:
             raise QuestionFileError(f"{where}: unknown company {question.company}")
+        page = question.page_filter
+        if page is not None and page.ticker is not None and page.ticker not in tickers:
+            raise QuestionFileError(f"{where}: unknown page filter company {page.ticker}")
         questions.append(question)
     return questions
 
