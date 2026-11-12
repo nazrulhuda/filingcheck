@@ -302,7 +302,7 @@ def main() -> int:
                 "",
             ]
     (GRADES / f"{today}_sample_hidden.md").write_text(
-        "\n".join(parts) + "\n", encoding="utf-8", newline="\n"
+        "\n".join(parts).rstrip() + "\n", encoding="utf-8", newline="\n"
     )
     args.key.write_text(
         "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in key_rows), encoding="utf-8"
