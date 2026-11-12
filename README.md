@@ -25,7 +25,8 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 
 ## Known limits
 
-- The checks cover the arguments of `get_financial_fact` only. A text answer is not compared with the passage it cites, so it can be confidently unsupported: one answer gave a reason for a Goldman Sachs decision that the filing does not give, and a saved example calls Walmart's currency swaps "10-year-old", which the filing does not say.
+- The checks cover the arguments of the tools, not the text of an answer. A text answer is not compared with the passage it cites, so it can be confidently unsupported: one answer gave a reason for a Goldman Sachs decision that the filing does not give, and a saved example calls Walmart's currency swaps "10-year-old", which the filing does not say. In the Week 5 dry run, a third or more of the text answers to normal questions said more than their cited passages support, and sending searches to the latest filing did not change that.
+- On questions the filings do not answer (a reason a filing never gives), searching the right filing makes the model answer more often, not less: it turns a description in the passage into a reason. In the dry run, 5 of 30 such questions were answered with the checks on, against 1 without.
 - The model sometimes says it can't find the answer without searching at all.
 - A passage's preview shows the start of the passage, not the part the answer cites.
 - A number's chip can show the metric's standard line name instead of the company's own wording ("Revenues" for Verizon's "Total Operating Revenues").

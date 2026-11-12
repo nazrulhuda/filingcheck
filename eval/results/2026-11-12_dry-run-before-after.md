@@ -52,3 +52,8 @@ The LLM grade is the main grade for text questions (`control` has 21, 63 answers
 - The LLM grader's verdicts on control text answers improved with the check on; their `supported` share did not: answers from the right filing still say more than their cited passages support. That is the Goldman and Walmart pattern, untouched by any check.
 - The unanswerable set got worse with the check on: searched in the latest filing, the model answered 5 of 30 questions the filings do not answer (before: 1). The check gives it passages to read where before it mostly found nothing.
 - dev_traps moved in both arms between the two runs (checks off 182 to 177 correct, checks on 219 to 213): number questions make few search calls, so this is the model's variation, not the check. No claim is attached to any of these numbers; the measurement is Week 6.
+
+## Run notes
+
+- **One error row in the re-run:** dev-040, checks off, run 1 (`openrouter - incomplete_length`: the model's reply was cut off at its token limit; the row holds no answer and grades as `error`). The first run had none. Every other count on this page is over 435 rows per arm, including that row.
+- **Run-to-run noise:** the checks-off arm runs identical code in both runs, yet its dev_traps correct count moved 182 to 177 (of 255). Differences of about 5 rows in 255 are the model's own variation at temperature 0.6, and the checks-on change on dev_traps (219 to 213) is within it. The control and search-year differences above are not: the checks-off arm's control abstains stayed at 19 while the checks-on arm's fell from 21 to 12, and the search years moved only where the check ran.
