@@ -251,3 +251,44 @@ def test_search_years_compare_the_year_sent_with_the_years_the_company_holds() -
         1,
         1,
     )
+
+
+def test_false_repairs_count_the_number_tool_only_and_search_repairs_are_listed_apart() -> None:
+    """The search-year check repairs by design on a control question that names no year."""
+    from filingcheck.eval.dryrun import search_repairs
+
+    rows = [
+        row(
+            "control-101",
+            1,
+            overrides=[{"check": "fiscal_year", "outcome": "repair", "tool": "search_filings"}],
+        ),
+        row(
+            "control-101",
+            2,
+            overrides=[{"check": "units", "outcome": "repair", "tool": "get_financial_fact"}],
+        ),
+        row(
+            "control-101", 3, overrides=[{"check": "company", "outcome": "reject"}]
+        ),  # an old row: no tool
+    ]
+    assert [(r["repeat"]) for r in false_repairs(rows, QUESTIONS)] == [2, 3]
+    assert search_repairs(rows, QUESTIONS) == {"repair": 1, "reject": 0}
+
+
+def test_check_activity_tells_the_two_tools_apart() -> None:
+    rows = [
+        row(
+            "dev-013",
+            overrides=[
+                {"check": "fiscal_year", "outcome": "repair", "tool": "search_filings"},
+                {"check": "company", "outcome": "pass", "tool": "get_financial_fact"},
+            ],
+        ),
+        row(
+            "dev-013", 2, overrides=[{"check": "company", "outcome": "reject"}]
+        ),  # an old row counts as the number tool
+    ]
+    activity = check_activity(rows, QUESTIONS)
+    assert activity[("wrong_fiscal_year", "get_financial_fact")] == {"pass": 1, "reject": 1}
+    assert activity[("wrong_fiscal_year", "search_filings")] == {"repair": 1}
