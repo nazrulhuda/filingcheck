@@ -28,3 +28,13 @@ def test_the_alternatives_follow_the_writers_notes() -> None:
     assert nvidia.gold_value == HELDOUT["held-007"].gold_other_years[2026]  # type: ignore[index]
     assert youtube is not None and youtube.note and youtube.expected_behavior is None
     assert HELDOUT["held-017"].expected_behavior == "refuse"
+
+
+def test_the_held_out_file_is_sealed() -> None:
+    """The SHA-256 recorded in docs/decisions.md on 2026-11-12; any edit to the file fails here."""
+    import hashlib
+
+    digest = hashlib.sha256(
+        (REPO / "eval" / "questions" / "heldout_traps.jsonl").read_bytes()
+    ).hexdigest()
+    assert digest == "456723d5ca80eece53af096cc0516b6105e09772c8c52b45e4e1e5f7b72ec014"
