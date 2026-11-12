@@ -255,3 +255,25 @@ def test_the_summary_counts_verdicts_and_lists_every_disagreement() -> None:
     # A second opinion of "correct" on a row the deterministic grader did not pass is listed.
     assert "control-101" in page and "wrong_number" in page and "because control-101" in page
     assert "because dev-050" not in page.split("## Disagreements")[1]
+
+
+def test_the_summary_counts_and_lists_the_rows_an_also_accept_note_leaves_to_the_llm() -> None:
+    from filingcheck.eval.llm_grade import LlmGrade, summary
+
+    grade = LlmGrade(
+        id="held-017",
+        repeat=1,
+        use="also accept",
+        verdict="correct",
+        supported="yes",
+        reason="because held-017",
+        evidence="",
+        model="fake:chat",
+        prompt_version="2-abc",
+        cost_usd=0.001,
+        cached=False,
+    )
+    page = summary([(grade, "answered_when_should_ask")], title="heldout")
+    assert "| also accept | 1 | 1 | 0 | 0 | 0 | 0 | 0 |" in page
+    decided = page.split("## Decided by the LLM grader")[1]
+    assert "held-017" in decided and "because held-017" in decided
