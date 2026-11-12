@@ -174,6 +174,49 @@ def no_tool_call_rows(
     ]
 
 
+def search_years(
+    rows: Iterable[Mapping[str, Any]],
+    questions: Mapping[str, Question],
+    held: Mapping[str, set[int]],
+) -> dict[str, Any]:
+    """On text questions, the fiscal year each `search_filings` call sent, against the years held.
+
+    `held[ticker]` is the set of pinned fiscal years. A call counts as `latest` when it sent the
+    company's latest pinned year, `earlier_held` for another pinned year, `not_held` for a year
+    the company has no filing for, and `no_year` when it sent none.
+    """
+    by_year: Counter[int | None] = Counter()
+    kinds: Counter[str] = Counter()
+    for row in rows:
+        question = questions.get(row["id"])
+        if question is None or not (question.gold_text or question.category == "unanswerable_text"):
+            continue
+        for call in row.get("tool_calls") or []:
+            if call.get("name") != "search_filings":
+                continue
+            arguments = call.get("arguments") or {}
+            year = arguments.get("fiscal_year")
+            ticker = arguments.get("ticker") or question.company
+            years = held.get(ticker or "", set())
+            by_year[year] += 1
+            if year is None:
+                kinds["no_year"] += 1
+            elif years and year == max(years):
+                kinds["latest"] += 1
+            elif year in years:
+                kinds["earlier_held"] += 1
+            else:
+                kinds["not_held"] += 1
+    return {
+        "calls": sum(by_year.values()),
+        "by_year": dict(by_year),
+        "latest": kinds["latest"],
+        "earlier_held": kinds["earlier_held"],
+        "not_held": kinds["not_held"],
+        "no_year": kinds["no_year"],
+    }
+
+
 def _ms(value: float) -> str:
     return "-" if math.isnan(value) else f"{value / 1000:.1f} s"
 
@@ -191,8 +234,12 @@ def report(
     questions: Mapping[str, Question],
     *,
     date: str,
+    held: Mapping[str, set[int]] | None = None,
 ) -> str:
-    """The dry-run page. `arms[set][arm] = (graded rows, LLM grades by (id, repeat))`."""
+    """The dry-run page. `arms[set][arm] = (graded rows, LLM grades by (id, repeat))`.
+
+    `held` maps each ticker to its pinned fiscal years, for the search-year table.
+    """
     lines = [
         "# Dry run: pipeline check, not results",
         "",
@@ -332,6 +379,33 @@ def report(
                 f"| {set_name} | {arm} | {_row_label(row)} | {grade.outcome} | "
                 f"{verdict_row.verdict} / {verdict_row.supported} | {reason} | {kind} |"
             )
+    if held is not None:
+        lines += [
+            "",
+            "## Search years on text questions",
+            "",
+            "The fiscal year each `search_filings` call sent on a text question (one that names no "
+            "year), against the years the company holds. No check covers `search_filings`.",
+            "",
+            "| Set | Arm | Search calls | Latest pinned year | An earlier pinned year | "
+            "A year the company does not hold | No year | Years sent |",
+            "|---|---|---:|---:|---:|---:|---:|---|",
+        ]
+        for set_name, by_arm in arms.items():
+            for arm, (graded, _) in by_arm.items():
+                t = search_years([r for r, _ in graded], questions, held)
+                if not t["calls"]:
+                    continue
+                years = ", ".join(
+                    f"{'none' if y is None else y}: {n}"
+                    for y, n in sorted(
+                        t["by_year"].items(), key=lambda kv: (kv[0] is None, str(kv[0]))
+                    )
+                )
+                lines.append(
+                    f"| {set_name} | {arm} | {t['calls']} | {t['latest']} | {t['earlier_held']} | "
+                    f"{t['not_held']} | {t['no_year']} | {years} |"
+                )
     lines += ["", NO_TOOL_CALL, ""]
     quiet = [
         (set_name, arm, row)

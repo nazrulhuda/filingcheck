@@ -166,8 +166,14 @@ def dryrun_main(args: argparse.Namespace) -> int:
                 if found is not None and found.use == "text" and found.verdict:
                     key = f"eval/results/{path.name}:{row['id']}:{row.get('repeat', 1)}"
                     pool[key] = (row, by_id[row["id"]], found)
+    held: dict[str, set[int]] = {}
+    manifest = json.loads((REPO_ROOT / "data" / "manifest.json").read_text(encoding="utf-8"))
+    for filing in manifest["filings"]:
+        held.setdefault(filing["ticker"], set()).add(int(filing["fiscal_year"]))
     page = REPO_ROOT / "eval" / "results" / f"{args.date}_dry-run.md"
-    page.write_text(report(arms, questions, date=args.date), encoding="utf-8", newline="\n")
+    page.write_text(
+        report(arms, questions, date=args.date, held=held), encoding="utf-8", newline="\n"
+    )
     print(f"wrote {page.relative_to(REPO_ROOT)}")
     if args.sample_key is None:
         return 0
