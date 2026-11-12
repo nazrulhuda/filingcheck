@@ -204,7 +204,7 @@ def test_relative_year_rows_with_no_tool_call_are_listed() -> None:
 
 
 def test_the_report_has_the_dry_run_heading_and_every_section() -> None:
-    arms = {
+    arms: dict[str, dict[str, tuple[Any, Any]]] = {
         "dev_traps": {
             "checks off": ([(row("dev-013", 1), graded("wrong_number"))], {}),
             "checks on": ([(row("dev-013", 1), graded("correct"))], {}),
