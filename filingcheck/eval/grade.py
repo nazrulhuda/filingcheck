@@ -127,7 +127,8 @@ DATE_RE = re.compile(
 # The words before a date that make it a period's end ("the year ended", "through", "as of").
 PERIOD_END_BEFORE_RE = re.compile(
     r"(?:\bended|\bending|\bend(?:ed)?\s+on|\bthrough|\bthru|\bto|\buntil|\bas\s+of|\bat|-"
-    r"|(?<!filed )(?<!dated )(?<!issued )\bon)\s*(?:on\s+)?$"
+    r"|(?<!filed )(?<!dated )(?<!issued )\bon)\s*(?:on\s+)?"
+    r"(?:the\s+)?(?:(?:fiscal\s+)?year[\s-]*end\s+)?$"  # "as of the year-end December 31, 2025"
     r"|\d\s+$",  # a date right after another date or number ends a range
     re.IGNORECASE,
 )
