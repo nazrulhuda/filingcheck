@@ -244,3 +244,15 @@ def test_a_question_with_a_page_filter_is_asked_with_it_like_the_page(tmp_path: 
     assert "AAPL" in user and "2025" in user
     (line,) = [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines()]
     assert line["page_filter"] == {"ticker": "AAPL", "fiscal_year": 2025}
+
+
+def test_several_sets_are_named_in_one_argument() -> None:
+    from filingcheck.eval.run import set_names
+
+    assert set_names("dev_traps,dev_unanswerable,control") == [
+        "dev_traps",
+        "dev_unanswerable",
+        "control",
+    ]
+    assert set_names(" examples ") == ["examples"]
+    assert set_names("a,,a") == ["a"]  # blanks dropped, repeats once
