@@ -246,13 +246,21 @@ def day18_scenarios() -> list[Any]:
             id="number question",
         ),
         pytest.param(
+            # The searches name Walmart's latest pinned year: since 2026-11-12 the fiscal-year
+            # check runs on search_filings too, and would repair a search with no year.
             "What are Walmart's main risks in Mexico?",
             [
                 scripted_tool_calls(
-                    ("search_filings", {"query": "risks in Mexico", "ticker": "WMT"})
+                    (
+                        "search_filings",
+                        {"query": "risks in Mexico", "ticker": "WMT", "fiscal_year": 2026},
+                    )
                 ),
                 scripted_tool_calls(
-                    ("search_filings", {"query": "peso exposure", "ticker": "WMT", "k": 2})
+                    (
+                        "search_filings",
+                        {"query": "peso exposure", "ticker": "WMT", "k": 2, "fiscal_year": 2026},
+                    )
                 ),
                 "Currency swings in Mexico are a risk [2], and so is the peso [1].",
             ],

@@ -340,6 +340,6 @@ scenarios:
     expected:
       overrides: [fiscal_year:pass]
       tool_arguments: []
-      search_arguments: [{query: content costs, ticker: NFLX, fiscal_year: 2024, k: 8}]
+      search_arguments: [{query: content costs, ticker: NFLX, fiscal_year: 2024}]  # as sent: a pass changes nothing
       values: []
       grade: abstained

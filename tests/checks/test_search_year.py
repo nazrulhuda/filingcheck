@@ -107,5 +107,22 @@ def test_without_a_company_the_year_is_not_checked() -> None:
 
 
 def test_the_record_names_the_tool() -> None:
-    result = run("How does Apple describe its services business?")
-    assert result.override.tool == "search_filings"
+    from filingcheck.checks import run_checks
+
+    context = CheckContext(
+        question="How does Apple describe its services business?",
+        ticker=None,
+        fiscal_year=None,
+        companies=COMPANIES,
+        not_covered=NOT_COVERED,
+        manifest=MANIFEST,
+    )
+    call = CheckedCall(
+        "search_filings", {"query": "services", "ticker": "AAPL", "fiscal_year": 2023}
+    )
+    _, [record] = run_checks(call, context, [CHECK])
+    assert (record.tool, record.check, record.outcome) == (
+        "search_filings",
+        "fiscal_year",
+        "repair",
+    )
