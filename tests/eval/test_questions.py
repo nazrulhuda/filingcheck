@@ -180,3 +180,47 @@ def test_the_retrieval_file_is_checked_against_its_own_format(tmp_path: Path) ->
     assert main(["validate", "--dir", str(tmp_path)]) == 0
     write(tmp_path, [dict(RETRIEVAL_ROW, must_contain="")], "retrieval.jsonl")
     assert main(["validate", "--dir", str(tmp_path)]) == 1
+
+
+# ---------------------------------------------------------------- Week 5 fields
+
+
+def test_the_unanswerable_text_category_is_allowed() -> None:
+    question = Question.model_validate(
+        BASE
+        | {
+            "category": "unanswerable_text",
+            "question": "Why did Walmart pick its fiscal year end?",
+            "metric": None,
+            "expected_behavior": "refuse",
+            "gold_unit": None,
+        }
+    )
+    assert question.category == "unanswerable_text"
+
+
+def test_a_page_filter_holds_a_company_and_a_year_either_of_which_may_be_left_out() -> None:
+    question = Question.model_validate(
+        BASE | {"page_filter": {"ticker": "AAPL", "fiscal_year": 2025}}
+    )
+    assert question.page_filter is not None
+    assert (question.page_filter.ticker, question.page_filter.fiscal_year) == ("AAPL", 2025)
+    assert Question.model_validate(BASE | {"page_filter": {"ticker": "AAPL", "fiscal_year": None}})
+    assert Question.model_validate(BASE).page_filter is None
+
+
+def test_a_page_filter_year_needs_a_company_as_on_the_page() -> None:
+    # The page lists the years of the chosen company, so it never sends a year alone.
+    with pytest.raises(ValidationError, match="company"):
+        Question.model_validate(BASE | {"page_filter": {"ticker": None, "fiscal_year": 2025}})
+
+
+def test_a_page_filter_with_another_field_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Question.model_validate(BASE | {"page_filter": {"ticker": "AAPL", "item": "7"}})
+
+
+def test_a_page_filter_company_must_be_in_the_dataset(tmp_path: Path) -> None:
+    path = write(tmp_path, [BASE | {"page_filter": {"ticker": "TSLA", "fiscal_year": None}}])
+    with pytest.raises(QuestionFileError, match="TSLA"):
+        load_questions(path, TICKERS)
