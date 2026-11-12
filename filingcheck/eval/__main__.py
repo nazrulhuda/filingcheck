@@ -3,6 +3,7 @@
 gold: fill the gold values of a question file from the facts table (filingcheck/eval/gold.py).
 run:  a question set through one mode in batch mode, graded (filingcheck/eval/run.py).
 gate-fixture: write the gate's facts fixture from data/facts.jsonl (filingcheck/eval/gate.py).
+grade: the LLM grader over a stored results file (filingcheck/eval/llm_grade.py), `make grade`.
 """
 
 import argparse
@@ -45,6 +46,82 @@ def gold_main(args: argparse.Namespace) -> int:
         report = fill_gold_file(args.questions, PostgresFacts(conn))
     for qid, action, detail in report:
         print(f"{qid}: {action}" + (f" ({detail})" if detail else ""))
+    return 0
+
+
+def sources_reader(conn: Any) -> Any:
+    """Rebuild a stored row's sources for the LLM grader: cited passages' text and its facts."""
+    from filingcheck.facts.lookup import PostgresFacts, lookup
+    from filingcheck.labels.stored import sources_for_row
+
+    facts_source = PostgresFacts(conn)
+
+    def passage_text(ids: list[int]) -> dict[int, str]:
+        rows = conn.execute("SELECT id, text FROM chunks WHERE id = ANY(%s)", (ids,)).fetchall()
+        return {int(i): str(t) for i, t in rows}
+
+    def sources_for(row: dict[str, Any]) -> tuple[list[tuple[int, str]], list[dict[str, Any]]]:
+        sources, _, _ = sources_for_row(
+            row,
+            passage_text=passage_text,
+            lookup_fact=lambda t, y, metric: lookup(facts_source, t, y, metric),
+            filing_facts=None,
+        )
+        facts = [
+            {
+                "concept": f.concept,
+                "value": str(f.value),
+                "unit": f.unit,
+                "period_start": f.period_start.isoformat() if f.period_start else None,
+                "period_end": f.period_end.isoformat() if f.period_end else None,
+                "instant": f.instant.isoformat() if f.instant else None,
+            }
+            for f in sources.facts
+        ]
+        return [(p.number, p.text) for p in sources.passages], facts
+
+    return sources_for
+
+
+def grade_main(args: argparse.Namespace) -> int:
+    """Grade a stored results file with the LLM grader; write its grades and a summary page."""
+    from filingcheck.db import connect
+    from filingcheck.eval.grade import grade
+    from filingcheck.eval.llm_grade import GRADER_MODEL, GradeCache, grade_rows, summary
+    from filingcheck.eval.run import read_questions
+    from filingcheck.llm.registry import make_chat
+
+    questions = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{args.set}.jsonl")}
+    rows = [
+        json.loads(line)
+        for line in args.run.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    model = make_chat(GRADER_MODEL, mode="batch")
+    with connect() as conn:
+        grades, stopped = grade_rows(
+            rows,
+            questions,
+            sources_for=sources_reader(conn),
+            model=model,
+            cache=GradeCache(args.cache),
+            cap_usd=args.cap,
+        )
+    outcomes = {
+        (r["id"], r.get("repeat", 1)): grade(r, questions[r["id"]]).outcome
+        for r in rows
+        if r["id"] in questions and isinstance(r.get("answer"), str)
+    }
+    out = args.run.with_name(args.run.stem + "_llm.jsonl")
+    out.write_text(
+        "".join(g.model_dump_json() + "\n" for g in grades), encoding="utf-8", newline="\n"
+    )
+    page = summary([(g, outcomes[(g.id, g.repeat)]) for g in grades], title=args.run.stem)
+    out.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
+    print(page)
+    if stopped:
+        print(f"STOPPED: the spend passed the cap of ${args.cap}; run again to continue")
+        return 1
     return 0
 
 
@@ -156,6 +233,13 @@ def main(argv: list[str] | None = None) -> int:
         "--date", help="the results file date (default: an unfinished file's, else today UTC)"
     )
     run.add_argument("--checks", help="agent only: on (default) or off; the file name says which")
+    llm = commands.add_parser("grade", help="the LLM grader over a stored results file")
+    llm.add_argument("--set", required=True, help="the question file the run answered, no .jsonl")
+    llm.add_argument("--run", type=Path, required=True, help="a results file in eval/results/")
+    llm.add_argument("--cap", type=float, default=1.0, help="stop once the spend passes this")
+    llm.add_argument(
+        "--cache", type=Path, default=REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl"
+    )
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -163,6 +247,8 @@ def main(argv: list[str] | None = None) -> int:
         return gate_fixture_main()
     if args.command == "gold":
         return gold_main(args)
+    if args.command == "grade":
+        return grade_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument
