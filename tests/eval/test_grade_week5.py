@@ -248,3 +248,17 @@ def test_a_period_end_in_bold_still_states_the_year() -> None:
         f"**December{NBSP}31,{NBSP}2025** (instant value as of that date)【F1】."
     )
     assert grade({"id": "dev-028", "answer": answer}, q).outcome == "correct"
+
+
+def test_as_of_the_year_end_before_a_date_is_a_period_end() -> None:
+    """dev-028 #2: "as of the year-end December 31, 2025" states the year."""
+    from filingcheck.eval.grade import states_year
+
+    assert states_year(
+        f"total assets of $54.2 billion as of the year{HYPHEN}end December{NBSP}31,{NBSP}2025.",
+        2025,
+    )
+    assert states_year(
+        "total assets of $54.2 billion as of fiscal year end December 31, 2025.", 2025
+    )
+    assert not states_year("total assets of $54.2 billion as of the year-end.", 2025)
