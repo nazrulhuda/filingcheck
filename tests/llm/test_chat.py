@@ -438,12 +438,27 @@ def test_a_chat_model_with_no_output_price_raises() -> None:
 
 def test_every_model_in_the_registry_has_an_input_and_an_output_price_with_a_source() -> None:
     registry = load_registry()
-    # The groq: entry stays: the saved example answers were made with it.
-    assert set(registry.models) == {GROQ, GEMINI, OPENROUTER}
+    # The groq: entry stays: the saved example answers were made with it. The grader is the
+    # LLM grader's model (Week 5).
+    assert set(registry.models) == {GROQ, GEMINI, OPENROUTER, GRADER}
     for spec in registry.models:
         entry = PRICING["models"][spec]
         assert entry["input_per_million"] > 0 and entry["output_per_million"] > 0
         assert entry["source"].startswith("https://")
+
+
+GRADER = "openrouter:anthropic/claude-haiku-5.5"
+
+
+def test_the_grader_model_sends_no_temperature_and_only_uses_anthropic_s_endpoint() -> None:
+    # OpenRouter lists no temperature for this model (2026-11-12); some other hosts cost more.
+    settings = load_registry().models[GRADER]
+    assert settings.temperature is None and settings.json_schema is True
+    assert settings.params["provider"] == {"only": ["anthropic"], "allow_fallbacks": False}
+    assert (
+        PRICING["models"][GRADER]["input_per_million"],
+        PRICING["models"][GRADER]["output_per_million"],
+    ) == (0.10, 0.50)
 
 
 def test_fake_chat_replays_its_script_and_records_each_call() -> None:
