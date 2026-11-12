@@ -88,9 +88,11 @@ def load_prompt(path: Path = PROMPT_FILE) -> tuple[str, str]:
 
 
 def needs_llm(question: Question, deterministic: Grade) -> str | None:
-    """Why the LLM grader reads this row: "text", "second opinion", or None."""
+    """Why the LLM grader reads this row: "text", "also accept", "second opinion", or None."""
     if question.gold_text or question.category == "unanswerable_text":
         return "text"
+    if deterministic.llm_decides:  # the question's also_accept note: the LLM grader decides
+        return "also accept"
     if deterministic.outcome != "correct":
         return "second opinion"
     return None
@@ -113,6 +115,15 @@ def _reference(question: Question) -> list[str]:
         lines.append(f"Gold text: {question.gold_text}")
     if question.trap_note:
         lines.append(f"Note: {question.trap_note}")
+    also = question.also_accept
+    if also is not None:
+        if also.expected_behavior:
+            lines.append(f"Also accept: expected behavior {also.expected_behavior}")
+        if also.gold_value is not None:
+            value = f"{also.gold_value} {also.gold_unit}"
+            lines.append(f"Also accept: {value} for fiscal year {also.fiscal_year}")
+        if also.note:
+            lines.append(f"Also accept: {also.note}")
     return lines
 
 

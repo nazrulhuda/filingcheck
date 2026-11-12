@@ -57,6 +57,39 @@ class PageFilter(BaseModel):
         return self
 
 
+class AlsoAccept(BaseModel):
+    """A second answer a question accepts, when its writer's note accepts two.
+
+    An alternative behavior (`refuse` where the main one is `answer`), an alternative gold value
+    with its own fiscal year (filled from the facts like the main one), or a `note` describing an
+    acceptable answer the deterministic grader cannot check, which the LLM grader decides.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    expected_behavior: Behavior | None = None
+    fiscal_year: int | None = Field(default=None, ge=1990, le=2100)
+    gold_value: int | float | None = None
+    gold_unit: str | None = None
+    gold_source: GoldSource | None = None
+    gold_concept: str | None = None
+    gold_accession: str | None = None
+    gold_period_start: date | None = None
+    gold_period_end: date | None = None
+    gold_instant: date | None = None
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def _says_something(self) -> Self:
+        if self.expected_behavior is None and self.fiscal_year is None and not self.note:
+            raise ValueError("also_accept needs a behavior, a fiscal year or a note")
+        if self.gold_value is not None and (self.fiscal_year is None or not self.gold_unit):
+            raise ValueError("an also_accept gold value needs its fiscal year and unit")
+        if self.gold_source is not None and self.gold_value is None:
+            raise ValueError("also_accept gold_source is set but gold_value is not")
+        return self
+
+
 class Question(BaseModel):
     """One evaluation question and what a correct answer looks like."""
 
@@ -87,6 +120,7 @@ class Question(BaseModel):
     trap_note: str | None = None
     style: Style | None = None  # control questions only
     page_filter: PageFilter | None = None  # asked with these page filters (the batch runner too)
+    also_accept: AlsoAccept | None = None  # a second answer the writer's note accepts
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -98,6 +132,9 @@ class Question(BaseModel):
             raise ValueError("a control question has set 'control' and category 'control'")
         if (self.style is not None) != (self.set == "control"):
             raise ValueError("style is required for control questions and not allowed otherwise")
+        also = self.also_accept
+        if also is not None and also.expected_behavior == self.expected_behavior:
+            raise ValueError("also_accept's behavior is the same as the main one")
         return self
 
 

@@ -203,6 +203,10 @@ class Grade(BaseModel):
     # For a clarify question: the grade under the lenient rule, which also counts asking about
     # something else (only which year, when the company is ambiguous) or declining.
     lenient_outcome: Outcome | None = None
+    # For a question with `also_accept`: which expectation a correct answer met, and whether the
+    # case is left to the LLM grader (a `note` the rules here cannot check).
+    accepted_by: Literal["main", "also_accept"] | None = None
+    llm_decides: bool = False
 
 
 def _plain(value: Decimal) -> str:
@@ -409,7 +413,54 @@ def _closest(
 
 
 def grade(row: dict[str, Any], question: Question) -> Grade:
-    """Grade one batch row against its question (see the module docstring for the rules)."""
+    """Grade one batch row against its question (see the module docstring for the rules).
+
+    A question with `also_accept` is correct if the answer meets either expectation, the main one
+    first; `accepted_by` records which. A clarify alternative is about the company: the answer
+    asks which company, names two or more, or asks whether the question's company is meant.
+    """
+    main = _grade_one(row, question)
+    also = question.also_accept
+    if also is None or main.outcome == "error":
+        return main
+    if main.outcome == "correct":
+        return main.model_copy(update={"accepted_by": "main"})
+    if also.expected_behavior is not None or also.gold_value is not None:
+        alternative = question.model_copy(
+            update={
+                "expected_behavior": also.expected_behavior or question.expected_behavior,
+                "company": None if also.expected_behavior == "clarify" else question.company,
+                "fiscal_year": also.fiscal_year or question.fiscal_year,
+                "gold_value": also.gold_value,
+                "gold_unit": also.gold_unit,
+                "gold_other_years": None,
+                "also_accept": None,
+            }
+        )
+        other = _grade_one(row, alternative)
+        if (
+            other.outcome == "asked_about_another_thing"
+            and question.company is not None
+            and _asks_about(str(row.get("answer")), question.company)
+        ):
+            other = other.model_copy(update={"outcome": "correct"})
+        if other.outcome == "correct":
+            return other.model_copy(update={"accepted_by": "also_accept"})
+    return main.model_copy(update={"llm_decides": bool(also.note)})
+
+
+def _asks_about(text: str, ticker: str) -> bool:
+    """Whether the answer asks a question back that names this company ("do you mean ...?")."""
+    named = {
+        next(iter(m.tickers))
+        for m in find_mentions(_prepare(text), _companies())
+        if len(m.tickers) == 1
+    }
+    return asks(text) and ticker in named
+
+
+def _grade_one(row: dict[str, Any], question: Question) -> Grade:
+    """Grade one row against one expectation: the question's main one, or its alternative."""
     text = row.get("answer")
     if row.get("error") or text is None:
         return Grade(outcome="error", numbers=[], matched=None, year_stated=False)
