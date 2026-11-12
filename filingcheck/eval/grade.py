@@ -351,22 +351,29 @@ def _companies() -> list[Company]:
 def addresses_ambiguity(text: str, question: Question) -> bool:
     """Whether a clarify answer asks about what is ambiguous (the strict clarify rule).
 
-    With no company resolved (by the question or its page filter), the company is ambiguous:
-    the answer must name at least two companies or ask which company. With a company but no
-    fiscal year, the year is: the answer must ask which year or period, or name at least two
-    fiscal years.
+    With no company resolved, the company is ambiguous: the answer must name at least two
+    companies or ask which company. With a company but no fiscal year, the year is: the answer
+    must ask which year or period, or name at least two fiscal years. A page filter settles the
+    company when the question names no other company (then the year is the ambiguity); when
+    the question names a different company, the company is; when it names none the matcher
+    knows, either kind of question back counts.
     """
     text = _prepare(text)
-    company = question.company
-    if company is None and question.page_filter is not None:
-        company = question.page_filter.ticker  # the page resolved the company for the model
-    if company is None:
-        named = {
-            next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
-        }
-        return len(named) >= 2 or ASK_COMPANY_RE.search(text) is not None
+    named = {
+        next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
+    }
+    company_ok = len(named) >= 2 or ASK_COMPANY_RE.search(text) is not None
     years = {_year(m.group(1)) for m in FISCAL_PHRASE_RE.finditer(text)}
-    return ASK_YEAR_RE.search(text) is not None or len(years) >= 2
+    year_ok = ASK_YEAR_RE.search(text) is not None or len(years) >= 2
+    if question.company is not None:
+        return year_ok
+    page = question.page_filter
+    if page is None or page.ticker is None:
+        return company_ok
+    in_question = {t for m in find_mentions(question.question, _companies()) for t in m.tickers}
+    if not in_question:
+        return company_ok or year_ok
+    return year_ok if in_question == {page.ticker} else company_ok
 
 
 def asks_or_declines(text: str) -> bool:
