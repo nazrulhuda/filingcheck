@@ -311,7 +311,7 @@ def summary(graded: list[tuple[LlmGrade, str]], *, title: str) -> str:
             "",
         ]
     lines += ["| Use | Rows | " + " | ".join(VERDICTS) + " | Errors |", "|---|" + "---:|" * 7]
-    for use in ("text", "second opinion"):
+    for use in ("text", "also accept", "second opinion"):
         part = [g for g, _ in graded if g.use == use]
         counts = [sum(1 for g in part if g.verdict == v) for v in VERDICTS]
         errors = sum(1 for g in part if g.error)
@@ -336,5 +336,12 @@ def summary(graded: list[tuple[LlmGrade, str]], *, title: str) -> str:
         lines += ["| Row | Deterministic | LLM | Reason |", "|---|---|---|---|"]
         lines += [
             f"| {g.id} #{g.repeat} | {det} | {g.verdict} | {g.reason} |" for g, det in disagree
+        ]
+    decided = [(g, det) for g, det in graded if g.use == "also accept"]
+    if decided:  # rows whose also_accept note the LLM grader decides: its verdict is the grade
+        lines += ["", "## Decided by the LLM grader (an also_accept note)", ""]
+        lines += ["| Row | Deterministic | LLM | Reason |", "|---|---|---|---|"]
+        lines += [
+            f"| {g.id} #{g.repeat} | {det} | {g.verdict} | {g.reason} |" for g, det in decided
         ]
     return "\n".join(lines) + "\n"
