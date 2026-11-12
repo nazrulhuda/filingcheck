@@ -168,3 +168,24 @@ def test_a_clarify_or_refuse_question_gets_no_gold_value() -> None:
     # A value set by hand stays, as always.
     hand = {**refuse, "gold_value": 1, "gold_source": "hand"}
     assert fill_gold([hand], apple_deps().facts)[0] == [hand]
+
+
+def test_an_alternative_year_in_also_accept_gets_its_gold_value_from_the_facts() -> None:
+    question = row(also_accept={"fiscal_year": 2024})
+    [filled], report = fill_gold([question], TwoYears())
+    also = filled["also_accept"]
+    assert (also["gold_value"], also["gold_unit"], also["gold_source"]) == (
+        391035000000,
+        "USD",
+        "facts",
+    )
+    assert (also["gold_period_start"], also["gold_period_end"]) == ("2023-10-01", "2024-09-28")
+    assert also["gold_accession"] == "0000320193-24-000123"
+    assert report[-1] == ("control-001", "also_accept filled", "391035000000 USD, fiscal 2024")
+    Question.model_validate(filled)
+
+
+def test_an_alternative_behavior_alone_gets_no_gold_value() -> None:
+    question = row(also_accept={"expected_behavior": "refuse"})
+    [filled], _ = fill_gold([question], TwoYears())
+    assert filled["also_accept"] == {"expected_behavior": "refuse"}
