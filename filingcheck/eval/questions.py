@@ -87,6 +87,8 @@ class AlsoAccept(BaseModel):
             raise ValueError("an also_accept gold value needs its fiscal year and unit")
         if self.gold_source is not None and self.gold_value is None:
             raise ValueError("also_accept gold_source is set but gold_value is not")
+        if self.expected_behavior == "answer" and self.fiscal_year is None:
+            raise ValueError("an also_accept answer needs a fiscal year for its gold value")
         return self
 
 
