@@ -14,6 +14,7 @@ from filingcheck.eval.questions import (
     main,
     validate_files,
 )
+from filingcheck.ingest.companies import load_companies
 
 REPO = Path(__file__).resolve().parents[2]
 TICKERS = {"AAPL", "WMT", "NVDA", "MSFT", "GS", "KO", "JPM", "MS"}
@@ -104,7 +105,8 @@ def test_the_example_file_is_valid() -> None:
         if not f.name.startswith(("retrieval", "page_"))
     ]
     assert files, "eval/questions has no .jsonl files"
-    counts = validate_files(files, TICKERS | {"KO"})
+    companies = {c.ticker for c in load_companies(REPO / "data" / "companies.yaml")}
+    counts = validate_files(files, companies)
     assert counts["examples.jsonl"] == 6
 
 
