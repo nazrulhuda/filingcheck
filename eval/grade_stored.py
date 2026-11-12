@@ -43,7 +43,8 @@ from filingcheck.eval.llm_sample import Candidate, draw_sample, owner_subset  # 
 from filingcheck.eval.questions import Question  # noqa: E402
 from filingcheck.llm.registry import make_chat  # noqa: E402
 
-SEED = 20261112
+# One seed per round; round 2 is the fresh sample after the one prompt fix (decisions, 2026-11-12).
+SEEDS = {1: 20261112, 2: 20261120}
 SIZES = {"text": 15, "number, not clean": 15, "number, clean": 10}
 GRADES = REPO / "eval" / "llm_grades"
 # Probe labels to the development questions in probe_questions.jsonl.
@@ -115,9 +116,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="eval/grade_stored.py")
     parser.add_argument("--key", type=Path, required=True, help="where the hidden verdicts go")
     parser.add_argument("--cap", type=float, default=0.5)
+    parser.add_argument("--round", type=int, choices=sorted(SEEDS), default=1)
     args = parser.parse_args()
     load_dotenv(REPO / ".env")
     today = date.today().isoformat()
+    seed = SEEDS[args.round]
+    # Rows drawn in an earlier round are never drawn again: the fresh sample is new rows.
+    drawn = {
+        json.loads(line)["key"]
+        for earlier in range(1, args.round)
+        for path in sorted(GRADES.glob(f"*_sample{earlier}_key.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line
+    }
     model = make_chat(GRADER_MODEL, mode="batch")
     cache = GradeCache(GRADES / "cache.jsonl")
     prompt = load_prompt()
@@ -157,7 +168,7 @@ def main() -> int:
                 pool[key] = (row, question, outcome, found)
                 if found:
                     probe_grades.append((found, outcome, path.name))
-        out = GRADES / f"{today}_probes.jsonl"
+        out = GRADES / f"{today}_probes_round{args.round}.jsonl"
         out.write_text(
             "".join(json.dumps(g.model_dump() | {"file": f}) + "\n" for g, _, f in probe_grades),
             encoding="utf-8",
@@ -217,15 +228,16 @@ def main() -> int:
         candidates = [
             Candidate(key=k, stratum=s)
             for k, (row, q, o, g) in pool.items()
-            if (s := stratum(q, o, g)) is not None
+            if k not in drawn and (s := stratum(q, o, g)) is not None
         ]
-        sample = draw_sample(candidates, SIZES, seed=SEED)
-        owner = set(owner_subset(sample, 10, seed=SEED))
+        sample = draw_sample(candidates, SIZES, seed=seed)
+        owner = set(owner_subset(sample, 10, seed=seed))
         key_rows = []
         parts = [
-            f"# Hand-graded sample for the LLM grader ({today})",
+            f"# Hand-graded sample {args.round} for the LLM grader ({today})",
             "",
-            f"Drawn by `eval/grade_stored.py` with seed {SEED}: {SIZES['text']} text answers, "
+            f"Drawn by `eval/grade_stored.py` with seed {seed} (round {args.round}): "
+            f"{SIZES['text']} text answers, "
             f"{SIZES['number, not clean']} number answers whose deterministic grade is not "
             f"correct, {SIZES['number, clean']} that are. The LLM verdicts are hidden until the "
             "hand grades are in.",
@@ -237,7 +249,7 @@ def main() -> int:
             "",
         ]
         shown = list(sample)
-        random.Random(SEED + 2).shuffle(shown)  # the strata would hint at the deterministic grade
+        random.Random(seed + 2).shuffle(shown)  # the strata would hint at the deterministic grade
         for n, candidate in enumerate(shown, 1):
             row, question, outcome, found = pool[candidate.key]
             if found is None:  # a clean row: graded now, for the comparison
@@ -301,7 +313,7 @@ def main() -> int:
                 "Verdict: ______  Supported: ______",
                 "",
             ]
-    (GRADES / f"{today}_sample_hidden.md").write_text(
+    (GRADES / f"{today}_sample{args.round}_hidden.md").write_text(
         "\n".join(parts).rstrip() + "\n", encoding="utf-8", newline="\n"
     )
     args.key.write_text(
