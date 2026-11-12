@@ -32,3 +32,19 @@ Details behind the Week 5 work, and what is left for Week 6.
 ## Open for Week 6 (from the search-year re-run)
 
 **The unanswerable set got worse with the search check on.** With searches sent to the latest filing, the model answered 5 of 30 questions the filings do not answer (una-001 three times, una-009 twice), against 1 before: it turns a description in the passage into a reason the filing never gives. **Text support did not improve** either (control, checks on: 33% to 37% of text answers marked `supported: partly` or `no`), although the LLM grader's verdicts on those answers did (27 to 53 correct of 63). Both are limits of the current system, listed in the README's known limits; neither is addressed in Week 5.
+
+## Costs
+
+Every model call of the week, from the committed rows and the grade cache.
+
+| What | Where it is recorded | Cost |
+|---|---|---:|
+| Day 32: the LLM grader on the Week 4 example-set results and the probe rows, prompt versions 1 and 2, and the three hand-graded samples | `eval/llm_grades/cache.jsonl`, `eval/results/*_examples_*_llm.jsonl`, `eval/llm_grades/*_probes_round*.jsonl` | about $0.08 |
+| Day 33: the dry run, both arms, 3 runs per question | `eval/results/2026-11-12_*_agent-checks-*.jsonl` | $0.29 |
+| Day 33: its LLM grading | `eval/results/2026-11-12_*_llm.jsonl` | $0.08 |
+| The re-run with the search-year check, both arms | `eval/results/2026-11-12_*-search-year.jsonl` | $0.29 |
+| Its LLM grading | `eval/results/2026-11-12_*-search-year_llm.jsonl` | $0.07 |
+| Live checks (smoke tests, the Day 30 live question) | the request log on Neon | under $0.01 |
+| **Total** | | **about $0.81** |
+
+Gold values cost nothing: they come from the facts table. The week's cap was $6.

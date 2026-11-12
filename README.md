@@ -8,7 +8,7 @@ FilingCheck answers questions about public companies' SEC 10-K filings and cites
 
 What the project is building, and will measure: an LLM agent whose tools are *skeptical*. Before the number tool runs, the server checks the arguments the model sent (the company, the fiscal year, the metric, the units, the segment) against SEC data, fixes what the question settles and sends the rest back to the model. Every number in an answer will then be labeled **Verified**, **Unverified** or **Conflict** against the SEC's XBRL data. The measurement asks whether these checks cut wrong tool calls and confidently wrong answers, on a trap question set built for that purpose. The agent was built in week 3 and the checks in week 4; the number labels come in week 5 and the results in week 6.
 
-**Status: week 4 of 7 done.** The page on Vercel, the API on Render and the database on Neon are deployed, and the page now runs the agent with its checks on. The only graded results so far are on 6 example questions, which prove nothing about accuracy; the measurement is week 6's ([week 4 summary](docs/week4_summary.md)).
+**Status: week 5 of 7 done.** The page on Vercel, the API on Render and the database on Neon are deployed; the page runs the agent with its checks on and labels every number. The question sets, the graders and a dry run are in place; the held-out set is sealed and unrun. Nothing measured yet proves accuracy; the measurement is week 6's ([week 5 summary](docs/week5_summary.md), [week 4 summary](docs/week4_summary.md)).
 
 ## What works today
 
@@ -21,7 +21,8 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 - **Skeptical checks on the tools:** before `get_financial_fact` runs, five checks compare its arguments with the question's words and the SEC data: the company, the fiscal year (including "last year"), the metric and period, the units and the segment. Before `search_filings` runs, the fiscal-year check does the same for its year, and sends a search that names no year to the company's latest filing. Each passes the call, repairs it when the question settles the answer, or sends it back to the model with the options, once. Every decision, passes included, goes into an override log that is kept with each answer, in the request log and in the evaluation rows ([week 4 summary](docs/week4_summary.md)).
 - **Graders:** a deterministic grader for numbers, and an LLM grader for text answers and for a second opinion on failed number grades ([eval](eval/README.md)). The LLM grader was checked on two hand-graded samples of 40 stored answers. On the second, after one fix to its prompt, it agreed with the review chat on 37 of 40 verdicts. The grader check used two blind graders (the review chat and a fresh AI agent), plus the owner's review of the review chat's grades on ten rows.
 - **A held-out trap set** (28 questions, `eval/questions/heldout_traps.jsonl`), written by a fresh AI agent that saw only the category names and the company list, not by a person. It is sealed after review and first run in week 6.
-- **A deterministic gate in CI:** 21 scripted scenarios run the real agent, checks, lookup and grader with no model, and fail the build if a check's decision changes (`make eval-smoke`, [eval](eval/README.md)).
+- **Number labels:** every figure in an answer is labeled Verified (it is in a cited fact or passage), Conflict (it differs from the cited fact) or Unverified, after the model answers and without changing what it wrote; the page shows the label next to each figure ([labels](filingcheck/labels/), [week 5 summary](docs/week5_summary.md)).
+- **A deterministic gate in CI:** 24 scripted scenarios run the real agent, checks, lookup and grader with no model, and fail the build if a check's decision changes (`make eval-smoke`, [eval](eval/README.md)).
 
 ## Known limits
 
@@ -30,6 +31,7 @@ What the project is building, and will measure: an LLM agent whose tools are *sk
 - The model sometimes says it can't find the answer without searching at all.
 - A passage's preview shows the start of the passage, not the part the answer cites.
 - A number's chip can show the metric's standard line name instead of the company's own wording ("Revenues" for Verizon's "Total Operating Revenues").
+- Verified means the number is in a cited source, not that the sentence is right: a Verified figure can be the wrong number for the question.
 - Accuracy has not been measured; that is week 6.
 
 ## How to run
