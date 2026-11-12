@@ -26,6 +26,7 @@ class Override(BaseModel):
     """One check's result on one tool call: what was sent, what was used, and why."""
 
     check: str  # "company", "fiscal_year", ...
+    tool: str | None = None  # the tool the call was for ("get_financial_fact", "search_filings")
     outcome: Outcome
     argument: str | None  # the argument the check looked at ("ticker"); None if none
     sent: Any  # the value the model sent
@@ -145,7 +146,7 @@ def run_checks(
     annotations: dict[str, Any] = {}
     for check in checks:
         result = check.run(CheckedCall(call.name, dict(arguments)), context)
-        overrides.append(result.override)
+        overrides.append(result.override.model_copy(update={"tool": call.name}))
         if result.outcome == "reject":
             return None, overrides
         arguments = dict(result.arguments)

@@ -66,32 +66,63 @@ def arm_summary(graded: Graded, llm: LlmGrades) -> dict[str, Any]:
     }
 
 
+NUMBER_TOOL = "get_financial_fact"
+
+
+def _tool(entry: Mapping[str, Any]) -> str:
+    """The tool a check record was for; older records name none, meaning the number tool."""
+    return str(entry.get("tool") or NUMBER_TOOL)
+
+
 def check_activity(
     rows: Iterable[Mapping[str, Any]], questions: Mapping[str, Question]
-) -> dict[str, Counter[str]]:
-    """Passes, repairs and rejects per question category, from the rows' override logs."""
-    activity: dict[str, Counter[str]] = {}
+) -> dict[tuple[str, str], Counter[str]]:
+    """Passes, repairs and rejects per (question category, tool), from the override logs."""
+    activity: dict[tuple[str, str], Counter[str]] = {}
     for row in rows:
         question = questions.get(row["id"])
         if question is None:
             continue
         for entry in row.get("overrides") or []:
-            activity.setdefault(question.category, Counter())[entry["outcome"]] += 1
-    return {category: counts for category, counts in activity.items() if counts}
+            key = (question.category, _tool(entry))
+            activity.setdefault(key, Counter())[entry["outcome"]] += 1
+    return {key: counts for key, counts in activity.items() if counts}
 
 
 def false_repairs(
     rows: Iterable[Mapping[str, Any]], questions: Mapping[str, Question]
 ) -> list[dict[str, Any]]:
-    """Control rows where a check repaired or rejected a call the question did not call for."""
+    """Control rows where a number-tool check repaired or rejected a call it should not have.
+
+    The search-year check's repairs are its design on a question that names no year, so they are
+    counted apart (`search_repairs`).
+    """
     found = []
     for row in rows:
         question = questions.get(row["id"])
         if question is None or question.category != "control":
             continue
-        if any(e.get("outcome") in ("repair", "reject") for e in row.get("overrides") or []):
+        if any(
+            e.get("outcome") in ("repair", "reject") and _tool(e) == NUMBER_TOOL
+            for e in row.get("overrides") or []
+        ):
             found.append(dict(row))
     return found
+
+
+def search_repairs(
+    rows: Iterable[Mapping[str, Any]], questions: Mapping[str, Question]
+) -> dict[str, int]:
+    """Repairs and rejects by the search-year check on control questions, counted apart."""
+    counts = {"repair": 0, "reject": 0}
+    for row in rows:
+        question = questions.get(row["id"])
+        if question is None or question.category != "control":
+            continue
+        for e in row.get("overrides") or []:
+            if _tool(e) == "search_filings" and e.get("outcome") in counts:
+                counts[str(e["outcome"])] += 1
+    return counts
 
 
 def label_shares(graded: Graded) -> dict[str, Any]:
@@ -275,20 +306,19 @@ def report(
         "",
         "## Check activity",
         "",
-        "Passes, repairs and rejects per question category, in the checks-on arm.",
+        "Passes, repairs and rejects per question category and tool, in the checks-on arm.",
         "",
-        "| Set | Category | Pass | Repair | Reject |",
-        "|---|---|---:|---:|---:|",
+        "| Set | Category | Tool | Pass | Repair | Reject |",
+        "|---|---|---|---:|---:|---:|",
     ]
     for set_name, by_arm in arms.items():
         for arm, (graded, _) in by_arm.items():
             if "on" not in arm:
                 continue
-            for category, counts in sorted(
-                check_activity([r for r, _ in graded], questions).items()
-            ):
+            activity = check_activity([r for r, _ in graded], questions)
+            for (category, tool), counts in sorted(activity.items()):
                 lines.append(
-                    f"| {set_name} | {category} | {counts['pass']} | {counts['repair']} | "
+                    f"| {set_name} | {category} | {tool} | {counts['pass']} | {counts['repair']} | "
                     f"{counts['reject']} |"
                 )
     lines += ["", "## False repairs on control questions", ""]
@@ -299,8 +329,17 @@ def report(
         for row in false_repairs([r for r, _ in graded], questions)
     ]
     lines.append(
-        f"{len(false)} control run(s) where a check repaired or rejected a call that the question "
-        "did not call for."
+        f"{len(false)} control run(s) where a number-tool check repaired or rejected a call that "
+        "the question did not call for."
+    )
+    searched: Counter[str] = Counter()
+    for by_arm in arms.values():
+        for graded, _ in by_arm.values():
+            searched.update(search_repairs([r for r, _ in graded], questions))
+    lines.append(
+        f"Counted apart: the fiscal-year check on `search_filings` repaired {searched['repair']} "
+        f"and rejected {searched['reject']} search call(s) on control questions. A repair there "
+        "is its design: a text question that names no year is searched in the latest filing."
     )
     if false:
         lines += ["", "| Set | Arm | Row | What the checks did |", "|---|---|---|---|"]

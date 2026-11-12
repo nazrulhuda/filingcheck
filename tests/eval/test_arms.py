@@ -220,3 +220,13 @@ def test_the_last_column_says_outcomes_differ_and_a_note_says_what_that_means() 
     )
     table_end = text.rindex("| control-001 |")
     assert text.index("Outcomes can differ") > table_end  # the note sits under the table
+
+
+def test_a_label_names_a_separate_run_of_the_same_arm() -> None:
+    """A re-run after a change (the search-year check) gets its own files, both arms alike."""
+    from filingcheck.eval.arms import arm_name
+
+    assert arm_name("agent", True, label="search-year") == "agent-checks-on-search-year"
+    assert arm_name("agent", False, label="search-year") == "agent-checks-off-search-year"
+    assert arm_name("agent", True) == "agent-checks-on"
+    assert arm_name("baseline", None, label="x") == "baseline-x"

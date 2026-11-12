@@ -27,7 +27,7 @@ from filingcheck.answer.citations import (
 )
 from filingcheck.checks import (
     CHECKED_TOOL,
-    CHECKS,
+    CHECKS_BY_TOOL,
     CheckContext,
     CheckedCall,
     Override,
@@ -291,7 +291,7 @@ def _checked_call(
     except ToolInputError as exc:
         return json.loads(exc.result), [], None
     sent = parsed.model_dump()
-    checked, overrides = run_checks(CheckedCall(name, sent), context, CHECKS)
+    checked, overrides = run_checks(CheckedCall(name, sent), context, CHECKS_BY_TOOL[name])
     if checked is None:
         last = overrides[-1]
         return {"error": last.reason, "options": last.options}, overrides, None
@@ -342,7 +342,8 @@ def build_agent(
     """The compiled graph; `on_tool_call` sees each tool call as it finishes.
 
     `run_log`, when given, is filled in as the run goes (see RunLog). With `checks`,
-    every get_financial_fact call goes through the skeptical checks before the tool.
+    every get_financial_fact call goes through the skeptical checks before the tool, and every
+    search_filings call through the fiscal-year check (added 2026-11-12).
     """
     log = run_log if run_log is not None else RunLog()
     if checks and (deps.companies is None or deps.manifest is None):
@@ -410,7 +411,7 @@ def build_agent(
                 stopped = stopped or "tool_calls"
             else:
                 text_arguments = json.dumps(arguments) if arguments is not None else call.arguments
-                if checks and call.name == CHECKED_TOOL:
+                if checks and call.name in CHECKS_BY_TOOL:
                     context = CheckContext(
                         question=state["question"],
                         ticker=state["ticker"],
@@ -420,7 +421,8 @@ def build_agent(
                         manifest=deps.manifest,
                         facts=deps.facts,
                     )
-                    if blocked:
+                    fact_call = call.name == CHECKED_TOOL
+                    if blocked and fact_call:
                         result = {"error": NO_FURTHER_ATTEMPTS}
                         call_overrides = [_blocked_record()]
                         as_run = None
@@ -428,15 +430,16 @@ def build_agent(
                         result, call_overrides, as_run = _checked_call(
                             call.name, text_arguments, deps, context
                         )
-                    if call_overrides and call_overrides[-1].outcome == "reject" and not blocked:
+                    rejected = bool(call_overrides) and call_overrides[-1].outcome == "reject"
+                    if fact_call and rejected and not blocked:  # the retry rule: the fact tool's
                         kind = call_overrides[-1].check
                         reject_counts[kind] = reject_counts.get(kind, 0) + 1
                         if reject_counts[kind] >= 2:
                             result["error"] = f"{result['error']}; {NO_FURTHER_ATTEMPTS}"
                             blocked = True
                     overrides += call_overrides
-                    if as_run is not None:
-                        arguments = as_run
+                    if as_run is not None and any(o.outcome == "repair" for o in call_overrides):
+                        arguments = as_run  # a pass keeps the record as the checks-off arm's
                 else:
                     result = json.loads(run_tool(call.name, text_arguments, deps))
                 status = "error" if "error" in result else "ok"

@@ -99,7 +99,7 @@ eval-smoke:  # the deterministic gate: 21 scripted agent runs with the checks on
 
 eval:  # ask and grade question sets, one after another: make eval SET=dev_traps,dev_unanswerable,control MODE=agent [CHECKS=on|off] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money; resumable)
 	@test -n "$(SET)" -a -n "$(MODE)" || { echo "give SET and MODE: make eval SET=examples MODE=agent [REPEATS=3]"; exit 1; }
-	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE))
+	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE)) $(if $(LABEL),--label $(LABEL))
 
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload
@@ -109,7 +109,7 @@ grade:  # the LLM grader over a stored results file: make grade SET=examples RUN
 	uv run python -m filingcheck.eval grade --set $(SET) --run $(RUN) $(if $(CAP),--cap $(CAP))
 
 dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 20 text answers: make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>] (no model call)
-	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY))
+	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY)) $(if $(LABEL),--label $(LABEL))
 
 smoke-live:  # check a deployed API: make smoke-live URL=https://... (asks two questions, one baseline and one agent: 2 toward the daily cap)
 	uv run python -m filingcheck.app.smoke "$(URL)"
