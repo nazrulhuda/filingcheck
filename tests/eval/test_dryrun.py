@@ -123,8 +123,12 @@ def test_check_activity_counts_passes_repairs_and_rejects_per_category() -> None
         row("control-101", overrides=[]),  # no fact call: counts nothing
     ]
     activity = check_activity(rows, QUESTIONS)
-    assert activity["wrong_fiscal_year"] == {"pass": 1, "repair": 1, "reject": 1}
-    assert "control" not in activity
+    assert activity[("wrong_fiscal_year", "get_financial_fact")] == {
+        "pass": 1,
+        "repair": 1,
+        "reject": 1,
+    }
+    assert not [key for key in activity if key[0] == "control"]
 
 
 def test_a_repair_or_reject_on_a_control_question_is_a_false_repair() -> None:
