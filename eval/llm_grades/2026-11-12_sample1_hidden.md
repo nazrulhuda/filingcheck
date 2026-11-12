@@ -1,4 +1,4 @@
-# Hand-graded sample for the LLM grader (2026-11-12)
+# Hand-graded sample 1 for the LLM grader (2026-11-12)
 
 Drawn by `eval/grade_stored.py` with seed 20261112: 15 text answers, 15 number answers whose deterministic grade is not correct, 10 that are. The LLM verdicts are hidden until the hand grades are in.
 

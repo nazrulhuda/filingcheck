@@ -1,0 +1,40 @@
+{"n": 1, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 2, "verdict": "correct", "supported": "yes", "note": "the \"streamline / efficiency\" wording is an inference, not the claim that matters", "grader": "review"}
+{"n": 3, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 4, "verdict": "asked", "supported": "n/a", "note": "owner row", "grader": "review"}
+{"n": 5, "verdict": "asked", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 6, "verdict": "correct", "supported": "partly", "note": "\"costly litigation ... remove content ... licensing\" is not in the cited passage", "grader": "review"}
+{"n": 7, "verdict": "abstained", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 8, "verdict": "abstained", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 9, "verdict": "partly", "supported": "partly", "note": "says the remaining ~$0.9B exposure is unhedged; the passage says net exposure is $0.9B, of which $0.4B is hedged; \"one-third\" is also off", "grader": "review"}
+{"n": 10, "verdict": "abstained", "supported": "n/a", "note": "looked up total revenue but gave nothing", "grader": "review"}
+{"n": 11, "verdict": "wrong", "supported": "partly", "note": "a reason was given where the filing gives none; the quoted rules are in the source, the causal claim is not", "grader": "review"}
+{"n": 12, "verdict": "wrong", "supported": "yes", "note": "owner row; FY2025 figure for \"last year\" (FY2026)", "grader": "review"}
+{"n": 13, "verdict": "correct", "supported": "yes", "note": "owner row", "grader": "review"}
+{"n": 14, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 15, "verdict": "correct", "supported": "n/a", "note": "refusal expected", "grader": "review"}
+{"n": 16, "verdict": "abstained", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 17, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 18, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 19, "verdict": "wrong", "supported": "n/a", "note": "asked which year, not which Morgan", "grader": "review"}
+{"n": 20, "verdict": "correct", "supported": "partly", "note": "the \"worldwide licensing ... inventory provisions\" quote is not in the cited passages", "grader": "review"}
+{"n": 21, "verdict": "abstained", "supported": "n/a", "note": "owner row", "grader": "review"}
+{"n": 22, "verdict": "wrong", "supported": "n/a", "note": "asked which year and assumed Morgan Stanley", "grader": "review"}
+{"n": 23, "verdict": "abstained", "supported": "n/a", "note": "owner row", "grader": "review"}
+{"n": 24, "verdict": "asked", "supported": "no", "note": "asks back and falsely says there is no FY2025 filing, citing nothing", "grader": "review"}
+{"n": 25, "verdict": "correct", "supported": "yes", "note": "instruments and purpose given; the monetary-assets purpose is missing but the \"how\" is answered", "grader": "review"}
+{"n": 26, "verdict": "correct", "supported": "n/a", "note": "owner row; refusal expected", "grader": "review"}
+{"n": 27, "verdict": "wrong", "supported": "yes", "note": "answered Morgan Stanley FY2023 instead of asking", "grader": "review"}
+{"n": 28, "verdict": "abstained", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 29, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 30, "verdict": "wrong", "supported": "yes", "note": "", "grader": "review"}
+{"n": 31, "verdict": "wrong", "supported": "yes", "note": "", "grader": "review"}
+{"n": 32, "verdict": "asked", "supported": "n/a", "note": "", "grader": "review"}
+{"n": 33, "verdict": "correct", "supported": "yes", "note": "same inference wording as row 2", "grader": "review"}
+{"n": 34, "verdict": "correct", "supported": "yes", "note": "owner row", "grader": "review"}
+{"n": 35, "verdict": "partly", "supported": "partly", "note": "says it hedges a portion, no instruments; \"risk management program at the consolidated level\" is not in the passage", "grader": "review"}
+{"n": 36, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
+{"n": 37, "verdict": "correct", "supported": "yes", "note": "owner row", "grader": "review"}
+{"n": 38, "verdict": "correct", "supported": "yes", "note": "owner row", "grader": "review"}
+{"n": 39, "verdict": "abstained", "supported": "n/a", "note": "owner row", "grader": "review"}
+{"n": 40, "verdict": "correct", "supported": "yes", "note": "", "grader": "review"}
