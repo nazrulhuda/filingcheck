@@ -20,6 +20,11 @@ from filingcheck.tools import ToolDeps
 DATED = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
 
 
+def set_names(argument: str) -> list[str]:
+    """The question sets named in one `--set` argument ("dev_traps,control"), each once."""
+    return list(dict.fromkeys(name.strip() for name in argument.split(",") if name.strip()))
+
+
 def results_path(set_name: str, mode: str, day: str) -> Path:
     """Where one run's rows go, relative to the repository root."""
     return Path("eval") / "results" / f"{day}_{set_name}_{mode}.jsonl"

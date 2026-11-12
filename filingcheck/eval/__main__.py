@@ -126,7 +126,18 @@ def grade_main(args: argparse.Namespace) -> int:
 
 
 def run_main(args: argparse.Namespace) -> int:
-    """Ask, grade and summarize one question set in one mode (batch mode, no fallback)."""
+    """Ask, grade and summarize each named question set in one mode, one after the other."""
+    from filingcheck.eval.run import set_names
+
+    for set_name in set_names(args.set):
+        code = _run_set(args, set_name)
+        if code:
+            return code
+    return 0
+
+
+def _run_set(args: argparse.Namespace, set_name: str) -> int:
+    """One question set in one mode (batch mode, no fallback); resumable like the batch runner."""
     from filingcheck.answer.batch import BatchFileError
     from filingcheck.answer.run import hybrid_retriever, settings_line
     from filingcheck.checks import reference_data
@@ -137,19 +148,19 @@ def run_main(args: argparse.Namespace) -> int:
     from filingcheck.llm import router_from_env
     from filingcheck.tools import ToolDeps
 
-    questions = QUESTIONS_DIR / f"{args.set}.jsonl"
+    questions = QUESTIONS_DIR / f"{set_name}.jsonl"
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
     name = arm_name(args.mode, args.checks)
     if args.date:
-        out = REPO_ROOT / results_path(args.set, name, args.date)
+        out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
         today = datetime.now(UTC).date().isoformat()
         ids = {q.id for q in read_questions(questions)}
         out = choose_results_path(
             REPO_ROOT,
-            args.set,
+            set_name,
             name,
             expected_rows=len(ids) * args.repeats,
             today=today,
@@ -160,7 +171,7 @@ def run_main(args: argparse.Namespace) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     router = router_from_env("batch")
     settings = settings_line(router.primary.name, filters="question text only, no filters")
-    print(f"mode: batch, {name}; {args.repeats} run(s) per question; {settings}")
+    print(f"{set_name}: mode batch, {name}; {args.repeats} run(s) per question; {settings}")
     with connect() as conn:
         extra = reference_data() if args.checks else {}
         deps = ToolDeps(retriever=hybrid_retriever(conn), facts=PostgresFacts(conn), **extra)
@@ -181,7 +192,7 @@ def run_main(args: argparse.Namespace) -> int:
     print(summary.read_text(encoding="utf-8"))
     print(f"wrote {out.relative_to(REPO_ROOT)} and {summary.relative_to(REPO_ROOT)}")
     if args.checks is not None:
-        _write_arms(args.set, out, args.checks, questions, args.repeats)
+        _write_arms(set_name, out, args.checks, questions, args.repeats)
     return 0
 
 
@@ -226,7 +237,9 @@ def main(argv: list[str] | None = None) -> int:
     gold.add_argument("--questions", type=Path, default=QUESTIONS_DIR / "examples.jsonl")
     commands.add_parser("gate-fixture", help="write the gate's facts fixture from the facts file")
     run = commands.add_parser("run", help="ask and grade a question set in one mode")
-    run.add_argument("--set", required=True, help="a question file in eval/questions/, no .jsonl")
+    run.add_argument(
+        "--set", required=True, help="question files in eval/questions/, no .jsonl, comma-separated"
+    )
     run.add_argument("--mode", choices=["baseline", "agent"], required=True)
     run.add_argument("--repeats", type=int, default=1, help="runs per question (default 1)")
     run.add_argument(
