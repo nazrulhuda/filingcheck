@@ -21,6 +21,7 @@ A year inside any other date ("filed on February 25, 2026", "from January 27, 20
 for nothing. In all 75 pinned filings the fiscal year is the calendar year of the period end.
 """
 
+import functools
 import re
 from collections.abc import Sequence
 from decimal import Decimal
@@ -37,7 +38,10 @@ from filingcheck.answer.citations import (
     parse_fact_citations,
     sentences,
 )
+from filingcheck.checks.company import find_mentions
 from filingcheck.eval.questions import Question
+from filingcheck.ingest.companies import Company, load_companies
+from filingcheck.paths import DATA_DIR
 
 Outcome = Literal[
     "correct",
@@ -47,7 +51,9 @@ Outcome = Literal[
     "no_number",
     "asked_when_should_answer",
     "answered_when_should_ask",
+    "asked_about_another_thing",
     "abstained",
+    "answered",
     "error",
     "not_graded",
 ]
@@ -59,7 +65,9 @@ OUTCOMES: tuple[Outcome, ...] = (
     "no_number",
     "asked_when_should_answer",
     "answered_when_should_ask",
+    "asked_about_another_thing",
     "abstained",
+    "answered",
     "error",
     "not_graded",
 )
@@ -134,7 +142,8 @@ YEAR_ALONE_RE = re.compile(r"(?<![\d$.,])(?:19|20)\d{2}(?![\d%]|[.,]\d)")
 # Asking: one of these phrases, or a question to the user ("...you...?" or "Which ...?").
 ASK_PHRASE_RE = re.compile(
     r"\b(?:did you mean|do you mean|could you (?:clarify|specify|confirm|tell)"
-    r"|can you (?:clarify|specify|confirm)|please (?:clarify|specify|confirm)|ambiguous)\b",
+    r"|can you (?:clarify|specify|confirm)|please (?:clarify|specify|confirm)|ambiguous"
+    r"|(?:please (?:say|tell me)|let me know) which)\b",
     re.IGNORECASE,
 )
 QUESTION_TO_USER_RE = re.compile(
@@ -191,6 +200,9 @@ class Grade(BaseModel):
     matched: str | None  # the number that matched the gold value or another year's value
     year_stated: bool
     other_year: int | None = None  # for other_year_number: the year whose value it matched
+    # For a clarify question: the grade under the lenient rule, which also counts asking about
+    # something else (only which year, when the company is ambiguous) or declining.
+    lenient_outcome: Outcome | None = None
 
 
 def _plain(value: Decimal) -> str:
@@ -310,6 +322,42 @@ def declines(text: str) -> bool:
     return DECLINE_RE.search(_prepare(text)) is not None
 
 
+# Asking which company: "which company", "which one", "which of them".
+ASK_COMPANY_RE = re.compile(
+    r"\bwhich (?:company|one|firm|bank|business|of (?:them|these|the two))\b"
+    r"|\bwhat company\b",
+    re.IGNORECASE,
+)
+# Asking which year or period: "which fiscal year", "specify the year", "what period".
+ASK_YEAR_RE = re.compile(
+    r"\b(?:which|what) (?:fiscal )?(?:year|period)\b"
+    r"|\b(?:specify|clarify|confirm) (?:the |a |which )?(?:fiscal )?(?:year|period)\b",
+    re.IGNORECASE,
+)
+
+
+@functools.cache
+def _companies() -> list[Company]:
+    return load_companies(DATA_DIR / "companies.yaml")
+
+
+def addresses_ambiguity(text: str, question: Question) -> bool:
+    """Whether a clarify answer asks about what is ambiguous (the strict clarify rule).
+
+    With no company resolved, the company is ambiguous: the answer must name at least two
+    companies or ask which company. With a company but no fiscal year, the year is: the answer
+    must ask which year or period, or name at least two fiscal years.
+    """
+    text = _prepare(text)
+    if question.company is None:
+        named = {
+            next(iter(m.tickers)) for m in find_mentions(text, _companies()) if len(m.tickers) == 1
+        }
+        return len(named) >= 2 or ASK_COMPANY_RE.search(text) is not None
+    years = {_year(m.group(1)) for m in FISCAL_PHRASE_RE.finditer(text)}
+    return ASK_YEAR_RE.search(text) is not None or len(years) >= 2
+
+
 def asks_or_declines(text: str) -> bool:
     """True if the answer asks which company or year is meant, or declines to answer."""
     return asks(text) or declines(text)
@@ -369,15 +417,34 @@ def grade(row: dict[str, Any], question: Question) -> Grade:
     shown = [_plain(n.value) + ("%" if n.percent else "") for n in numbers]
     year = question.fiscal_year is not None and states_year(text, question.fiscal_year)
 
-    def result(outcome: Outcome, matched: str | None = None, other: int | None = None) -> Grade:
+    def result(
+        outcome: Outcome,
+        matched: str | None = None,
+        other: int | None = None,
+        lenient: Outcome | None = None,
+    ) -> Grade:
         return Grade(
-            outcome=outcome, numbers=shown, matched=matched, year_stated=year, other_year=other
+            outcome=outcome,
+            numbers=shown,
+            matched=matched,
+            year_stated=year,
+            other_year=other,
+            lenient_outcome=lenient,
         )
 
     amounts = [n for n in numbers if n.amount]
+    if question.category == "unanswerable_text":  # correctness is the LLM grader's
+        declined = is_abstain(text) or (not amounts and declines(text))
+        return result("abstained" if declined else "answered")
     if question.expected_behavior in ("clarify", "refuse"):
         ok = not amounts and asks_or_declines(text)
-        return result("correct" if ok else "answered_when_should_ask")
+        lenient: Outcome = "correct" if ok else "answered_when_should_ask"
+        if question.expected_behavior == "refuse":
+            return result(lenient)
+        strict: Outcome = lenient
+        if ok and not addresses_ambiguity(text, question):
+            strict = "asked_about_another_thing"
+        return result(strict, lenient=lenient)
     if row.get("abstained") or is_abstain(text) or (not amounts and declines(text)):
         return result("abstained")
     if not amounts and asks(text):
@@ -405,7 +472,9 @@ LABELS = {
     "no_number": "No number",
     "asked_when_should_answer": "Asked when it should have answered",
     "answered_when_should_ask": "Answered when it should have asked",
+    "asked_about_another_thing": "Asked about another thing",
     "abstained": "Abstained",
+    "answered": "Answered (unanswerable)",
     "error": "Errors",
     "not_graded": "Not graded",
 }
@@ -428,17 +497,18 @@ def summary_header(first: str) -> list[str]:
     """The header and rule lines of a summary table whose first column is `first`."""
     labels = " | ".join(LABELS[o] for o in OUTCOMES)
     return [
-        f"| {first} | Answers | {labels} | Cost | Mean time |",
-        "|---|" + "---:|" * (len(OUTCOMES) + 3),
+        f"| {first} | Answers | {labels} | Correct, lenient clarify rule | Cost | Mean time |",
+        "|---|" + "---:|" * (len(OUTCOMES) + 4),
     ]
 
 
 def summary_row(name: str, part: Sequence[tuple[dict[str, Any], Grade]]) -> str:
     """One summary line: the answers, each outcome's count, the total cost and the mean time."""
     counts = [sum(1 for _, g in part if g.outcome == o) for o in OUTCOMES]
+    lenient = sum(1 for _, g in part if (g.lenient_outcome or g.outcome) == "correct")
     costs = [r.get("cost_usd") for r, _ in part]
     cost = "unknown" if None in costs else f"${sum(c for c in costs if c is not None):.6f}"
     times = [r["latency_ms"] for r, _ in part if r.get("latency_ms") is not None]
     mean = f"{sum(times) / len(times) / 1000:.1f} s" if times else "-"
-    cells = [name, str(len(part)), *map(str, counts), cost, mean]
+    cells = [name, str(len(part)), *map(str, counts), str(lenient), cost, mean]
     return "| " + " | ".join(cells) + " |"
