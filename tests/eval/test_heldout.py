@@ -90,3 +90,26 @@ def test_the_held_out_file_is_sealed() -> None:
     """
     digest = hashlib.sha256((REPO / "eval" / "questions" / "heldout_traps.jsonl").read_bytes())
     assert digest.hexdigest() == "b295c38f60fcecce687f70b43520726cb0bfef3c1e616d4bd2835aeb85f343a5"
+
+
+def test_held_031_also_accepts_metas_net_income_as_its_writer_allows() -> None:
+    """The note accepts "revenue or net income"; the file's metric is revenue."""
+    q = HELDOUT_2["held-031"]
+    assert (q.company, q.fiscal_year, q.metric) == ("META", 2023, "revenue")
+    also = q.also_accept
+    assert also is not None and also.expected_behavior is None
+    assert (also.fiscal_year, also.gold_value, also.gold_unit) == (2023, 39098000000, "USD")
+    assert (also.gold_concept, also.gold_accession) == (
+        "us-gaap:NetIncomeLoss",
+        "0001326801-24-000012",
+    )
+    assert also.gold_source is None  # set from the facts for another metric: never refilled
+
+
+def test_two_questions_are_run_but_not_scored() -> None:
+    unscored = {
+        qid: q.not_scored_reason for qid, q in {**HELDOUT, **HELDOUT_2}.items() if not q.scored
+    }
+    assert set(unscored) == {"held-045", "held-048"}
+    assert "operating-income" in (unscored["held-045"] or "")
+    assert "dev-017" in (unscored["held-048"] or "")

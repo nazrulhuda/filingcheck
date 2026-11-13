@@ -226,3 +226,19 @@ def test_a_page_filter_company_must_be_in_the_dataset(tmp_path: Path) -> None:
     path = write(tmp_path, [BASE | {"page_filter": {"ticker": "TSLA", "fiscal_year": None}}])
     with pytest.raises(QuestionFileError, match="TSLA"):
         load_questions(path, TICKERS)
+
+
+def test_a_question_is_scored_unless_marked_not_scored_with_a_reason() -> None:
+    """A held-out question can be run but left out of every rate (decided at the Day 37 review)."""
+    assert Question.model_validate(BASE).scored is True
+    unscored = Question.model_validate(
+        dict(BASE, scored=False, not_scored_reason="repeats a development question")
+    )
+    assert (unscored.scored, unscored.not_scored_reason) == (
+        False,
+        "repeats a development question",
+    )
+    with pytest.raises(ValidationError, match="reason"):
+        Question.model_validate(dict(BASE, scored=False))
+    with pytest.raises(ValidationError, match="reason"):
+        Question.model_validate(dict(BASE, not_scored_reason="a reason with nothing to explain"))
