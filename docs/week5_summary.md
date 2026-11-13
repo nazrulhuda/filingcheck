@@ -4,7 +4,7 @@
 
 **Labels:** every figure in an answer is Verified (in a cited fact or passage), Conflict or Unverified, computed after the model. Verified means the number is in a cited source, not that the sentence is right.
 
-**Four question sets:** `dev_traps` (85), `dev_unanswerable` (10), `control` (50, in FinanceBench's three styles), and `heldout_traps` (28), written by a fresh AI agent that saw only the category names and the company list, sealed by SHA-256 and unrun until Week 6.
+**Four question sets:** `dev_traps` (85), `dev_unanswerable` (10), `control` (50, in FinanceBench's three styles), and `heldout_traps` (28), written by a fresh AI agent (it also received the project's description file), sealed by SHA-256 and unrun until Week 6.
 
 **Graders:** the deterministic grader for numbers (strict clarify rule; re-grading 314 stored rows changed 10), and an LLM grader of another model family for text, with a second opinion on failed number grades. Its check: two blind AI graders and the owner's review, 37 of 40 verdicts on sample 2 after one prompt fix (then frozen); 16 of 20 on text answers.
 

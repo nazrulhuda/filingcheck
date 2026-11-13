@@ -57,7 +57,7 @@ One question per line in `*.jsonl` files in this folder. `make validate-question
 | `dev_traps.jsonl` | 85 | The development trap set (`dev-001`...), 10 to 13 per trap category, every company in at least two questions, 10 with a page filter |
 | `dev_unanswerable.jsonl` | 10 | Questions the filings cannot answer (`una-001`...) |
 | `control.jsonl` | 50 | Normal questions (`control-101`...; `control-001` is the example set's) in FinanceBench's three styles: 20 metrics-generated, 15 domain-relevant, 15 novel-generated |
-| `heldout_traps.jsonl` | 28 | The held-out trap set (`held-001`...), 4 per trap category. Written by a fresh AI agent that saw only the category names and the company list, not by a person; its prompt and raw output are in `heldout_source/`, converted by `eval/convert_heldout.py` without changing a word. Sealed by SHA-256 after review; first run in week 6 |
+| `heldout_traps.jsonl` | 28 | The held-out trap set (`held-001`...), 4 per trap category. Written by a fresh AI agent, not by a person: its prompt held only the category names and the company list, but the agent also received the project's description file, which names the five checks and the goal (no development question, gold value or verdict); its prompt and raw output are in `heldout_source/`, converted by `eval/convert_heldout.py` without changing a word. Sealed by SHA-256 after review; first run in week 6 |
 | `retrieval.jsonl` | 40 | The Week 2 retrieval questions, in their own format |
 | `page_examples.jsonl` | 7 | The page's saved examples, not an evaluation set |
 
