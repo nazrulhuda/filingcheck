@@ -127,6 +127,90 @@ def grade_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def metrics_main(args: argparse.Namespace) -> int:
+    """Score a day's result files by the pre-registered rules; write the report and the CSV."""
+    from dataclasses import replace
+
+    from filingcheck.eval.llm_grade import GRADER_MODEL, GradeCache, LlmGrade, llm_grade, needs_llm
+    from filingcheck.eval.metrics import (
+        ERROR_LIMIT,
+        RunScore,
+        always_abstain,
+        error_share,
+        score_run,
+    )
+    from filingcheck.eval.metrics_report import render, write_csv
+    from filingcheck.eval.run import read_questions, set_names
+
+    scores: list[RunScore] = []
+    floor: list[RunScore] = []
+    questions_by_set: dict[str, Any] = {}
+    for set_name in set_names(args.sets):
+        by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
+        questions_by_set[set_name] = by_id
+        for arm in args.arms.split(","):
+            name = f"{arm}-{args.label}" if args.label else arm
+            path = REPO_ROOT / "eval" / "results" / f"{args.date}_{set_name}_{name}.jsonl"
+            if not path.exists():
+                print(f"no {path.relative_to(REPO_ROOT)}: that arm is left out")
+                continue
+            llm: dict[tuple[str, int], LlmGrade] = {}
+            llm_path = path.with_name(path.stem + "_llm.jsonl")
+            if llm_path.exists():
+                for line in llm_path.read_text(encoding="utf-8").splitlines():
+                    if line:
+                        g = LlmGrade.model_validate_json(line)
+                        llm[(g.id, g.repeat)] = g
+            for line in path.read_text(encoding="utf-8").splitlines():
+                row = json.loads(line)
+                if row["id"] in by_id:
+                    scored = score_run(
+                        row,
+                        by_id[row["id"]],
+                        llm.get((row["id"], row.get("repeat", 1))),
+                        set_name=set_name,
+                        arm=arm,
+                    )
+                    scores.append(replace(scored, wrong_arg_sent=None) if args.demo else scored)
+    for set_name, arm in dict.fromkeys((s.set_name, s.arm) for s in scores):
+        share = error_share([s for s in scores if (s.set_name, s.arm) == (set_name, arm)])
+        if share > ERROR_LIMIT:
+            print(f"STOP: {set_name} {arm} has {100 * share:.1f}% error rows (over 5%): ask first")
+    if args.floor:  # the abstain sentence needs no database: no passage, no fact
+        from filingcheck.answer.baseline import ABSTAIN
+        from filingcheck.eval.grade import grade
+        from filingcheck.llm.registry import make_chat
+
+        model = make_chat(GRADER_MODEL, mode="batch")
+        cache = GradeCache(REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl")
+        for set_name, by_id in questions_by_set.items():
+            for question in by_id.values():
+                row = {"id": question.id, "repeat": 1, "answer": ABSTAIN}
+                verdict = None
+                if needs_llm(question, grade(row, question)) == "text":
+                    verdict = llm_grade(
+                        question, row, passages=[], facts=[], model=model, cache=cache
+                    )
+                floor.append(always_abstain(question, verdict, set_name=set_name))
+    stem = REPO_ROOT / args.out
+    notes = [
+        f"Rows: `eval/results/{args.date}_<set>_<arm>{'-' + args.label if args.label else ''}"
+        ".jsonl` with their `_llm.jsonl` grades; definitions: `eval/PREREGISTRATION.md`; code: "
+        "`filingcheck/eval/metrics.py`, `filingcheck/eval/stats.py`. Per-run CSV: "
+        f"`{stem.with_suffix('.csv').relative_to(REPO_ROOT).as_posix()}`.",
+    ]
+    if args.demo:
+        notes.append(
+            "These rows were written before each call recorded the arguments as the model sent "
+            "them, so the count of wrong-argument calls as sent is left out."
+        )
+    page = render(scores, floor=floor, title=args.title, heading=args.heading, notes=notes)
+    stem.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
+    write_csv(scores, stem.with_suffix(".csv"))
+    print(f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)} and the CSV; {len(scores)} runs")
+    return 0
+
+
 def dryrun_main(args: argparse.Namespace) -> int:
     """Write the dry-run report for one day's result files, and the hidden text sample."""
     import random
@@ -388,6 +472,18 @@ def build_parser() -> argparse.ArgumentParser:
     llm.add_argument(
         "--cache", type=Path, default=REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl"
     )
+    metrics = commands.add_parser("metrics", help="the pre-registered metrics of a day's runs")
+    metrics.add_argument("--date", required=True)
+    metrics.add_argument("--sets", default="dev_traps,dev_unanswerable,control")
+    metrics.add_argument("--arms", default="agent-checks-off,agent-checks-on")
+    metrics.add_argument("--label", help="the run label the result files carry")
+    metrics.add_argument(
+        "--out", required=True, help="the report's path without .md, from the repo"
+    )
+    metrics.add_argument("--title", default="Metrics")
+    metrics.add_argument("--heading", default="")
+    metrics.add_argument("--demo", action="store_true", help="leave out the as-sent count")
+    metrics.add_argument("--floor", action="store_true", help="grade the always-abstain floor")
     dry = commands.add_parser("dry-run", help="the Day 33 report and the hidden text sample")
     dry.add_argument("--date", default=datetime.now(UTC).date().isoformat())
     dry.add_argument("--sets", default="dev_traps,dev_unanswerable,control")
@@ -413,6 +509,8 @@ def main(argv: list[str] | None = None) -> int:
         return grade_main(args)
     if args.command == "dry-run":
         return dryrun_main(args)
+    if args.command == "metrics":
+        return metrics_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument
