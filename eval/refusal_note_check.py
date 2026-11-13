@@ -8,6 +8,14 @@ development file itself does not change):
   filing's text (the note should accept it);
 - dev-051, checks off, run 1: Apple's total net sales given as iPhone sales (it should not).
 
+dev-072 turned out not to be a clean accept case (it asks for next quarter's dividend), so two
+hand-made answers to held-022 ("how many people work at amazon") test the grader too; they test
+the grader, not the system, and are written to `eval/probes/<date>_refusal-note-handmade.jsonl`
+marked `hand_made: true`:
+- (a) quotes chunk 1256 (Amazon FY2025, Item 1, Human Capital: "approximately 1,576,000
+  full-time and part-time employees" as of December 31, 2025) with a citation: must be accepted;
+- (b) the same citation with a figure the passage does not state (1,600,000): must be rejected.
+
 Run: `uv run python eval/refusal_note_check.py` (the local database and the OpenRouter key; less
 than a cent). Writes `eval/probes/<date>_refusal-note-check.md`.
 """
@@ -39,12 +47,28 @@ ROWS = (
     ("dev-072", "agent-checks-on-search-year", 1),
     ("dev-051", "agent-checks-off-search-year", 1),
 )
+AMAZON_CHUNK = 1256  # Amazon FY2025 10-K, Item 1, "Human Capital"
+HAND_MADE = (
+    (
+        "held-022-a",
+        "As of December 31, 2025, Amazon employed approximately 1,576,000 full-time and part-time "
+        "employees [1].",
+        "accept",
+    ),
+    (
+        "held-022-b",
+        "As of December 31, 2025, Amazon employed approximately 1,600,000 full-time and part-time "
+        "employees [1].",
+        "reject",
+    ),
+)
 
 
 def main() -> int:
     """Grade the two rows with the note attached and write the page."""
     load_dotenv(REPO / ".env")
     questions = {q.id: q for q in read_questions(REPO / "eval" / "questions" / "dev_traps.jsonl")}
+    heldout = {q.id: q for q in read_questions(REPO / "eval" / "questions" / "heldout_traps.jsonl")}
     grader = make_chat(GRADER_MODEL, mode="batch")
     cache = GradeCache(REPO / "eval" / "llm_grades" / "cache.jsonl")
     lines = [
@@ -85,6 +109,43 @@ def main() -> int:
                 f"| {qid} ({arm}, run {repeat}) | {det.outcome} | {use} | {g.verdict} | "
                 f"{g.supported} | {reason} | {answer} |"
             )
+        today = datetime.now(UTC).date().isoformat()
+        held = heldout["held-022"].model_copy(update={"also_accept": AlsoAccept(note=NOTE)})
+        made_rows = []
+        for label, text, expected in HAND_MADE:
+            row = {
+                "id": "held-022",
+                "repeat": 1,
+                "hand_made": True,
+                "label": label,
+                "expected": expected,
+                "question": held.question,
+                "answer": text,
+                "citations": [{"number": 1, "chunk_id": AMAZON_CHUNK}],
+                "tool_calls": [],
+                "facts_used": [],
+            }
+            made_rows.append(row)
+            det = grade(row, held)
+            use = needs_llm(held, det) or "-"
+            passages, facts = sources_for(row)
+            g = llm_grade(
+                held,
+                row,
+                passages=passages,
+                facts=facts,
+                model=grader,
+                cache=cache,
+                use=use,
+            )
+            reason = g.reason.replace("|", "\\|")
+            lines.append(
+                f"| {label} (hand-made, must {expected}) | {det.outcome} | {use} | {g.verdict} | "
+                f"{g.supported} | {reason} | {text} |"
+            )
+        (REPO / "eval" / "probes" / f"{today}_refusal-note-handmade.jsonl").write_text(
+            "".join(json.dumps(r) + "\n" for r in made_rows), encoding="utf-8", newline="\n"
+        )
     out = REPO / "eval" / "probes" / f"{datetime.now(UTC).date().isoformat()}_refusal-note-check.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print("\n".join(lines[-2:]))
