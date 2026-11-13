@@ -1,13 +1,14 @@
-# Facts read by hand from the filings on sec.gov, as an independent check on the XBRL code.
+# Facts read from the printed statements on sec.gov, as an independent check on the XBRL code.
 #
 # How to verify one: open source_url, find the line named in where_to_look, copy the number
 # exactly as printed (in the units the statement states), fill in value_as_printed and
 # printed_units, convert it to raw units in value (dollars, not millions), and set
 # verified_by_hand: true.
 #
-# The four facts were read on 2026-11-04 from the printed consolidated statement in each
-# source_url document, fetched from sec.gov: the visible table row and the statement's own
-# units line ("in millions"), not the XBRL tags, so they cannot share a bug with the XBRL code.
+# The four facts were read on 2026-11-04, in a coding session, from the printed consolidated
+# statement in each source_url document, fetched from sec.gov: the visible table row and the
+# statement's own units line ("in millions"), not the XBRL tags, so they cannot share a bug
+# with the XBRL code. No person read them; the field name verified_by_hand is the original one.
 #
 # Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code:
 # tests/test_golden_facts.py checks the format and the value in data/facts.jsonl, and

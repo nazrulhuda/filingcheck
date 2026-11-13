@@ -40,7 +40,7 @@ make eval-smoke
 uv run python -m filingcheck.eval gate-fixture   # after the facts change: rewrite the fixture
 ```
 
-- **What it checks:** the checks' decisions and the tool path, deterministically. Each of the 21 scenarios in `tests/eval_gate/scenarios.yaml` is a question, the page filters, the model's scripted tool calls (one model turn each) and its scripted final answer. The gate runs the real agent graph, checks, lookup and grader on them with `FakeChat` in place of the model, and compares the override records, the arguments that reach `get_financial_fact`, the values it returns, the requested scale and the final answer's grade with what the scenario expects. The expected results were written by hand from the rules; the four golden facts' values are the hand-read ones in `tests/golden_facts.yaml`.
+- **What it checks:** the checks' decisions and the tool path, deterministically. Each of the 21 scenarios in `tests/eval_gate/scenarios.yaml` is a question, the page filters, the model's scripted tool calls (one model turn each) and its scripted final answer. The gate runs the real agent graph, checks, lookup and grader on them with `FakeChat` in place of the model, and compares the override records, the arguments that reach `get_financial_fact`, the values it returns, the requested scale and the final answer's grade with what the scenario expects. The expected results were written in a coding session from the checks' rules; the four golden facts' values are the ones read in a coding session from the printed statements fetched from sec.gov (the visible table row and the statement's units line, not the XBRL tags), in `tests/golden_facts.yaml`.
 - **What it does not check:** accuracy on real models. A recorded model conversation cannot be replayed honestly once a tool result changes, so no model is called; accuracy is measured by `make eval`.
 - **Coverage:** every check's pass, repair and reject (the metric, units and segment checks have no repair), the retry rule, a question with two companies, a page-filter question, a company outside the dataset, a quarterly question, a segment question, two plain controls, the four golden facts (one of them, American Express, under the bank revenue rule) and a filing whose fourth quarter ends on the year end (Johnson & Johnson FY2023, which guards the annual-only rule).
 - **Facts:** `data/facts.jsonl` when it is present (locally), else `tests/eval_gate/facts_fixture.jsonl` (CI). For every filing the scenarios read, the fixture holds the no-dimension rows of every candidate tag of every metric, with their accession and concept, so a wrong tag order or a wrong period rule reaches the same wrong row on the fixture as on the real file; a test checks that it matches `data/facts.jsonl` whenever that file is present, and another runs every scenario on the fixture alone. Tests break the bank revenue rule and the annual-only rule on purpose and check that the gate fails, on the fixture and on the real file.
@@ -104,10 +104,10 @@ A row with an `error` has `answer: null` and no citations; `usage`, `cost_usd`, 
 ## Where the gold values come from
 
 A number question's gold value is filled from the `facts` table through the same lookup the agent's `get_financial_fact` tool uses: the pinned filing's own XBRL fact for that company, fiscal year and metric (`python -m filingcheck.eval gold`, from Week 3 Day 20).
-- **Hand-set values:** a value set by a person is marked `gold_source: "hand"` and is never overwritten.
+- **Hand-set values:** a value set outside the lookup (from the filing's text) is marked `gold_source: "hand"` and is never overwritten.
 - **Only number questions** (`expected_behavior: answer`) get a gold value; a clarify or refuse question has none.
 - **Other years:** the same metric's value for each other pinned year of the company is recorded in `gold_other_years`, so the grader can tell another year's number from a wrong one.
-- **Checking the facts:** the facts themselves are checked separately. Four golden facts were read by hand from the printed statements (`tests/golden_facts.yaml`), and every company total on a report's year-end date is compared with the SEC's companyfacts (`docs/facts_report.md`).
+- **Checking the facts:** the facts themselves are checked separately. Four golden facts were read in a coding session from the printed statements fetched from sec.gov (the visible table row and the statement's units line, not the XBRL tags) (`tests/golden_facts.yaml`), and every company total on a report's year-end date is compared with the SEC's companyfacts (`docs/facts_report.md`).
 
 ## What the evaluation therefore measures
 
@@ -120,7 +120,7 @@ It does not re-measure whether the XBRL facts are right; the separate checks abo
 
 ## The Week 5 question sets
 
-`eval/questions/dev_traps.jsonl` (85), `dev_unanswerable.jsonl` (10) and `control.jsonl` (50), described in `eval/questions/README.md`. Gold values come from `python -m filingcheck.eval gold`, through the agent's own lookup, except four set by hand from the filing text (three segment changes and one fee), each with the 10-K wording in its `trap_note`.
+`eval/questions/dev_traps.jsonl` (85), `dev_unanswerable.jsonl` (10) and `control.jsonl` (50), described in `eval/questions/README.md`. Gold values come from `python -m filingcheck.eval gold`, through the agent's own lookup, except four set in a coding session from the filing's saved text (three segment changes and one fee), each with the 10-K wording in its `trap_note`, and found in the saved text again by a reviewing AI session.
 
 **The control set follows FinanceBench's three question styles** (Islam et al., *FinanceBench: A New Benchmark for Financial Question Answering*, arXiv:2311.11944, CC BY-NC 4.0): metrics-generated, domain-relevant and novel-generated. FinanceBench's own questions are not used, because none of them is about the pinned filings; the questions here are written for this dataset in those styles, with FinanceBench credited as the template.
 
