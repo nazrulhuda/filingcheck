@@ -6,7 +6,7 @@
 
 **Four question sets:** `dev_traps` (85), `dev_unanswerable` (10), `control` (50, in FinanceBench's three styles), and `heldout_traps` (28), written by a fresh AI agent that saw only the category names and the company list, sealed by SHA-256 and unrun until Week 6.
 
-**Graders:** the deterministic grader for numbers (strict clarify rule; re-grading 314 stored rows changed 10), and an LLM grader of another model family for text, with a second opinion on failed number grades. Its check: two blind graders and the owner's review, 37 of 40 verdicts on sample 2 after one prompt fix (then frozen); 16 of 20 on text answers.
+**Graders:** the deterministic grader for numbers (strict clarify rule; re-grading 314 stored rows changed 10), and an LLM grader of another model family for text, with a second opinion on failed number grades. Its check: two blind AI graders and the owner's review, 37 of 40 verdicts on sample 2 after one prompt fix (then frozen); 16 of 20 on text answers.
 
 **Dry run** (145 questions, 3 runs, both arms): no false repairs on control questions; 10 relative-year runs made no tool call; a third or more of text answers say more than their passages support. It found the agent searching fiscal 2023 on 124 of 159 text-question calls, so the fiscal-year check now runs on `search_filings` (added after the freeze, both arms re-run): control abstains fell 21 to 12 and every search went to the latest filing; text support did not improve, and the unanswerable set got worse (5 of 30 answered, against 1).
 
