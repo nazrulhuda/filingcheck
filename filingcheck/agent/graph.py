@@ -359,11 +359,13 @@ def build_agent(
         if stopped is None and used == MAX_MODEL_CALLS - 1:
             stopped = "model_calls"
         try:
+            # Past the step cap the request carries no tools at all: with tool_choice "none" a
+            # provider can still reject a reply that calls one (Week 5: Groq, gpt-oss-20b).
             completion = model.complete(
                 state["messages"],
                 max_tokens=max_tokens,
-                tools=tools,
-                tool_choice="none" if stopped else "auto",
+                tools=None if stopped else tools,
+                tool_choice=None if stopped else "auto",
             )
         except IncompleteAnswer as exc:
             log.completions.append(exc.completion)  # cut off, but paid for
