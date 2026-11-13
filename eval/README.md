@@ -33,6 +33,10 @@ make eval SET=dev_traps,dev_unanswerable,control MODE=agent CHECKS=on REPEATS=3 
 
 `make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>]` reads the day's result files for `dev_traps`, `dev_unanswerable` and `control`, both arms, with their `_llm.jsonl` grades, and writes `eval/results/<date>_dry-run.md` ("Dry run: pipeline check, not results"): per set and arm the outcomes, the lenient-rule count, the LLM verdicts, abstain rate, cost and p50/p95 latency; check activity per category; false repairs on control questions; label shares in correct and wrong-number answers; text support; every grader disagreement; and the relative_year runs with no tool call. With `KEY`, it also draws the third blind-graded sample: 20 text answers from the dry run's rows (seed 20261133), written to `eval/llm_grades/<date>_sample3_hidden.md` with the verdicts hidden and the key at `KEY`. No model call.
 
+## The pre-registered metrics
+
+`eval/PREREGISTRATION.md` holds the Week 6 definitions (accuracy, confidently wrong, wrong-argument calls, abstain rate, false repairs, latency, cost) and the comparisons, written and merged before the final run. `filingcheck/eval/metrics.py` computes them as pure functions over the result rows and questions, and `filingcheck/eval/stats.py` the paired bootstrap over questions and McNemar's exact test. `uv run python -m filingcheck.eval metrics --date <date> [--label <label>] --out eval/results/<name> [--floor]` writes the report and the per-run CSV from a day's result files and their `_llm.jsonl` grades; `--floor` grades the always-abstain floor (the LLM grader for the text questions, through its cache). The demo on the Week 5 dry run's development rows is `eval/results/2026-11-12_dry-run_metrics-demo.md`: a check of the code, not a result.
+
 ## `make eval-smoke`: the deterministic gate
 
 ```
