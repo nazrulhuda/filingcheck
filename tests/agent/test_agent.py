@@ -198,9 +198,23 @@ def test_after_five_model_calls_the_sixth_must_answer_without_tools() -> None:
     chat = FakeChat([*loops, "I could not finish the calculation."])
     answer = run_agent("Add things up forever.", model=chat, deps=apple_deps())
     assert answer.model_calls == MAX_MODEL_CALLS == 6
-    assert [c["tool_choice"] for c in chat.calls] == ["auto"] * 5 + ["none"]
+    # The last request carries no tools at all (not tool_choice "none"), so a provider cannot
+    # reject a reply that still calls one (Week 5: Groq did, eight times on one row).
+    assert [c["tool_choice"] for c in chat.calls] == ["auto"] * 5 + [None]
+    assert [c["tools"] is None for c in chat.calls] == [False] * 5 + [True]
     assert answer.stopped_by == "model_calls"
     assert answer.text == "I could not finish the calculation."
+
+
+def test_a_looping_model_gets_a_toolless_final_request_and_its_answer_is_kept() -> None:
+    loops = [scripted_tool_calls(("calculate", {"expression": f"{n} + 2"})) for n in range(5)]
+    chat = FakeChat([*loops, "With what I found, the sum is 7."])
+    answer = run_agent("Keep adding.", model=chat, deps=apple_deps())
+    final = chat.calls[-1]
+    assert final["tools"] is None and final["tool_choice"] is None
+    # The conversation so far, tool results included, still reaches the model.
+    assert sum(1 for m in final["messages"] if m["role"] == "tool") == 5
+    assert answer.text == "With what I found, the sum is 7." and not answer.abstained
 
 
 def test_a_model_that_still_asks_for_tools_at_the_last_call_abstains() -> None:
@@ -223,7 +237,7 @@ def test_no_more_than_eight_tool_calls_are_run() -> None:
     # Every call the model made gets a tool message, the skipped ones say why.
     results = [json.loads(m["content"]) for m in tool_messages(chat, 2)]
     assert len(results) == 10 and "limit" in results[-1]["error"]
-    assert chat.calls[2]["tool_choice"] == "none"
+    assert chat.calls[2]["tool_choice"] is None and chat.calls[2]["tools"] is None
     assert answer.stopped_by == "tool_calls"
 
 
