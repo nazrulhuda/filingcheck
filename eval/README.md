@@ -73,7 +73,7 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `answer` | the answer text, or `null` when `error` is set |
 | `citations` | the passages the answer cites as `[n]`: `number`, `chunk_id`, `ticker`, `fiscal_year`, `item`, `source_url`, `quote` |
 | `fact_citations` | agent only: the numbers cited as `[Fn]`, with `concept`, `value`, `unit`, period, `accession`, `source_url` |
-| `tool_calls` | agent only: every tool call, with `name`, `arguments` as run, `defaults_applied`, `status` (`ok`, `error` or `skipped`), `result_summary` and `duration_ms` |
+| `tool_calls` | agent only: every tool call, with `name`, `arguments` as run, `sent_arguments` as the model sent them (before the page filter filled any in or a check repaired any; absent before 2026-11-13), `defaults_applied`, `status` (`ok`, `error` or `skipped`), `result_summary` and `duration_ms` |
 | `facts_used` | agent only: every fact `get_financial_fact` returned, with its exact `value` as a decimal string, `unit`, period, `concept`, `accession`, `source_url`, `decimals` and `line_label` |
 | `usage` | `prompt_tokens` and `completion_tokens`, summed over the agent's model calls |
 | `cost_usd` | the question's cost in dollars, summed over its model calls |
@@ -86,6 +86,9 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `checks` | agent only: whether the skeptical checks ran (`true` or `false`); `null` for the baseline |
 | `overrides` | agent only: the checks' override log, one record per check per `get_financial_fact` call: `check`, `outcome` (`pass`, `repair` or `reject`), `argument`, `sent`, `used`, `reason`, `options` |
 | `error` | `null`, or a short code such as `openrouter - incomplete_length` |
+| `error_kind` | on an error row, one of `tool_choice_none`, `rate_limit`, `cut_off`, `provider_5xx`, `other`, picked from the provider's message in memory; the message itself is never stored, because it can name the account (from 2026-11-13) |
+| `git_commit`, `git_clean`, `questions_sha256` | `make eval` only: the commit the run ran from, whether the working tree was clean, and the SHA-256 of the question file (from 2026-11-13) |
+| `page_filter` | the page filters the question was asked with, when it carries any |
 
 The baseline writes the same fields, with empty `fact_citations`, `tool_calls` and `facts_used`.
 
