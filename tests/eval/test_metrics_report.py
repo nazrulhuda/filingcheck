@@ -56,3 +56,73 @@ def test_the_report_carries_its_heading_and_the_comparison() -> None:
     assert page.startswith("# Metrics demo\n\nDevelopment rows from the Week 5 dry run; a check")
     assert "## Checks on against off" in page
     assert "| dev_traps | accuracy | 33.3% | 100.0% | +66.7 points |" in page
+
+
+def test_the_report_lists_the_questions_not_scored_with_their_reasons() -> None:
+    from filingcheck.eval.metrics import score_run
+
+    q = question(id="held-948", scored=False, not_scored_reason="it repeats dev-017")
+    s = [
+        score_run(
+            row(RIGHT, id="held-948"), q, None, set_name="heldout_traps_2", arm="agent-checks-on"
+        )
+    ]
+    page = render(s, floor=[], title="T", heading="H", notes=[])
+    assert "## Questions not scored" in page and "held-948: it repeats dev-017" in page
+
+
+def test_the_graders_disagree_when_one_passes_what_the_other_fails_and_pairings_show() -> None:
+    from filingcheck.eval.metrics import score_run
+    from tests.eval.test_metrics import REFUSE, llm
+
+    answer = "iPhone net sales for fiscal 2025 were $416,161,000,000."
+    s = [
+        score_run(
+            row(answer, repeat=1),
+            REFUSE,
+            llm("correct", "second opinion"),
+            set_name="dev_traps",
+            arm="agent-checks-on",
+        ),
+        score_run(
+            row(answer, repeat=2),
+            REFUSE,
+            llm("wrong", "second opinion"),
+            set_name="dev_traps",
+            arm="agent-checks-on",
+        ),
+        score_run(
+            row("Which year?", repeat=3),
+            question(),
+            llm("wrong", "second opinion"),
+            set_name="dev_traps",
+            arm="agent-checks-on",
+        ),
+    ]
+    page = render(s, floor=[], title="T", heading="H", notes=[])
+    assert "where one grader passes the run and the other fails it: 1" in page
+    assert "| answered_when_should_ask | correct | 1 |" in page
+    assert "| asked_when_should_answer | wrong | 1 |" in page
+
+
+def test_a_stopped_number_call_without_a_checks_reject_record_is_flagged() -> None:
+    from filingcheck.eval.metrics import score_run
+
+    call = {"name": "get_financial_fact", "arguments": {"ticker": "Apple"}, "status": "error"}
+    checked = score_run(
+        row("x", tool_calls=[call], overrides=[{"check": "company", "outcome": "reject"}]),
+        question(),
+        None,
+        set_name="dev_traps",
+        arm="agent-checks-on",
+    )
+    unchecked = score_run(
+        row("x", tool_calls=[call], repeat=2),
+        question(),
+        None,
+        set_name="dev_traps",
+        arm="agent-checks-off",
+    )
+    assert (checked.stopped_calls, checked.check_rejects) == (1, 1)
+    page = render([checked, unchecked], floor=[], title="T", heading="H", notes=[])
+    assert "stopped without a check's reject record: 1" in page and "list them and ask" in page
