@@ -65,12 +65,14 @@ def choose_results_path(
     return todays
 
 
-def provenance(questions_path: Path) -> dict[str, Any]:
+def provenance(questions_path: Path, root: Path | None = None) -> dict[str, Any]:
     """What a run ran from: the git commit, whether the tree was clean, the question file's hash.
 
-    The commit and the cleanliness are None when git cannot be asked (no repository).
+    Clean means no tracked file differs from the commit; new files do not count, so the result
+    files an earlier set of the same run wrote leave the tree clean. The commit and the
+    cleanliness are None when git cannot be asked (no repository).
     """
-    root = Path(__file__).resolve().parents[2]
+    root = root or Path(__file__).resolve().parents[2]
 
     def git(*args: str) -> str | None:
         try:
@@ -82,7 +84,7 @@ def provenance(questions_path: Path) -> dict[str, Any]:
         return done.stdout
 
     commit = git("rev-parse", "HEAD")
-    status = git("status", "--porcelain")
+    status = git("status", "--porcelain", "--untracked-files=no")
     return {
         "git_commit": commit.strip() if commit else None,
         "git_clean": None if status is None else status.strip() == "",
