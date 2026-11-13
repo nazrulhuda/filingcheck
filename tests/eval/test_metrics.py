@@ -385,27 +385,28 @@ RIGHT = "Apple's fiscal 2025 revenue was $416.2 billion."
 
 
 def test_a_rate_is_per_question_first_then_averaged() -> None:
-    s = scores_for({"q-1": [RIGHT, RIGHT, RIGHT], "q-2": [RIGHT, ABSTAIN, ABSTAIN]})
+    s = scores_for({"held-901": [RIGHT, RIGHT, RIGHT], "held-902": [RIGHT, ABSTAIN, ABSTAIN]})
     assert rate(s, lambda r: r.correct) == pytest.approx((1 + 1 / 3) / 2)
     assert rate(s, lambda r: r.abstained) == pytest.approx((0 + 2 / 3) / 2)
 
 
 def test_a_question_not_scored_is_left_out_of_every_rate() -> None:
     s = scores_for(
-        {"q-1": [RIGHT, RIGHT, RIGHT], "q-2": [ABSTAIN, ABSTAIN, ABSTAIN]}, scored={"q-2": False}
+        {"held-901": [RIGHT, RIGHT, RIGHT], "held-902": [ABSTAIN, ABSTAIN, ABSTAIN]},
+        scored={"held-902": False},
     )
     assert rate(s, lambda r: r.correct) == 1.0
     assert rate(s, lambda r: r.abstained) == 0.0
 
 
 def test_the_error_share_counts_error_rows() -> None:
-    s = scores_for({"q-1": [RIGHT, RIGHT, RIGHT]})
-    s.append(score(row(None, id="q-2", error="x"), question(id="q-2")))
+    s = scores_for({"held-901": [RIGHT, RIGHT, RIGHT]})
+    s.append(score(row(None, id="held-902", error="x"), question(id="held-902")))
     assert error_share(s) == 0.25
 
 
 def test_noise_is_the_share_of_questions_whose_runs_do_not_all_agree() -> None:
-    s = scores_for({"q-1": [RIGHT, RIGHT, RIGHT], "q-2": [RIGHT, ABSTAIN, RIGHT]})
+    s = scores_for({"held-901": [RIGHT, RIGHT, RIGHT], "held-902": [RIGHT, ABSTAIN, RIGHT]})
     assert noise(s) == 0.5
 
 
