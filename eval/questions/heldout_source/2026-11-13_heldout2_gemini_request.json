@@ -1,8 +1,8 @@
 {
   "date": "2026-11-13",
-  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent",
-  "model": "models/gemini-3.1-pro-preview",
-  "model_listed_version": "3.1-pro-preview-01-2026",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "model": "models/gemini-3.8-flash",
+  "model_listed_version": "3.0",
   "prompt_file": "eval/questions/heldout_source/2026-11-13_heldout2_agent_prompt.md",
   "prompt_sha256": "a729b9e573a05cb74da7bd8c0a0244e48839d338437157742be4bdece8e44b62",
   "request_body": {
@@ -15,18 +15,8 @@
   "attempts": [
     {
       "attempt": 1,
-      "at": "2026-11-13T21:03:01.203846+00:00",
-      "result": "HTTP 429"
-    },
-    {
-      "attempt": 2,
-      "at": "2026-11-13T21:03:21.389002+00:00",
-      "result": "HTTP 429"
-    },
-    {
-      "attempt": 3,
-      "at": "2026-11-13T21:04:01.581443+00:00",
-      "result": "HTTP 429"
+      "at": "2026-11-13T21:33:17.964325+00:00",
+      "result": "reply"
     }
   ]
 }

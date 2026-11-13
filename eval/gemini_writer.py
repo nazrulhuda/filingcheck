@@ -9,13 +9,22 @@ Flash-Lite. One request; it is retried only if it fails with no reply. A short o
 is kept as it is. The key (GEMINI_API_KEY in .env) goes in a request header and is never printed
 or written.
 
-Run: `uv run python eval/gemini_writer.py`. Writes, in `eval/questions/heldout_source/`:
+"Can use" means the model answers a request. On 2026-11-13 the newest Pro
+(gemini-3.1-pro-preview) returned the free tier's quota error (HTTP 429) on the request and both
+retries, and gemini-2.5-pro returned 404, so the key has no usable Pro; that record is
+`<date>_heldout2_gemini_request_pro-attempts.json`. The rule then picks the newest Flash:
+`--model models/gemini-3.8-flash` names it, and the script checks that it is the newest listed
+Flash that is not Flash-Lite.
+
+Run: `uv run python eval/gemini_writer.py [--model models/...]`. Writes, in
+`eval/questions/heldout_source/`:
 `<date>_heldout2_gemini_output.md` (the reply's text, unedited),
 `<date>_heldout2_gemini_request.json` (the request as sent, without the key) and
 `<date>_heldout2_gemini_response.json` (the model version, token counts, finish reason and the
 models listed).
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -84,6 +93,9 @@ def choose(models: list[dict[str, Any]]) -> dict[str, Any]:
 
 def main() -> int:
     """List, choose, ask once, and write the reply and the record."""
+    parser = argparse.ArgumentParser(prog="eval/gemini_writer.py")
+    parser.add_argument("--model", help="the newest Flash, after no Pro answered (see above)")
+    args = parser.parse_args()
     load_dotenv(REPO / ".env")
     key = os.environ["GEMINI_API_KEY"]
     prompt_bytes = PROMPT.read_bytes()
@@ -95,6 +107,11 @@ def main() -> int:
     for name in names:
         print(" ", name)
     model = choose(models)
+    if args.model:
+        flash = choose([m for m in models if not PRO_RE.match(m["name"])])
+        if flash["name"] != args.model:
+            raise SystemExit(f"{args.model} is not the newest listed Flash ({flash['name']})")
+        model = flash
     print("chosen:", model["name"], "| output limit", model.get("outputTokenLimit"))
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt_bytes.decode("utf-8")}]}],
