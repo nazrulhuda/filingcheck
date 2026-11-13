@@ -1,6 +1,6 @@
 # The step-cap change, checked live (2026-11-13)
 
-The 8 runs of the Week 5 search-year re-run that stopped at the model-call cap (7 with the checks on), each question asked 3 more times in the same arm with the current code, where the final request carries no tools instead of `tool_choice: none`. Rows: `eval/probes/2026-11-13_step-cap-check_*.jsonl`. Written by `eval/step_cap_check.py`.
+The 8 runs of the Week 5 search-year re-run that stopped at the model-call cap (7 with the checks on), each question asked 3 more times in the same arm with the change then on the branch: past the cap, the final request carried no tools instead of `tool_choice: none`. The change was reverted after this check (docs/decisions.md, 2026-11-13). Rows: `eval/probes/2026-11-13_step-cap-check_*.jsonl`. Written by `eval/step_cap_check.py`.
 
 ## The old runs
 
@@ -26,7 +26,7 @@ The 8 runs of the Week 5 search-year re-run that stopped at the model-call cap (
 | agent-checks-on | dev-053 | 1 | answer | none | correct | - | I can’t find the exact dollar amount for Nvidia’s Data Center segment revenue in the filings I have. |
 | agent-checks-on | dev-073 | 1 | answer | none | correct | - | I can't find this in the filings I have. |
 | agent-checks-on | una-002 | 1 | answer | none | abstained | correct | I can’t find any guidance for Nvidia’s fiscal 2027 revenue in the 10‑K filings that are available in the dataset. |
-| agent-checks-on | control-131 | 1 | answer | openrouter 200 502 | error | - |  |
+| agent-checks-on | control-131 | 1 | provider error at the capped final request | openrouter 200 502 | error | - |  |
 | agent-checks-on | control-134 | 1 | model_calls | none | abstained | - | I can't find this in the filings I have. |
 | agent-checks-on | dev-031 | 2 | answer | none | abstained | - | I can’t find the revenue figure for S&P Global’s fiscal year 2022 in the filings I have. |
 | agent-checks-on | dev-053 | 2 | answer | none | correct | - | I can’t find a specific figure for Nvidia’s Data Center segment revenue in the filings I have. |
@@ -41,4 +41,4 @@ The 8 runs of the Week 5 search-year re-run that stopped at the model-call cap (
 | agent-checks-on | control-131 | 3 | answer | none | not_graded | correct | Nike is headquartered at One Bowerman Drive, Beaverton, Oregon 97005‑6453【7】. |
 | agent-checks-on | control-134 | 3 | answer | none | abstained | - | I can't find this in the filings I have. |
 
-21 new runs: 1 with a provider error, 1 stopped by the step cap again (each of those ended with a final request that carried no tools).
+21 new runs: 1 with a provider error. 2 reached the step cap, so their final request carried no tools; 1 of those ended in a provider error. The other runs answered before the cap.
