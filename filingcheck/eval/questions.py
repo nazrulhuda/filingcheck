@@ -123,6 +123,10 @@ class Question(BaseModel):
     style: Style | None = None  # control questions only
     page_filter: PageFilter | None = None  # asked with these page filters (the batch runner too)
     also_accept: AlsoAccept | None = None  # a second answer the writer's note accepts
+    # A question run like the others but left out of every rate, with the reason (decided at the
+    # Day 37 review: no gold, or a repeat of a development question).
+    scored: bool = True
+    not_scored_reason: str | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -134,6 +138,8 @@ class Question(BaseModel):
             raise ValueError("a control question has set 'control' and category 'control'")
         if (self.style is not None) != (self.set == "control"):
             raise ValueError("style is required for control questions and not allowed otherwise")
+        if self.scored == bool(self.not_scored_reason):
+            raise ValueError("a question not scored needs a not_scored_reason, and only then")
         also = self.also_accept
         if also is not None and also.expected_behavior == self.expected_behavior:
             raise ValueError("also_accept's behavior is the same as the main one")

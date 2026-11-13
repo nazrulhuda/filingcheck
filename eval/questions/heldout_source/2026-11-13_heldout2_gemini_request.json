@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-13",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "model": "models/gemini-3.8-flash",
+  "model_listed_version": "3.0",
+  "prompt_file": "eval/questions/heldout_source/2026-11-13_heldout2_agent_prompt.md",
+  "prompt_sha256": "a729b9e573a05cb74da7bd8c0a0244e48839d338437157742be4bdece8e44b62",
+  "request_body": {
+    "contents": "<the prompt file's text, unchanged>",
+    "generationConfig": {
+      "maxOutputTokens": 65536
+    }
+  },
+  "settings": "no system instruction, no tools, no search grounding, default temperature",
+  "attempts": [
+    {
+      "attempt": 1,
+      "at": "2026-11-13T21:33:17.964325+00:00",
+      "result": "reply"
+    }
+  ]
+}

@@ -1,6 +1,9 @@
 """Check the Week 5 question sets against every older question.
 
-Run: `uv run python eval/check_overlap.py`.
+Run: `uv run python eval/check_overlap.py`, or with `--new FILE ... --against FILE ...` (question
+files in `eval/questions/`) to check given new questions against given question files only, as
+for the second held-out file (Day 37: against dev_traps, examples, page_examples and the first
+held-out file).
 
 The older questions: the six examples, the page examples, the retrieval set, every question in
 `eval/probes/` and `eval/results/`, the gate scenarios, the Day 18 scripted scenarios, and the
@@ -8,6 +11,7 @@ Day 23 phrasing matrices and review probes (generated from their test templates)
 whose word overlap with any of them is above 0.6 is printed with its closest match.
 """
 
+import argparse
 import importlib
 import json
 import sys
@@ -25,8 +29,13 @@ NEW_SETS = ("dev_traps.jsonl", "dev_unanswerable.jsonl", "control.jsonl")
 THRESHOLD = 0.6
 
 
-def references() -> dict[str, str]:
-    """Every older question, mapped to where it comes from."""
+def references(skip_ids: set[str] | None = None) -> dict[str, str]:
+    """Every older question, mapped to where it comes from.
+
+    Rows in `eval/probes/` and `eval/results/` whose id is in `skip_ids` are runs of the very
+    questions being checked (the Week 5 dry run), so they are left out.
+    """
+    skip = skip_ids or set()
     refs: dict[str, str] = {}
 
     def add(text: Any, source: str) -> None:
@@ -41,7 +50,9 @@ def references() -> dict[str, str]:
         for path in sorted((REPO / folder).glob("*.jsonl")):
             for line in path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
-                    add(json.loads(line).get("question"), path.name)
+                    row = json.loads(line)
+                    if row.get("id") not in skip:
+                        add(row.get("question"), path.name)
     gate = yaml.safe_load((REPO / "tests/eval_gate/scenarios.yaml").read_text(encoding="utf-8"))
     for scenario in gate if isinstance(gate, list) else gate.get("scenarios", []):
         add(scenario.get("question"), "gate scenarios")
@@ -71,15 +82,25 @@ def references() -> dict[str, str]:
     return refs
 
 
+def questions_in(name: str) -> dict[str, str]:
+    """A question file's questions by id."""
+    rows = (REPO / "eval/questions" / name).read_text(encoding="utf-8").splitlines()
+    return {(row := json.loads(x))["id"]: row["question"] for x in rows if x.strip()}
+
+
 def main() -> int:
     """Print the flagged questions and a one-line count; exit 1 if any is flagged."""
-    refs = references()
+    parser = argparse.ArgumentParser(prog="eval/check_overlap.py")
+    parser.add_argument("--new", nargs="+", help="question files to check (default: Week 5's)")
+    parser.add_argument("--against", nargs="+", help="question files to check them against")
+    args = parser.parse_args()
     new: dict[str, str] = {}
-    for name in NEW_SETS:
-        for line in (REPO / "eval/questions" / name).read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                row = json.loads(line)
-                new[row["id"]] = row["question"]
+    for name in args.new or NEW_SETS:
+        new |= questions_in(name)
+    if args.against:
+        refs = {q: name for name in args.against for q in questions_in(name).values()}
+    else:
+        refs = references(skip_ids=set(new))
     flags = flagged(new, refs, THRESHOLD)
     for flag in flags:
         print(f"{flag.id} ({flag.score}): {flag.question!r} ~ {flag.reference!r} [{flag.source}]")
