@@ -14,7 +14,11 @@ the grader, not the system, and are written to `eval/probes/<date>_refusal-note-
 marked `hand_made: true`:
 - (a) quotes chunk 1256 (Amazon FY2025, Item 1, Human Capital: "approximately 1,576,000
   full-time and part-time employees" as of December 31, 2025) with a citation: must be accepted;
-- (b) the same citation with a figure the passage does not state (1,600,000): must be rejected.
+- (b) the same citation with a figure the passage does not state: must be rejected. The first (b)
+  used 1,600,000 and was accepted as "that figure rounded"; it was a bad case (1,600,000 is a fair
+  rounding of 1,576,000, "about 1.6 million") and is withdrawn but kept here with its verdict. (b)
+  was run once more with 1,250,000, nothing else changed, its verdict final (decisions,
+  2026-11-13).
 
 Run: `uv run python eval/refusal_note_check.py` (the local database and the OpenRouter key; less
 than a cent). Writes `eval/probes/<date>_refusal-note-check.md`.
@@ -56,8 +60,14 @@ HAND_MADE = (
         "accept",
     ),
     (
-        "held-022-b",
+        "held-022-b (first; withdrawn: a fair rounding)",
         "As of December 31, 2025, Amazon employed approximately 1,600,000 full-time and part-time "
+        "employees [1].",
+        "reject",
+    ),
+    (
+        "held-022-b (re-run, final)",
+        "As of December 31, 2025, Amazon employed approximately 1,250,000 full-time and part-time "
         "employees [1].",
         "reject",
     ),
