@@ -12,6 +12,6 @@
 
 **Noise:** identical code moved 5 of 255 rows between runs.
 
-**Known limits:** text support; unanswerable questions answered from the latest filing; "passage 1" read as a figure; one decline wording missed.
+**Known limits:** text support; unanswerable questions answered from the latest filing; a refusal quoting a percentage graded as an answer; one decline wording missed.
 
 **Cost:** about $0.81 ([notes](week5_notes.md)).
