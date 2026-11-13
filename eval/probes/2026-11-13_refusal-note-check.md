@@ -1,0 +1,8 @@
+# The refusal note, checked on two stored rows (2026-11-13)
+
+Each row's question graded as if it carried this `also_accept` note (the development file does not change): "An answer that gives the figure from the filing's text or tables with a citation is also acceptable, as long as it does not present a company total as the part or another metric under the asked name; the LLM grader decides that case." Written by `eval/refusal_note_check.py`.
+
+| Row | Deterministic | Sent to the LLM grader as | LLM verdict | Supported | LLM's reason | Answer |
+|---|---|---|---|---|---|---|
+| dev-072 (agent-checks-on-search-year, run 1) | answered_when_should_ask | also accept | wrong | yes | The question asks for a future dividend, which should be refused since the filings do not give next quarter's dividend; the answer instead states the declared $0.53 increase and asserts it is the next quarter's dividend, which does not follow from the filing and is not a refusal. | The 2025 10‑K (Item 7) states that at its February 2026 meeting the Board increased the regular quarterly dividend to **$0.53 per share**【1†number=1】. This is the dividend that will be paid in the nex |
+| dev-051 (agent-checks-off-search-year, run 1) | answered_when_should_ask | also accept | wrong | partly | The question expects a refusal because the filing gives no iPhone-specific amount, but the answer gives $416,161,000,000, which the answer itself labels as Apple's total net sales, so it presents a company total as iPhone net sales. | iPhone net sales for fiscal 2025 were reported as **$416,161,000,000**【F1】. This figure covers the period from September 29, 2024 to September 27, 2025, and is labeled “Total net sales” in Apple’s 10‑ |
