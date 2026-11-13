@@ -41,7 +41,7 @@ def test_the_csv_has_the_preregistered_columns_in_order(tmp_path: Path) -> None:
         "dev_traps",
         "agent-checks-off",
         "False",
-        "",
+        "0",  # no number-tool call: none wrong as sent (blank only when a call lacks the record)
     )
 
 
