@@ -74,8 +74,31 @@ The share of questions whose 3 runs do not all get the same outcome (the decidin
 | control | agent-checks-off | 50 | 16.0% |
 | control | agent-checks-on | 50 | 12.0% |
 
+## Stopped number-tool calls
+
+Number-tool calls stored with status error: 40; stopped without a check's reject record: 0. Every stopped call is a check's reject.
+
 ## The graders
 
-- Number-graded runs with an LLM second opinion: 134; where it disagrees with the deterministic grade (on correct or abstained): 18.
+- Number-graded runs with an LLM second opinion: 134; where one grader passes the run and the other fails it: 10.
 - Text-graded runs with no usable LLM verdict: 0.
 - Deciding outcomes seen: abstained, answered_when_should_ask, asked_about_another_thing, asked_when_should_answer, correct, error, no_number, other_year_number, partly, wrong, wrong_number.
+
+Every pairing of the deterministic outcome and the LLM's second opinion:
+
+| Deterministic | LLM | Runs |
+|---|---|---:|
+| abstained | abstained | 44 |
+| answered_when_should_ask | wrong | 43 |
+| other_year_number | wrong | 9 |
+| answered_when_should_ask | correct | 9 |
+| asked_when_should_answer | wrong | 7 |
+| abstained | wrong | 6 |
+| asked_about_another_thing | wrong | 4 |
+| asked_when_should_answer | asked | 4 |
+| wrong_number | wrong | 2 |
+| abstained | asked | 2 |
+| no_number | asked | 1 |
+| answered_when_should_ask | asked | 1 |
+| answered_when_should_ask | partly | 1 |
+| asked_about_another_thing | correct | 1 |

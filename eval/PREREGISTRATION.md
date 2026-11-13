@@ -151,10 +151,13 @@ How it is reported:
 
 **Per-run CSV columns:** set, id, repeat, arm, category, expected_behavior, graded_by (number or text), outcome, llm_verdict, correct, confidently_wrong, confidently_wrong_no_labels, confidently_wrong_both_graders, wrong_arg_ran, wrong_arg_sent, segment_total_calls, calls_ran, abstained, false_repair, latency_ms, cost_usd, error.
 
-## How the code reads three of the definitions
+## How the code reads six of the definitions
 
 These follow from the definitions above; they are written down so a reader can check them.
 
 - **Wrong-argument calls as sent** use each call's `sent_arguments`, with the page filter's defaults filled in as the agent fills them before the checks (so with the checks off they equal what ran), over every number-tool call the model sent that ran or was stopped by a check. The breakdown counts a stopped call as rejected, a call that ran with arguments that differ from the ones sent as repaired, and the rest as run unchanged.
 - **Confidently wrong with both graders** applies to number-graded runs; a text-graded run has one deciding grader, so for it this equals the main rate.
 - **The bootstrap interval's ends** are the nearest-rank 2.5th and 97.5th percentiles of the 10,000 resampled means; the code is `filingcheck/eval/stats.py`, and the metrics are `filingcheck/eval/metrics.py`.
+- **The graders disagree** (graders item i) when one passes a number-graded run and the other fails it: the deterministic outcome is `correct` and the LLM's second opinion is not, or the other way round. Every pairing of the two (such as `asked` against `asked_when_should_answer`) is shown in a table beside the count.
+- **Noise** compares the deciding grader's outcome across a question's runs: the deterministic outcome for a number-graded run, the LLM verdict for a text-graded one, `error` for an error row.
+- **Wrong-argument calls per 100 calls that ran** is the arm's total of such calls over its total of calls that ran (a pooled ratio: a question with no call has no share of its own). The rate per 100 runs is per question first, like every rate.
