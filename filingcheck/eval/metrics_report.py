@@ -9,6 +9,7 @@ pre-registration's columns. Both read only scored runs; nothing here calls a mod
 
 import csv
 import math
+from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
@@ -273,21 +274,42 @@ def render(
         lines.append(
             f"| {set_name} | {arm} | {len({s.id for s in scored})} | {_pct(noise(scored))} |"
         )
-    second = [s for s in scores if s.graded_by == "number" and s.llm_verdict and not s.error]
-    disagree = [
-        s
-        for s in second
-        if (s.outcome == "correct") != (s.llm_verdict == "correct")
-        or (s.outcome == "abstained") != (s.llm_verdict == "abstained")
+    unscored = {(s.id, s.not_scored_reason) for s in scores if not s.scored}
+    if unscored:
+        lines += ["", "## Questions not scored", "", "Run like the others, left out of every rate:"]
+        lines += [""] + [f"- {qid}: {reason}" for qid, reason in sorted(unscored)]
+    stopped = sum(s.stopped_calls for s in scores)
+    unmatched = sum(max(0, s.stopped_calls - s.check_rejects) for s in scores)
+    lines += [
+        "",
+        "## Stopped number-tool calls",
+        "",
+        f"Number-tool calls stored with status error: {stopped}; stopped without a check's "
+        f"reject record: {unmatched}."
+        + (
+            " Those are not check rejects (an input validation error, or another kind): list "
+            "them and ask before reporting."
+            if unmatched
+            else " Every stopped call is a check's reject."
+        ),
     ]
+    second = [s for s in scores if s.graded_by == "number" and s.llm_verdict and not s.error]
+    disagree = [s for s in second if (s.outcome == "correct") != (s.llm_verdict == "correct")]
+    pairs = Counter((s.outcome, str(s.llm_verdict)) for s in second)
     ungraded = [s for s in scores if s.text_ungraded]
     lines += [
         "",
         "## The graders",
         "",
-        f"- Number-graded runs with an LLM second opinion: {len(second)}; where it disagrees "
-        f"with the deterministic grade (on correct or abstained): {len(disagree)}.",
+        f"- Number-graded runs with an LLM second opinion: {len(second)}; where one grader "
+        f"passes the run and the other fails it: {len(disagree)}.",
         f"- Text-graded runs with no usable LLM verdict: {len(ungraded)}.",
         f"- Deciding outcomes seen: {', '.join(sorted({deciding_outcome(s) for s in scores}))}.",
+        "",
+        "Every pairing of the deterministic outcome and the LLM's second opinion:",
+        "",
+        "| Deterministic | LLM | Runs |",
+        "|---|---|---:|",
     ]
+    lines += [f"| {o} | {v} | {n} |" for (o, v), n in sorted(pairs.items(), key=lambda kv: -kv[1])]
     return "\n".join(lines) + "\n"

@@ -56,6 +56,11 @@ class RunScore:
     error: str | None
     scored: bool
     text_ungraded: bool  # a text-graded run with no usable LLM verdict
+    not_scored_reason: str | None = None
+    # Number-tool calls stored with status error, and the checks' reject records (a retry block
+    # included) on the number tool: every stopped call should be a check's reject.
+    stopped_calls: int = 0
+    check_rejects: int = 0
 
 
 def _is_text_graded(question: Question, det: Grade) -> bool:
@@ -247,6 +252,11 @@ def score_run(
         error=error,
         scored=question.scored,
         text_ungraded=text_graded and not error and verdict is None,
+        not_scored_reason=question.not_scored_reason,
+        stopped_calls=sum(1 for c in _fact_calls(row) if c.get("status") == "error"),
+        check_rejects=sum(
+            1 for e in overrides if e.get("outcome") == "reject" and _tool(e) == NUMBER_TOOL
+        ),
     )
 
 
