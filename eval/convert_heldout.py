@@ -185,6 +185,19 @@ FIELDS_2: Fields = [
     ("MSFT", 2024, "long_term_debt", "answer"),
 ]
 ALSO_ACCEPT_2: dict[int, dict[str, Any]] = {
+    # held-031 "how much did fb make in 2023": the writer accepts revenue or net income. Meta's
+    # FY2023 net income from the facts table through the agent's lookup, checked against
+    # companyfacts at the Day 37 review; no gold_source, so the gold filler never refills it
+    # (it would fill the question's own metric, revenue).
+    3: {
+        "fiscal_year": 2023,
+        "gold_value": 39098000000,
+        "gold_unit": "USD",
+        "gold_concept": "us-gaap:NetIncomeLoss",
+        "gold_accession": "0001326801-24-000012",
+        "gold_period_start": "2023-01-01",
+        "gold_period_end": "2023-12-31",
+    },
     49: {"note": REFUSAL_NOTE},  # Google Cloud revenue: the filing's tables hold it
     51: {"note": REFUSAL_NOTE},  # Mac net sales: the filing's tables hold them
     54: {"note": REFUSAL_NOTE},  # Walmart U.S. net sales: a passage holds them
@@ -195,6 +208,12 @@ ALSO_ACCEPT_2: dict[int, dict[str, Any]] = {
     66: {"note": REFUSAL_NOTE},  # Apple's employees: a passage holds the count
     69: {"note": REFUSAL_NOTE},  # Meta's dividends paid: a passage holds them
     72: {"note": REFUSAL_NOTE},  # Costco's warehouse count: a passage holds it
+}
+# Questions run but left out of every rate, by number in the file (the Day 37 review).
+NOT_SCORED_2: dict[int, str] = {
+    17: "no gold: Nike's filing reports no operating-income line",
+    20: 'it repeats development question dev-017, "nvidia net income 2024", so it is not '
+    "held-out evidence",
 }
 FILES: dict[int, tuple[Path, Path, Fields, dict[int, dict[str, Any]], int]] = {
     1: (
@@ -249,6 +268,11 @@ def convert(number: int) -> int:
                 "trap_note": m[3],
             }
             | ({"also_accept": also_accept[n]} if n in also_accept else {})
+            | (
+                {"scored": False, "not_scored_reason": NOT_SCORED_2[n]}
+                if number == 2 and n in NOT_SCORED_2
+                else {}
+            )
         )
     out.write_text(
         "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),

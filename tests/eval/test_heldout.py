@@ -92,6 +92,12 @@ def test_the_held_out_file_is_sealed() -> None:
     assert digest.hexdigest() == "b295c38f60fcecce687f70b43520726cb0bfef3c1e616d4bd2835aeb85f343a5"
 
 
+def test_the_second_held_out_file_is_sealed() -> None:
+    """The SHA-256 recorded in docs/decisions.md on 2026-11-13, after the Day 37 review."""
+    digest = hashlib.sha256((REPO / "eval" / "questions" / "heldout_traps_2.jsonl").read_bytes())
+    assert digest.hexdigest() == "ab3639e64d5902c1e94328cca98bcaf5ab1596a1e232f2514a100f6a104d8b71"
+
+
 def test_held_031_also_accepts_metas_net_income_as_its_writer_allows() -> None:
     """The note accepts "revenue or net income"; the file's metric is revenue."""
     q = HELDOUT_2["held-031"]
