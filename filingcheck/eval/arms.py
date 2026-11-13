@@ -22,17 +22,23 @@ ON_WORDS = {"on", "1", "true", "yes"}
 OFF_WORDS = {"off", "0", "false", "no"}
 
 
-def arm_name(mode: str, checks: bool | None, label: str | None = None) -> str:
-    """The run's name in its file name: 'baseline', 'agent-checks-on' or 'agent-checks-off'.
+def arm_name(
+    mode: str, checks: bool | None, label: str | None = None, *, retriever: str = "hybrid"
+) -> str:
+    """The run's name in its file name, as in 'baseline-vector' or 'agent-checks-on'.
 
-    A `label` names a separate run of the same arm ('agent-checks-on-search-year'): a re-run
-    after a change, kept apart from the day's earlier files.
+    The baselines are 'baseline' (hybrid search) and 'baseline-vector'; the agent arms are
+    'agent-checks-on' and 'agent-checks-off'. A `label` names a separate run of the same arm
+    ('agent-checks-on-search-year'): a re-run after a change, kept apart from the day's earlier
+    files.
     """
     if mode != "agent":
         if checks is not None:
             raise ValueError("the checks apply to the agent only")
-        name = mode
+        name = mode if retriever == "hybrid" else f"{mode}-{retriever}"
     else:
+        if retriever != "hybrid":
+            raise ValueError("the agent always searches hybrid; RETRIEVER is the baseline's")
         name = "agent-checks-on" if checks else "agent-checks-off"
     return f"{name}-{label}" if label else name
 

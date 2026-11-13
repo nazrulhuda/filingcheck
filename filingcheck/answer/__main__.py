@@ -22,6 +22,7 @@ from filingcheck.answer.run import (
     format_incomplete,
     format_tool_call,
     hybrid_retriever,
+    retriever_for,
     settings_line,
 )
 from filingcheck.checks import reference_data
@@ -43,6 +44,12 @@ def answer_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m filingcheck.answer")
     parser.add_argument("question")
     parser.add_argument("--mode", choices=["baseline", "agent"], default="baseline")
+    parser.add_argument(
+        "--retriever",
+        choices=["hybrid", "vector"],
+        default="hybrid",
+        help="the baseline's search (the agent always searches hybrid)",
+    )
     parser.add_argument("--ticker")
     parser.add_argument("--year", type=int)
     parser.add_argument(
@@ -95,7 +102,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.ticker or args.year
         else "no filters"
     )
-    settings = settings_line(router.primary.name, filters=filters, max_tokens=args.max_tokens)
+    if args.mode == "agent" and args.retriever != "hybrid":
+        parser.error("the agent always searches hybrid; --retriever is the baseline's")
+    settings = settings_line(
+        router.primary.name, filters=filters, max_tokens=args.max_tokens, retriever=args.retriever
+    )
     checks_line = f"; checks: {args.checks}" if args.mode == "agent" else ""
     print(f"mode: {router.mode}, {args.mode}{checks_line}; {settings}\n")
     with connect() as conn:
@@ -104,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             answer = answer_question(
                 args.question,
-                retriever=hybrid_retriever(conn),
+                retriever=retriever_for(conn, args.retriever),
                 model=router,
                 ticker=args.ticker,
                 fiscal_year=args.year,
