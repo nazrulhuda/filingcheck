@@ -256,3 +256,31 @@ def test_several_sets_are_named_in_one_argument() -> None:
     ]
     assert set_names(" examples ") == ["examples"]
     assert set_names("a,,a") == ["a"]  # blanks dropped, repeats once
+
+
+def test_the_run_record_names_the_commit_and_hashes_the_question_file(tmp_path: Path) -> None:
+    import hashlib
+    import re
+
+    from filingcheck.eval.run import provenance
+
+    questions = questions_file(tmp_path)
+    record = provenance(questions)
+    assert re.fullmatch(r"[0-9a-f]{40}", record["git_commit"] or "")
+    assert isinstance(record["git_clean"], bool)
+    assert record["questions_sha256"] == hashlib.sha256(questions.read_bytes()).hexdigest()
+
+
+def test_an_eval_runs_rows_carry_the_run_record(tmp_path: Path) -> None:
+    out = tmp_path / "2026-11-04_examples_agent.jsonl"
+    run_eval(
+        questions_file(tmp_path),
+        mode="agent",
+        repeats=1,
+        model=FakeChat(replies()[: len(replies()) // 2]),
+        deps=apple_deps(),
+        out=out,
+        settings="fake settings",
+    )
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    assert all(len(r["questions_sha256"]) == 64 and r["git_commit"] for r in rows)

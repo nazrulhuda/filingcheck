@@ -364,3 +364,36 @@ def test_every_row_carries_its_number_labels(tmp_path: Path) -> None:
     assert "number_labels" in BATCH_FIELDS
     (label,) = row["number_labels"]
     assert (label["label"], label["basis"], label["value"]) == ("verified", "fact", "416161000000")
+
+
+def test_an_error_row_keeps_a_kind_from_the_fixed_list_and_no_part_of_the_message(
+    tmp_path: Path,
+) -> None:
+    from tests.llm.test_chat import GROQ_429
+
+    out = tmp_path / "run.jsonl"
+    limited = ProviderError(GROQ_429, provider="groq", status=429, code="rate_limit_exceeded")
+    model = FakeChat([*agent_replies(1), limited, *agent_replies(1)])
+    run_batch(QUESTIONS, mode="agent", out=out, model=model, deps=apple_deps(), settings="s")
+    text = out.read_text(encoding="utf-8")
+    assert "org_" not in text and "Rate limit reached" not in text and "6.4s" not in text
+    first, second, _ = lines(out)
+    assert (second["error"], second["error_kind"]) == ("groq 429 rate_limit_exceeded", "rate_limit")
+    assert first["error_kind"] is None
+
+
+def test_each_row_records_the_commit_the_clean_tree_and_the_question_file(tmp_path: Path) -> None:
+    out = tmp_path / "run.jsonl"
+    record = {"git_commit": "a" * 40, "git_clean": True, "questions_sha256": "b" * 64}
+    model = FakeChat(agent_replies(1))
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=model,
+        deps=apple_deps(),
+        settings="s",
+        provenance=record,
+    )
+    [row] = lines(out)
+    assert {k: row[k] for k in record} == record
