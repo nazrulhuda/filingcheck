@@ -8,7 +8,8 @@
 # The four facts were read on 2026-11-04, in a coding session, from the printed consolidated
 # statement in each source_url document, fetched from sec.gov: the visible table row and the
 # statement's own units line ("in millions"), not the XBRL tags, so they cannot share a bug
-# with the XBRL code. No person read them; the field name verified_by_hand is the original one.
+# with the XBRL code. The owner checked all four by hand against the printed statements on
+# 2026-11-13, and they match.
 #
 # Every fact marked verified_by_hand: true must be reproduced exactly by the XBRL code:
 # tests/test_golden_facts.py checks the format and the value in data/facts.jsonl, and
