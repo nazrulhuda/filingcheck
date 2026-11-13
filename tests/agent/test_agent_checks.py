@@ -81,6 +81,7 @@ def test_a_repair_runs_the_tool_with_the_repaired_arguments_and_tells_the_model(
     assert (checked["check"], checked["sent"], checked["used"]) == ("company", "MSFT", "AAPL")
     [record] = answer.tool_calls
     assert record.status == "ok" and record.arguments["ticker"] == "AAPL"  # as run
+    assert record.sent_arguments == {"ticker": "MSFT", "fiscal_year": 2025, "metric": "revenue"}
     assert answer.facts_used[0].value == 416161000000
     [override] = [o for o in answer.overrides if o.check == "company"]
     assert override.outcome == "repair" and override.used == "AAPL"
@@ -357,3 +358,21 @@ def test_with_no_check_firing_the_two_modes_give_the_same_answer(
     assert off.checks is False and off.overrides == []
     assert all(o.outcome == "pass" for o in on.overrides)
     assert on.checks is True
+
+
+def test_the_sent_arguments_are_the_models_own_before_the_page_filter_fills_any_in() -> None:
+    chat = FakeChat(
+        [fact_call(metric="revenue"), "Revenue was $416,161 million in fiscal 2025 [F1]."]
+    )
+    answer = run_agent(
+        "What was revenue?",
+        model=chat,
+        deps=checked_deps(),
+        checks=False,
+        ticker="AAPL",
+        fiscal_year=2025,
+    )
+    [record] = answer.tool_calls
+    assert record.sent_arguments == {"metric": "revenue"}
+    assert record.arguments == {"metric": "revenue", "ticker": "AAPL", "fiscal_year": 2025}
+    assert record.defaults_applied == ["ticker", "fiscal_year"]

@@ -7,8 +7,8 @@
 #   values          the value each of those calls returned, raw units, as filed
 #   requested_scale the figure in the scale the question asked for, when it asked for one
 #   grade           the grader's outcome for the scripted final answer
-# The values are the facts table's; the four golden ones were read by hand from the printed
-# statements (tests/golden_facts.yaml). The gate checks the checks' decisions and the tool
+# The values are the facts table's; the four golden ones were read in a coding session from
+# the printed statements, not the XBRL tags (tests/golden_facts.yaml). The gate checks the checks' decisions and the tool
 # path; accuracy on real models is measured by make eval, not here.
 
 scenarios:

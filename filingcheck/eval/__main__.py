@@ -257,7 +257,7 @@ def run_main(args: argparse.Namespace) -> int:
 def _run_set(args: argparse.Namespace, set_name: str) -> int:
     """One question set in one mode (batch mode, no fallback); resumable like the batch runner."""
     from filingcheck.answer.batch import BatchFileError
-    from filingcheck.answer.run import hybrid_retriever, settings_line
+    from filingcheck.answer.run import hybrid_retriever, retriever_for, settings_line
     from filingcheck.checks import reference_data
     from filingcheck.db import connect
     from filingcheck.eval.arms import arm_name
@@ -270,7 +270,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
-    name = arm_name(args.mode, args.checks, args.label)
+    name = arm_name(args.mode, args.checks, args.label, retriever=args.retriever)
     if args.date:
         out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
@@ -288,7 +288,9 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
             print(f"resuming the unfinished {out.relative_to(REPO_ROOT)}")
     out.parent.mkdir(parents=True, exist_ok=True)
     router = router_from_env("batch")
-    settings = settings_line(router.primary.name, filters="question text only, no filters")
+    settings = settings_line(
+        router.primary.name, filters="question text only, no filters", retriever=args.retriever
+    )
     print(f"{set_name}: mode batch, {name}; {args.repeats} run(s) per question; {settings}")
     with connect() as conn:
         extra = reference_data() if args.checks else {}
@@ -302,6 +304,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
                 deps=deps,
                 out=out,
                 settings=settings,
+                retriever=retriever_for(conn, args.retriever) if args.mode == "baseline" else None,
                 checks=args.checks,
             )
         except BatchFileError as exc:
@@ -354,9 +357,8 @@ def _write_arms(
     print(f"wrote {page.relative_to(REPO_ROOT)}")
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Parse the command and run it."""
-    use_utf8_output()
+def build_parser() -> argparse.ArgumentParser:
+    """The command line: gold, gate-fixture, run, grade and dry-run."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.eval")
     commands = parser.add_subparsers(dest="command", required=True)
     gold = commands.add_parser("gold", help="fill gold values from the facts table")
@@ -373,6 +375,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     run.add_argument("--checks", help="agent only: on (default) or off; the file name says which")
     run.add_argument("--label", help="a separate run of the same arm, named in the file")
+    run.add_argument(
+        "--retriever",
+        choices=["hybrid", "vector"],
+        default="hybrid",
+        help="the baseline's search (the agent always searches hybrid)",
+    )
     llm = commands.add_parser("grade", help="the LLM grader over a stored results file")
     llm.add_argument("--set", required=True, help="the question file the run answered, no .jsonl")
     llm.add_argument("--run", type=Path, required=True, help="a results file in eval/results/")
@@ -387,6 +395,13 @@ def main(argv: list[str] | None = None) -> int:
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
     dry.add_argument("--label", help="the run label the result files carry")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Parse the command and run it."""
+    use_utf8_output()
+    parser = build_parser()
     args = parser.parse_args(argv)
     load_dotenv(REPO_ROOT / ".env")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")

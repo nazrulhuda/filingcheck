@@ -5,7 +5,7 @@
 - 0 disagree;
 - 18 are missing from companyfacts, all of them S&P Global FY2024.
 
-The four golden facts, read by hand from the printed statements, are reproduced exactly.
+The four golden facts, read in a coding session from the printed statements (not the XBRL tags), are reproduced exactly.
 
 **Metric coverage** (13 metrics):
 - **All 75 filings:** nine metrics.

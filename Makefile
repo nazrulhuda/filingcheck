@@ -70,8 +70,8 @@ retrieval-eval:  # score vector, keyword and hybrid search; writes docs/retrieva
 
 # Calls the chat model (costs money). Batch mode: waits out rate limits and never falls back.
 # LIVE=1 uses live mode: short waits, then the fallback models answer.
-ask:  # answer one question: make ask Q="..." [MODE=agent] [CHECKS=0|1] [TICKER=WMT YEAR=2025] [LIVE=1] [MAX_TOKENS=700]
-	uv run python -m filingcheck.answer "$(Q)" $(if $(MODE),--mode $(MODE)) $(if $(CHECKS),--checks $(CHECKS)) $(if $(TICKER),--ticker $(TICKER)) $(if $(YEAR),--year $(YEAR)) $(if $(LIVE),--live) $(if $(MAX_TOKENS),--max-tokens $(MAX_TOKENS))
+ask:  # answer one question: make ask Q="..." [MODE=agent] [CHECKS=0|1] [RETRIEVER=hybrid|vector] [TICKER=WMT YEAR=2025] [LIVE=1] [MAX_TOKENS=700]
+	uv run python -m filingcheck.answer "$(Q)" $(if $(MODE),--mode $(MODE)) $(if $(RETRIEVER),--retriever $(RETRIEVER)) $(if $(CHECKS),--checks $(CHECKS)) $(if $(TICKER),--ticker $(TICKER)) $(if $(YEAR),--year $(YEAR)) $(if $(LIVE),--live) $(if $(MAX_TOKENS),--max-tokens $(MAX_TOKENS))
 
 baseline-examples:  # the 6 example questions, batch mode, no filters; writes docs/baseline_examples.md (costs money)
 	uv run python -m filingcheck.answer.examples
@@ -97,9 +97,9 @@ validate-questions:
 eval-smoke:  # the deterministic gate: 21 scripted agent runs with the checks on (no model, no DB, no network); python -m, like `make test`, because Windows app control can block the pytest launcher
 	uv run python -m pytest tests/eval_gate -q --no-cov
 
-eval:  # ask and grade question sets, one after another: make eval SET=dev_traps,dev_unanswerable,control MODE=agent [CHECKS=on|off] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money; resumable)
+eval:  # ask and grade question sets, one after another: make eval SET=dev_traps,dev_unanswerable,control MODE=agent|baseline [CHECKS=on|off] [RETRIEVER=hybrid|vector] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money; resumable)
 	@test -n "$(SET)" -a -n "$(MODE)" || { echo "give SET and MODE: make eval SET=examples MODE=agent [REPEATS=3]"; exit 1; }
-	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE)) $(if $(LABEL),--label $(LABEL))
+	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE)) $(if $(LABEL),--label $(LABEL)) $(if $(RETRIEVER),--retriever $(RETRIEVER))
 
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload

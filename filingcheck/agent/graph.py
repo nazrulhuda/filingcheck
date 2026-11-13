@@ -96,6 +96,9 @@ class ToolCallRecord(BaseModel):
 
     name: str
     arguments: dict[str, Any]  # as run, after the user's selection filled in any left out
+    # As the model sent them, before the selection filled any in or a check repaired any; None
+    # in rows written before 2026-11-13.
+    sent_arguments: dict[str, Any] | None = None
     defaults_applied: list[str]  # "ticker" or "fiscal_year", when filled from the selection
     status: Literal["ok", "error", "skipped"]  # skipped: past the tool-call limit
     result_summary: str
@@ -395,6 +398,7 @@ def build_agent(
                 arguments = json.loads(call.arguments or "{}")
             except json.JSONDecodeError:
                 arguments = None
+            sent = dict(arguments) if isinstance(arguments, dict) else {"raw": call.arguments}
             defaults: list[str] = []
             if isinstance(arguments, dict) and call.name in FILTERED_TOOLS:
                 for key, value in (
@@ -451,6 +455,7 @@ def build_agent(
             record = ToolCallRecord(
                 name=call.name,
                 arguments=arguments if isinstance(arguments, dict) else {"raw": call.arguments},
+                sent_arguments=sent,
                 defaults_applied=defaults,
                 status=status,
                 result_summary=_summary(call.name, result),

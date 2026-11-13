@@ -230,3 +230,15 @@ def test_a_label_names_a_separate_run_of_the_same_arm() -> None:
     assert arm_name("agent", False, label="search-year") == "agent-checks-off-search-year"
     assert arm_name("agent", True) == "agent-checks-on"
     assert arm_name("baseline", None, label="x") == "baseline-x"
+
+
+def test_the_baselines_search_is_named_in_its_file() -> None:
+    import pytest
+
+    from filingcheck.eval.arms import arm_name
+
+    assert arm_name("baseline", None, retriever="vector") == "baseline-vector"
+    assert arm_name("baseline", None, retriever="hybrid") == "baseline"
+    assert arm_name("baseline", None) == "baseline"
+    with pytest.raises(ValueError, match="hybrid"):
+        arm_name("agent", True, retriever="vector")  # the agent always searches hybrid

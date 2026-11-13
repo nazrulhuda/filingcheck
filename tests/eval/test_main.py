@@ -85,3 +85,14 @@ def test_checks_on_the_baseline_is_refused_before_anything_runs() -> None:
     with pytest.raises(SystemExit) as stopped:
         cli.main(["run", "--set", "examples", "--mode", "baseline", "--checks", "on"])
     assert stopped.value.code == 2
+
+
+def test_make_eval_takes_the_baselines_search() -> None:
+    from filingcheck.eval.__main__ import build_parser
+
+    args = build_parser().parse_args(
+        ["run", "--set", "examples", "--mode", "baseline", "--retriever", "vector"]
+    )
+    assert args.retriever == "vector"
+    default = build_parser().parse_args(["run", "--set", "examples", "--mode", "baseline"])
+    assert default.retriever == "hybrid"

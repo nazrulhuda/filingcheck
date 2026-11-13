@@ -48,3 +48,5 @@ Every model call of the week, from the committed rows and the grade cache.
 | **Total** | | **about $0.81** |
 
 Gold values cost nothing: they come from the facts table. The week's cap was $6.
+
+**A correction (Day 36).** The Day 33 write-up said dev-050's correct AWS refusal graded as an answer because the number reader took "passage 1" as a figure. That was wrong. "passage 1" comes out as a plain number, which no grading rule uses; the cause is the quoted "AWS sales increased 20%": the refuse rule fails an answer that states any amount, and a percentage counts as one. An audit of all 2,168 stored answers found no outcome or label that a reference ("passage 1", "Item 7", "Note 8") changes (`eval/probes/2026-11-13_reference-audit.md`), so the reader is left as it is.

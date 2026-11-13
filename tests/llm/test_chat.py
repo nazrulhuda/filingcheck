@@ -595,3 +595,41 @@ def test_live_the_router_falls_back_on_a_reply_with_no_choices() -> None:
     router = ModelRouter(primary, [fallback()], mode="live")
     completion = router.complete(MESSAGES, max_tokens=700)
     assert completion.text == "From the fallback [1]."
+
+
+# A real-looking Groq 429: the message names the organization, so only a kind is ever stored.
+GROQ_429 = (
+    "Rate limit reached for model `openai/gpt-oss-20b` in organization "
+    "`org_01jx9k2m3n4p5q6r7s8t9v0w1y` service tier `on_demand` on tokens per minute (TPM): "
+    "Limit 8000, Used 7650, Requested 1204. Please try again in 6.4s."
+)
+
+
+def test_an_error_kind_comes_from_a_fixed_list_and_never_carries_the_message() -> None:
+    from filingcheck.llm import Completion, IncompleteAnswer, ProviderError
+    from filingcheck.llm.chat import ERROR_KINDS, error_kind
+
+    assert ERROR_KINDS == ("tool_choice_none", "rate_limit", "cut_off", "provider_5xx", "other")
+    tool_choice = ProviderError(
+        "HTTP 200 with no choices: Upstream error from Groq: Tool choice is none, but model "
+        "called a tool",
+        provider="openrouter",
+        status=200,
+        code="502",
+    )
+    assert error_kind(tool_choice) == "tool_choice_none"
+    assert error_kind(ProviderError(GROQ_429, provider="groq", status=429)) == "rate_limit"
+    cut = Completion(
+        text="",
+        prompt_tokens=1,
+        completion_tokens=700,
+        model="m",
+        latency_ms=1.0,
+        cost_usd=None,
+        finish_reason="length",
+    )
+    assert error_kind(IncompleteAnswer("cut off", cut, code="incomplete_length")) == "cut_off"
+    assert (
+        error_kind(ProviderError("Service Unavailable", provider="x", status=503)) == "provider_5xx"
+    )
+    assert error_kind(ProviderError("something new", provider="x", status=400)) == "other"

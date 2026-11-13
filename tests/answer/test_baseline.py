@@ -518,3 +518,21 @@ def test_a_baseline_answer_that_cites_nothing_has_unverified_figures() -> None:
 def test_each_citation_carries_its_whole_passage_for_the_page() -> None:
     (citation,) = ask("Peso swings [2].").citations
     assert citation.text == HITS[1].text and citation.quote == HITS[1].text[:200]
+
+
+def test_the_settings_line_names_the_baselines_search() -> None:
+    assert settings_line("groq:openai/gpt-oss-20b", filters="no filters", retriever="vector") == (
+        "model groq:openai/gpt-oss-20b, temperature 0.6, reasoning effort low, "
+        "max_completion_tokens 700; retriever vector, k 8, no filters"
+    )
+
+
+def test_the_baseline_search_is_hybrid_unless_vector_is_asked_for() -> None:
+    from filingcheck.answer.run import retriever_for
+    from filingcheck.retrieval import HybridRetriever, VectorRetriever
+
+    conn: Any = object()  # the retrievers only keep the connection until they search
+    assert isinstance(retriever_for(conn), HybridRetriever)
+    assert isinstance(retriever_for(conn, "hybrid"), HybridRetriever)
+    vector = retriever_for(conn, "vector")
+    assert isinstance(vector, VectorRetriever) and vector.name == "vector"

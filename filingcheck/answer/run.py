@@ -1,7 +1,7 @@
 """What `make ask` and the examples run share: the retriever, the settings line, the printout."""
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import psycopg
 
@@ -21,9 +21,23 @@ def hybrid_retriever(conn: psycopg.Connection) -> HybridRetriever:
     return HybridRetriever(vector, KeywordRetriever(conn))
 
 
-def settings_line(model: str, *, filters: str, max_tokens: int = MAX_TOKENS) -> str:
+SearchKind = Literal["hybrid", "vector"]
+
+
+def retriever_for(
+    conn: psycopg.Connection, kind: SearchKind = "hybrid"
+) -> HybridRetriever | VectorRetriever:
+    """The baseline's search: hybrid (the default, as the agent and the app) or vector only."""
+    if kind == "vector":
+        return VectorRetriever(conn, QueryEmbedder(OpenAIEmbeddings()))
+    return hybrid_retriever(conn)
+
+
+def settings_line(
+    model: str, *, filters: str, max_tokens: int = MAX_TOKENS, retriever: SearchKind = "hybrid"
+) -> str:
     """The model and retrieval settings to write next to a saved result."""
-    return f"{describe_settings(model, max_tokens)}; retriever hybrid, k {K}, {filters}"
+    return f"{describe_settings(model, max_tokens)}; retriever {retriever}, k {K}, {filters}"
 
 
 def format_cost(cost: float | None) -> str:
