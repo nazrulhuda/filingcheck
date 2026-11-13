@@ -108,6 +108,27 @@ class UnknownCostError(ProviderError):
     """A batch run got a reply without token usage, so its cost would be unknown."""
 
 
+ERROR_KINDS = ("tool_choice_none", "rate_limit", "cut_off", "provider_5xx", "other")
+
+
+def error_kind(exc: ProviderError) -> str:
+    """The failure's kind, one of ERROR_KINDS, read from the error in memory.
+
+    The provider's message may name the organization (Groq's 429 does), so it is read here to
+    pick a kind and never stored: only the kind and `log_code` are.
+    """
+    message = str(exc).lower()
+    if isinstance(exc, IncompleteAnswer):
+        return "cut_off"
+    if "tool choice is none" in message:
+        return "tool_choice_none"
+    if exc.status == 429 or "rate limit" in message or "rate_limit" in (exc.code or ""):
+        return "rate_limit"
+    if exc.status is not None and 500 <= exc.status < 600:
+        return "provider_5xx"
+    return "other"
+
+
 class IncompleteAnswer(ProviderError):  # noqa: N818
     """The reply was empty or cut off (finish_reason other than "stop"); never shown."""
 

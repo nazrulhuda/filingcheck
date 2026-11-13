@@ -19,6 +19,7 @@ from typing import Any
 from filingcheck.agent import RunLog, run_agent, total_usage
 from filingcheck.answer.baseline import Answer, answer_question
 from filingcheck.llm import ChatModel, IncompleteAnswer, ProviderError
+from filingcheck.llm.chat import error_kind
 from filingcheck.retrieval import Retriever
 from filingcheck.tools import ToolDeps
 
@@ -49,6 +50,10 @@ BATCH_FIELDS = (
     "number_labels",
     "page_filter",
     "error",
+    "error_kind",
+    "git_commit",
+    "git_clean",
+    "questions_sha256",
 )
 
 
@@ -118,6 +123,7 @@ def run_batch(
     repeats: int = 1,
     checks: bool = False,
     filters: dict[str, tuple[str | None, int | None]] | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> int:
     """Answer every question not yet in `out` and append its line; return how many were written.
 
@@ -127,7 +133,8 @@ def run_batch(
     each row records its `repeat` (1, 2, ...). `checks` switches the agent's skeptical
     checks on; every agent row records it, and its override log, as `checks` and `overrides`.
     `filters` gives a question's page filters (company, fiscal year) by id; it is asked with
-    them as the page asks, and its row records them as `page_filter`.
+    them as the page asks, and its row records them as `page_filter`. `provenance` (the commit,
+    whether the tree was clean, the question file's SHA-256) goes into every row.
     """
     questions = list(questions)
     done = read_done(out)
@@ -138,7 +145,7 @@ def run_batch(
         for qid, question in questions:
             if (qid, repeat) in done:
                 continue
-            row = _row(qid, repeat, mode, question, settings)
+            row = _row(qid, repeat, mode, question, settings) | dict(provenance or {})
             ticker, fiscal_year = (filters or {}).get(qid, (None, None))
             if ticker is None:
                 fiscal_year = None  # as on the page: a year counts only with a company
@@ -177,6 +184,7 @@ def run_batch(
                 row |= {
                     "model": completion.model,
                     "error": exc.log_code,
+                    "error_kind": error_kind(exc),
                     "finish_reason": completion.finish_reason,
                     "usage": usage,
                     "cost_usd": cost,
@@ -198,6 +206,7 @@ def run_batch(
                 row |= {
                     "model": model.name,
                     "error": exc.log_code,
+                    "error_kind": error_kind(exc),
                     "usage": usage,
                     "cost_usd": cost,
                     "latency_ms": (time.perf_counter() - started) * 1000,

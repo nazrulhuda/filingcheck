@@ -7,8 +7,11 @@ graded again at the end. Without a date, an unfinished file of the same set and 
 resumed. A row whose question is no longer in the question file is kept but not graded.
 """
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
 from filingcheck.answer.batch import run_batch
 from filingcheck.eval.grade import grade, summary_table
@@ -62,6 +65,31 @@ def choose_results_path(
     return todays
 
 
+def provenance(questions_path: Path) -> dict[str, Any]:
+    """What a run ran from: the git commit, whether the tree was clean, the question file's hash.
+
+    The commit and the cleanliness are None when git cannot be asked (no repository).
+    """
+    root = Path(__file__).resolve().parents[2]
+
+    def git(*args: str) -> str | None:
+        try:
+            done = subprocess.run(
+                ["git", *args], cwd=root, capture_output=True, text=True, check=True
+            )
+        except (OSError, subprocess.CalledProcessError):
+            return None
+        return done.stdout
+
+    commit = git("rev-parse", "HEAD")
+    status = git("status", "--porcelain")
+    return {
+        "git_commit": commit.strip() if commit else None,
+        "git_clean": None if status is None else status.strip() == "",
+        "questions_sha256": hashlib.sha256(questions_path.read_bytes()).hexdigest(),
+    }
+
+
 def read_questions(path: Path) -> list[Question]:
     """The questions of one file, in file order."""
     return [
@@ -104,6 +132,7 @@ def run_eval(
         retriever=retriever,
         repeats=repeats,
         checks=bool(checks),
+        provenance=provenance(questions_path),
     )
     rows = [
         json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()
