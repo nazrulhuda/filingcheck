@@ -87,7 +87,7 @@ uv run python -m filingcheck.answer batch --mode baseline --questions eval/quest
 | `overrides` | agent only: the checks' override log, one record per check per `get_financial_fact` call: `check`, `outcome` (`pass`, `repair` or `reject`), `argument`, `sent`, `used`, `reason`, `options` |
 | `error` | `null`, or a short code such as `openrouter - incomplete_length` |
 | `error_kind` | on an error row, one of `tool_choice_none`, `rate_limit`, `cut_off`, `provider_5xx`, `other`, picked from the provider's message in memory; the message itself is never stored, because it can name the account (from 2026-11-13) |
-| `git_commit`, `git_clean`, `questions_sha256` | `make eval` only: the commit the run ran from, whether the working tree was clean, and the SHA-256 of the question file (from 2026-11-13) |
+| `git_commit`, `git_clean`, `questions_sha256` | `make eval` only: the commit the run ran from, whether the working tree was clean (no tracked file changed; new files, such as an earlier set's results, do not count), and the SHA-256 of the question file (from 2026-11-13) |
 | `page_filter` | the page filters the question was asked with, when it carries any |
 
 The baseline writes the same fields, with empty `fact_citations`, `tool_calls` and `facts_used`.
