@@ -122,3 +122,51 @@ def test_one_arms_rate_gets_a_bootstrap_interval_over_questions() -> None:
     mixed = rate_interval(scores([RIGHT] * 5 + [WRONG] * 5), lambda s: s.correct)
     assert mixed.estimate == 0.5 and 0.0 < mixed.low < 0.5 < mixed.high < 1.0
     assert rate_interval(scores([RIGHT] * 5 + [WRONG] * 5), lambda s: s.correct) == mixed
+
+
+# ---------------------------------------------------------------- the blind check's reveal
+
+HIDDEN = """# Blind check
+
+## 1
+
+Row: `eval/results/2026-11-14_control_agent-checks-on-final.jsonl:control-150:2`
+
+## 2
+
+Row: `eval/results/2026-11-14_dev_unanswerable_agent-checks-on-final.jsonl:una-005:2`
+"""
+GEMINI = "1 | correct | yes\n2 | abstained | n/a"
+SESSION = """| # | Row | Verdict | Supported | Reason |
+|---:|---|---|---|---|
+| 1 | control-150:2 | correct | partly | Right. |
+| 2 | una-005:2 | correct | n/a | Declines, as expected. |
+"""
+
+
+def test_the_blind_files_are_read_row_by_row() -> None:
+    from filingcheck.eval.final_report import (
+        parse_blind_keys,
+        parse_pipe_grades,
+        parse_table_grades,
+    )
+
+    keys = parse_blind_keys(HIDDEN)
+    assert keys == [
+        "eval/results/2026-11-14_control_agent-checks-on-final.jsonl:control-150:2",
+        "eval/results/2026-11-14_dev_unanswerable_agent-checks-on-final.jsonl:una-005:2",
+    ]
+    assert parse_pipe_grades(GEMINI) == {1: ("correct", "yes"), 2: ("abstained", "n/a")}
+    assert parse_table_grades(SESSION) == {
+        1: ("control-150:2", "correct", "partly"),
+        2: ("una-005:2", "correct", "n/a"),
+    }
+
+
+def test_agreement_counts_the_rows_where_two_graders_give_the_same_answer() -> None:
+    from filingcheck.eval.final_report import agreement
+
+    assert (
+        agreement({1: "correct", 2: "wrong", 3: "partly"}, {1: "correct", 2: "partly", 3: "partly"})
+        == 2
+    )
