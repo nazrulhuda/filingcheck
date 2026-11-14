@@ -160,6 +160,9 @@ DECLINE_RE = re.compile(
     r"(?:have|include|cover|contain|report|provide)\b"
     r"|\b(?:isn't|is not|aren't|are not|not)\s+(?:available|included|loaded|covered)\b"
     r"|\bnot in the (?:filings|data|dataset|10-K)\b|\bunavailable\b"
+    # The company and metric checks' reject reasons (added Nov 14, the Day 39 review).
+    r"|\bis not one of the 25 companies\b|\bare not among the 25 companies\b"
+    r"|\bis not one of the 13 metrics\b"
     r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b|\bno (?:quarterly|such)\b"
     r"|" + re.escape(ABSTAIN),
     re.IGNORECASE,
