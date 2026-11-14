@@ -1,5 +1,6 @@
 """The prompt-rules arm: the checks' rules written into the system prompt, built from their data."""
 
+import inspect
 import re
 from typing import Any
 
@@ -8,6 +9,7 @@ import pytest
 from filingcheck.agent import SYSTEM_PROMPT, run_agent
 from filingcheck.agent.prompt_rules import RULE_LINES, expand, rules_block, system_prompt
 from filingcheck.checks import CHECKS_BY_TOOL, SEARCH_CHECKS, reference_data
+from filingcheck.checks import company as company_module
 from filingcheck.checks.base import CheckContext, CheckedCall, CheckResult
 from filingcheck.checks.fiscal_year import (
     MONTH_NAMES,
@@ -18,6 +20,7 @@ from filingcheck.checks.fiscal_year import (
 from filingcheck.checks.metric import QUARTER_RE, SUPPORTED, UNSUPPORTED_RE
 from filingcheck.checks.segment import EXCLUDED_BEFORE_RE, INCLUDE_RE
 from filingcheck.checks.units import SCALES
+from filingcheck.eval.grade import asks_or_declines
 from filingcheck.facts.metrics import METRICS
 from filingcheck.llm import FakeChat
 from tests.agent.test_agent import apple_deps
@@ -175,7 +178,13 @@ def test_the_company_instruction_is_in_the_checks_words() -> None:
 
     line = RULE_LINES[("get_financial_fact", CompanyCheck)]
     assert "ask the user which one" in line
-    assert "is not one of the 25 companies in the dataset" in line
+    # Block version 2 (the Day 39 review): the reply for a company outside the 25 is the
+    # company check's note, "X is not in the dataset", which the grader reads as a decline;
+    # version 1 had the reject reason's "is not one of the 25 companies in the dataset".
+    assert "say it is not in the dataset" in line
+    assert "say it is not one of the 25 companies" not in line
+    assert '{verb} not in the dataset"' in inspect.getsource(company_module)
+    assert asks_or_declines("Tesla is not in the dataset.")
 
 
 def test_the_block_ends_with_the_fiscal_year_and_period_rule() -> None:
