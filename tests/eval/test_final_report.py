@@ -101,3 +101,24 @@ def test_a_comparison_is_paired_by_question_with_its_interval_and_mcnemar() -> N
     assert (c.b, c.c) == (0, 10) and c.p is not None and c.p < 0.01
     unscored = [replace(s, scored=False) if s.id == "held-001" else s for s in second]
     assert compare(first, unscored, lambda s: s.correct, majority=False).questions == 9
+
+
+def test_one_arms_rate_gets_a_bootstrap_interval_over_questions() -> None:
+    """For the charts: the same resampling of questions, the same seed and count."""
+    from filingcheck.eval.final_report import rate_interval
+
+    def scores(answers: list[str]) -> list:  # type: ignore[type-arg]
+        out = []
+        for n, answer in enumerate(answers, 1):
+            q = question(id=f"held-{n:03d}")
+            out += [
+                score_run(row(answer, id=q.id, repeat=r), q, None, set_name="x", arm="a")
+                for r in (1, 2, 3)
+            ]
+        return out
+
+    same = rate_interval(scores([RIGHT] * 8), lambda s: s.correct)
+    assert (same.estimate, same.low, same.high) == (1.0, 1.0, 1.0)
+    mixed = rate_interval(scores([RIGHT] * 5 + [WRONG] * 5), lambda s: s.correct)
+    assert mixed.estimate == 0.5 and 0.0 < mixed.low < 0.5 < mixed.high < 1.0
+    assert rate_interval(scores([RIGHT] * 5 + [WRONG] * 5), lambda s: s.correct) == mixed
