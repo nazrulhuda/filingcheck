@@ -210,6 +210,8 @@ Step by step (paired, 95% interval, descriptive):
 
 *Added after the results:* the PC slept from 07:58:29 to 17:53:51 UTC during the baseline arm, and one run (control-117 run 1, control) was in flight, so its time includes the sleep (`eval/results/2026-11-14_final-run_record.md`). It is the slowest of the baseline's 150 control runs and counts like any other above. Without it, the baseline's control p50 is 0.8 s and p95 1.2 s. No means are given.
 
+The live page's own latency, shown apart (`/stats`, fetched 2026-11-14T20:52:15+00:00, since 2026-11-13T20:52:15 UTC): 2 requests, p50 1.6 s, p95 2.0 s. These are the deploy checks' requests only, too few to compare with the batch runs (`eval/results/2026-11-14_live_stats.json`).
+
 ## 3. The secondary comparisons
 
 S2's rate falls partly by design: with the checks on, a stopped call never runs. Development (`dev_traps`): the checks were built while looking at these questions.
