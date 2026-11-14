@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: dry-run grade setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: dry-run grade report setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -110,6 +110,9 @@ grade:  # the LLM grader over a stored results file: make grade SET=examples RUN
 
 dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 20 text answers: make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>] (no model call)
 	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY)) $(if $(LABEL),--label $(LABEL))
+
+report:  # the final report from the committed final rows: make report [DATE=2026-11-14]
+	uv run python -m filingcheck.eval report --date $(or $(DATE),2026-11-14) --out eval/results/$(or $(DATE),2026-11-14)_final_report --causes eval/results/$(or $(DATE),2026-11-14)_final_error_analysis.csv --contradictions eval/results/$(or $(DATE),2026-11-14)_final_grader_contradictions.csv --blind eval/llm_grades/$(or $(DATE),2026-11-14)_final_blind_hidden.md
 
 smoke-live:  # check a deployed API: make smoke-live URL=https://... (asks two questions, one baseline and one agent: 2 toward the daily cap)
 	uv run python -m filingcheck.app.smoke "$(URL)"

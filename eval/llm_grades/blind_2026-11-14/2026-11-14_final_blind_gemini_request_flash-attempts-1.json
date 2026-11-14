@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-14",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "model": "models/gemini-3.8-flash",
+  "model_listed_version": "3.0",
+  "prompt_file": "eval/llm_grades/blind_2026-11-14/2026-11-14_final_blind_gemini_prompt.md",
+  "prompt_sha256": "f36158627e3c2b9a4435f464a03b1e45d43ff353fe269f7f59a36401db232479",
+  "request_body": {
+    "contents": "<the prompt file's text, unchanged>",
+    "generationConfig": {
+      "maxOutputTokens": 65536
+    }
+  },
+  "settings": "no system instruction, no tools, no search grounding, default temperature",
+  "attempts": [
+    {
+      "attempt": 1,
+      "at": "2026-11-14T20:04:26.484460+00:00",
+      "result": "HTTP 503"
+    },
+    {
+      "attempt": 2,
+      "at": "2026-11-14T20:04:49.655082+00:00",
+      "result": "HTTP 503"
+    },
+    {
+      "attempt": 3,
+      "at": "2026-11-14T20:05:32.089573+00:00",
+      "result": "HTTP 503"
+    }
+  ]
+}

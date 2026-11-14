@@ -64,3 +64,43 @@ def test_the_hidden_file_shows_each_row_without_its_stratum_or_verdict() -> None
     assert "- F1: us-gaap:Revenues = 1 USD (2024-06-01 to 2025-05-31)" in page
     assert page.rstrip().endswith("Verdict: ______  Supported: ______")
     assert "verdict:" not in page.lower().replace("verdict: ______", "")
+
+
+# ---------------------------------------------------------------- the final run's blind check
+
+
+def test_the_blind_pool_is_the_text_graded_runs_with_a_verdict() -> None:
+    from filingcheck.eval.llm_sample import blind_pool
+
+    grades = {
+        "eval/results/f_control_agent-checks-on-final.jsonl": [
+            {"id": "control-140", "repeat": 1, "use": "text", "verdict": "correct"},
+            {"id": "control-140", "repeat": 2, "use": "text", "verdict": None},  # no verdict
+            {"id": "control-001", "repeat": 1, "use": "second opinion", "verdict": "correct"},
+        ],
+        "eval/results/f_dev_unanswerable_agent-checks-on-final.jsonl": [
+            {"id": "una-001", "repeat": 3, "use": "text", "verdict": "abstained"},
+        ],
+    }
+    pool = blind_pool(grades)
+    assert [c.key for c in pool] == [
+        "eval/results/f_control_agent-checks-on-final.jsonl:control-140:1",
+        "eval/results/f_dev_unanswerable_agent-checks-on-final.jsonl:una-001:3",
+    ]
+    assert {c.stratum for c in pool} == {"text"}
+
+
+def test_the_verdict_definitions_are_the_grader_prompts_own_words() -> None:
+    from pathlib import Path
+
+    from filingcheck.eval.llm_sample import verdict_definitions
+
+    prompt = Path("eval/grader_prompt.md").read_text(encoding="utf-8")
+    text = verdict_definitions(prompt)
+    assert text.startswith("1. **verdict**, one of:")
+    assert "2. **supported**" in text and "Rules:" in text
+    assert "**Text questions name no year.**" in text
+    for left_out in ("3. **reason**", "4. **evidence**", "Answer with the JSON object only"):
+        assert left_out not in text
+    for part in text.split("\n"):  # every line is copied from the prompt, none is written here
+        assert part in prompt
