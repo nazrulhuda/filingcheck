@@ -77,6 +77,17 @@ SYSTEM_PROMPT = (
     "- If the question is ambiguous about the company or the year, say what is ambiguous.\n"
     f'- If the tools do not give the answer, say "{ABSTAIN}" and nothing else.'
 )
+
+
+def system_prompt(rules: str | None = None) -> str:
+    """The frozen system prompt, with a rules block after it when one is given.
+
+    The block is the prompt-rules arm's (`filingcheck.agent.prompt_rules`); without one this
+    is `SYSTEM_PROMPT`, byte for byte.
+    """
+    return SYSTEM_PROMPT if rules is None else SYSTEM_PROMPT + "\n\n" + rules
+
+
 # After a second reject of the same class (company, fiscal year, ...), get_financial_fact
 # is not run again in this run; the model gets this instead.
 NO_FURTHER_ATTEMPTS = (
@@ -509,11 +520,13 @@ def run_agent(
     on_tool_call: Callable[[ToolCallRecord], None] | None = None,
     run_log: RunLog | None = None,
     checks: bool = False,
+    rules: str | None = None,
 ) -> AgentAnswer:
     """Answer one question with the agent and return what it said and did.
 
     `run_log`, when given, keeps what the run spent even if a provider failure is raised.
-    `checks` switches the skeptical checks on; off, this is the Week 3 agent.
+    `checks` switches the skeptical checks on; off, this is the Week 3 agent. `rules` is the
+    prompt-rules arm's block, added after the frozen system prompt (Week 6 measurement only).
     """
     start = time.perf_counter()
     agent = build_agent(
@@ -529,7 +542,7 @@ def run_agent(
         "ticker": ticker,
         "fiscal_year": fiscal_year,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt(rules)},
             {"role": "user", "content": _user_message(question, ticker, fiscal_year)},
         ],
         "tool_records": [],

@@ -46,6 +46,7 @@ BATCH_FIELDS = (
     "model_calls",
     "stopped_by",
     "checks",
+    "rules",
     "overrides",
     "number_labels",
     "page_filter",
@@ -124,6 +125,7 @@ def run_batch(
     checks: bool = False,
     filters: dict[str, tuple[str | None, int | None]] | None = None,
     provenance: dict[str, Any] | None = None,
+    rules: str | None = None,
 ) -> int:
     """Answer every question not yet in `out` and append its line; return how many were written.
 
@@ -135,7 +137,13 @@ def run_batch(
     `filters` gives a question's page filters (company, fiscal year) by id; it is asked with
     them as the page asks, and its row records them as `page_filter`. `provenance` (the commit,
     whether the tree was clean, the question file's SHA-256) goes into every row.
+    `rules` is the prompt-rules arm's block (Week 6): the agent, with the checks off,
+    gets it after the frozen system prompt, and its rows record `rules` as "prompt".
     """
+    if rules is not None and mode != "agent":
+        raise ValueError("the rules block is for the agent only")
+    if rules is not None and checks:
+        raise ValueError("the prompt-rules arm runs with the checks off")
     questions = list(questions)
     done = read_done(out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -153,6 +161,7 @@ def run_batch(
                 row["page_filter"] = {"ticker": ticker, "fiscal_year": fiscal_year}
             if mode == "agent":
                 row["checks"] = checks
+                row["rules"] = "prompt" if rules is not None else None
             answer: Answer
             run_log = RunLog()
             started = time.perf_counter()
@@ -166,6 +175,7 @@ def run_batch(
                         checks=checks,
                         ticker=ticker,
                         fiscal_year=fiscal_year,
+                        rules=rules,
                     )
                 else:
                     answer = answer_question(

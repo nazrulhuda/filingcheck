@@ -140,18 +140,18 @@ def metrics_main(args: argparse.Namespace) -> int:
         error_share,
         score_run,
     )
-    from filingcheck.eval.metrics_report import render, write_csv
+    from filingcheck.eval.metrics_report import arm_sources, render, write_csv
     from filingcheck.eval.run import read_questions, set_names
 
     scores: list[RunScore] = []
     floor: list[RunScore] = []
     questions_by_set: dict[str, Any] = {}
+    sources = arm_sources(args.arms, date=args.date, label=args.label)
     for set_name in set_names(args.sets):
         by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
         questions_by_set[set_name] = by_id
-        for arm in args.arms.split(","):
-            name = f"{arm}-{args.label}" if args.label else arm
-            path = REPO_ROOT / "eval" / "results" / f"{args.date}_{set_name}_{name}.jsonl"
+        for arm, day, name in sources:
+            path = REPO_ROOT / "eval" / "results" / f"{day}_{set_name}_{name}.jsonl"
             if not path.exists():
                 print(f"no {path.relative_to(REPO_ROOT)}: that arm is left out")
                 continue
@@ -194,10 +194,11 @@ def metrics_main(args: argparse.Namespace) -> int:
                     )
                 floor.append(always_abstain(question, verdict, set_name=set_name))
     stem = REPO_ROOT / args.out
+    files = ", ".join(f"`eval/results/{day}_<set>_{name}.jsonl`" for _, day, name in sources)
     notes = [
-        f"Rows: `eval/results/{args.date}_<set>_<arm>{'-' + args.label if args.label else ''}"
-        ".jsonl` with their `_llm.jsonl` grades; definitions: `eval/PREREGISTRATION.md`; code: "
-        "`filingcheck/eval/metrics.py`, `filingcheck/eval/stats.py`. Per-run CSV: "
+        f"Rows: {files}, with their `_llm.jsonl` grades; definitions: "
+        "`eval/PREREGISTRATION.md`; code: `filingcheck/eval/metrics.py`, "
+        "`filingcheck/eval/stats.py`. Per-run CSV: "
         f"`{stem.with_suffix('.csv').relative_to(REPO_ROOT).as_posix()}`.",
     ]
     if args.demo:
@@ -355,7 +356,9 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
-    name = arm_name(args.mode, args.checks, args.label, retriever=args.retriever)
+    name = arm_name(
+        args.mode, args.checks, args.label, retriever=args.retriever, rules=bool(args.rules)
+    )
     if args.date:
         out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
@@ -376,6 +379,12 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     settings = settings_line(
         router.primary.name, filters="question text only, no filters", retriever=args.retriever
     )
+    rules = None
+    if args.rules:  # the prompt-rules arm: the block from the data the checks read
+        from filingcheck.agent.prompt_rules import rules_block
+
+        rules = rules_block(**reference_data())
+        settings += "; the checks' rules in the system prompt"
     print(f"{set_name}: mode batch, {name}; {args.repeats} run(s) per question; {settings}")
     with connect() as conn:
         extra = reference_data() if args.checks else {}
@@ -391,6 +400,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
                 settings=settings,
                 retriever=retriever_for(conn, args.retriever) if args.mode == "baseline" else None,
                 checks=args.checks,
+                rules=rules,
             )
         except BatchFileError as exc:
             print(f"ERROR: {exc}")
@@ -461,6 +471,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--checks", help="agent only: on (default) or off; the file name says which")
     run.add_argument("--label", help="a separate run of the same arm, named in the file")
     run.add_argument(
+        "--rules",
+        choices=["prompt"],
+        help="agent, checks off: the checks' rules in the system prompt (agent-prompt-rules)",
+    )
+    run.add_argument(
         "--retriever",
         choices=["hybrid", "vector"],
         default="hybrid",
@@ -481,7 +496,11 @@ def build_parser() -> argparse.ArgumentParser:
     metrics = commands.add_parser("metrics", help="the pre-registered metrics of a day's runs")
     metrics.add_argument("--date", required=True)
     metrics.add_argument("--sets", default="dev_traps,dev_unanswerable,control")
-    metrics.add_argument("--arms", default="agent-checks-off,agent-checks-on")
+    metrics.add_argument(
+        "--arms",
+        default="agent-checks-off,agent-checks-on",
+        help="arms, each optionally ARM@DATE or ARM@DATE/LABEL for a run of another day",
+    )
     metrics.add_argument("--label", help="the run label the result files carry")
     metrics.add_argument(
         "--out", required=True, help="the report's path without .md, from the repo"
