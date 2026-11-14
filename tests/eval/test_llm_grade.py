@@ -277,3 +277,57 @@ def test_the_summary_counts_and_lists_the_rows_an_also_accept_note_leaves_to_the
     assert "| also accept | 1 | 1 | 0 | 0 | 0 | 0 | 0 |" in page
     decided = page.split("## Decided by the LLM grader")[1]
     assert "held-017" in decided and "because held-017" in decided
+
+
+def test_for_the_final_run_every_number_graded_run_gets_a_second_opinion() -> None:
+    """The default stays for old rows; with every_number the passed runs are second-checked too."""
+    correct = grade({"answer": "Revenue was $574,785 million in fiscal 2023."}, NUMBER)
+    assert needs_llm(NUMBER, correct) is None
+    assert needs_llm(NUMBER, correct, every_number=True) == "second opinion"
+    assert needs_llm(TEXT, grade({"answer": "Beaverton."}, TEXT), every_number=True) == "text"
+
+
+def test_grade_rows_can_second_check_passed_number_runs(tmp_path: Path) -> None:
+    rows = [
+        {"id": NUMBER.id, "repeat": 1, "answer": "Revenue was $574,785 million in fiscal 2023."}
+    ]
+    verdict = {"verdict": "correct", "supported": "yes", "reason": "matches", "evidence": ""}
+    for every, expected in ((False, 0), (True, 1)):
+        model = FakeChat([reply(verdict)])
+        grades, _ = grade_rows(
+            rows,
+            {NUMBER.id: NUMBER},
+            sources_for=lambda row: ([], []),
+            model=model,
+            cache=GradeCache(tmp_path / f"cache-{every}.jsonl"),
+            cap_usd=1.0,
+            every_number=every,
+        )
+        assert len(grades) == expected
+        assert all(g.use == "second opinion" for g in grades)
+
+
+def test_the_summary_lists_disagreements_in_both_directions() -> None:
+    from filingcheck.eval.llm_grade import LlmGrade, summary
+
+    def g(qid: str, verdict: Any, det: str) -> tuple[LlmGrade, str]:
+        grade_ = LlmGrade(
+            id=qid,
+            repeat=1,
+            use="second opinion",
+            verdict=verdict,
+            supported="yes",
+            reason=f"because {qid}",
+            evidence="",
+            model="fake:chat",
+            prompt_version="2-abc",
+            cost_usd=0.0,
+            cached=True,
+        )
+        return grade_, det
+
+    page = summary(
+        [g("dev-001", "correct", "wrong_number"), g("dev-002", "wrong", "correct")], title="t"
+    )
+    assert "because dev-001" in page and "because dev-002" in page
+    assert "the deterministic grader passed and the LLM grader does not" in page

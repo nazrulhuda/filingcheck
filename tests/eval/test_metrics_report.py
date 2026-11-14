@@ -126,3 +126,35 @@ def test_a_stopped_number_call_without_a_checks_reject_record_is_flagged() -> No
     assert (checked.stopped_calls, checked.check_rejects) == (1, 1)
     page = render([checked, unchecked], floor=[], title="T", heading="H", notes=[])
     assert "stopped without a check's reject record: 1" in page and "list them and ask" in page
+
+
+def test_the_graders_disagreement_is_counted_in_each_direction() -> None:
+    from filingcheck.eval.metrics import score_run
+    from tests.eval.test_metrics import llm
+
+    passed_by_both = score_run(
+        row(RIGHT, repeat=1),
+        question(),
+        llm("correct", "second opinion"),
+        set_name="d",
+        arm="agent-checks-on",
+    )
+    det_passes = score_run(
+        row(RIGHT, repeat=2),
+        question(),
+        llm("wrong", "second opinion"),
+        set_name="d",
+        arm="agent-checks-on",
+    )
+    det_fails = score_run(
+        row(WRONG, repeat=3),
+        question(),
+        llm("correct", "second opinion"),
+        set_name="d",
+        arm="agent-checks-on",
+    )
+    page = render(
+        [passed_by_both, det_passes, det_fails], floor=[], title="T", heading="H", notes=[]
+    )
+    assert "the deterministic grader passes and the LLM fails: 1" in page
+    assert "the deterministic grader fails and the LLM passes: 1" in page
