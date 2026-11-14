@@ -188,3 +188,25 @@ def test_agreement_counts_the_rows_where_two_graders_give_the_same_answer() -> N
         agreement({1: "correct", 2: "wrong", 3: "partly"}, {1: "correct", 2: "partly", 3: "partly"})
         == 2
     )
+
+
+def test_the_analysed_failures_are_counted_by_the_review_groups() -> None:
+    """Added after the results: failures caused by a check's own action, and gaps the checks
+    do not cover, counted from the error-analysis causes (held-out and development apart)."""
+    from filingcheck.eval.final_render import failure_groups
+
+    causes = {
+        ("heldout_traps", "held-006", 1): (5, "calendar reject"),
+        ("heldout_traps_2", "held-044", 2): (5, "calendar reject"),
+        ("dev_traps", "dev-031", 3): (10, "repaired too far"),
+        ("heldout_traps_2", "held-053", 1): (1, "year stood"),
+        ("heldout_traps", "held-003", 2): (5, "asked with no call: not the 'last yr' gap"),
+        ("heldout_traps", "held-003", 3): (1, "'last yr'"),
+        ("heldout_traps_2", "held-035", 2): (8, "grader error: not the 'american' gap"),
+        ("dev_traps", "dev-057", 2): (1, "search company"),
+        ("dev_traps", "dev-050", 1): (8, "grader"),
+    }
+    action, gap = failure_groups(causes)
+    assert sum(h for _, h, _ in action) == 2 and sum(d for _, _, d in action) == 1
+    assert sum(h for _, h, _ in gap) == 2 and sum(d for _, _, d in gap) == 1
+    assert {label.split(" (")[0]: h + d for label, h, d in gap}["'last yr'"] == 1
