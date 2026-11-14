@@ -91,7 +91,8 @@ def chart_difference(f: Final, out: Path) -> None:
     for ax, (name, value) in zip(
         axes, (("Confidently wrong", _cw), ("Accuracy", _acc)), strict=True
     ):
-        for y, (title, sets) in enumerate(DIFF_SETS):
+        for n, (title, sets) in enumerate(DIFF_SETS):
+            y = len(DIFF_SETS) - 1 - n  # held-out first, at the top
             c = compare(f.part(sets, OFF), f.part(sets, ON), value, majority=False)
             i = c.interval
             rows.append([title, name, i.estimate, i.low, i.high, c.questions])
@@ -104,8 +105,7 @@ def chart_difference(f: Final, out: Path) -> None:
                 capsize=3,
             )
         ax.axvline(0, color="grey", linewidth=0.8)
-        ax.set_yticks(range(len(DIFF_SETS)), labels)
-        ax.invert_yaxis()
+        ax.set_yticks(range(len(DIFF_SETS)), labels[::-1])
         ax.set_xlabel(f"{name}: checks on minus checks off, percentage points")
         ax.grid(axis="x", linewidth=0.3)
     fig.suptitle("Turning the checks on, per set, with paired 95% intervals")
