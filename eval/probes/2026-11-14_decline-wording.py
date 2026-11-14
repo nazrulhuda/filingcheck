@@ -7,6 +7,8 @@ the development rows, the refuse runs graded `answered_when_should_ask` that giv
 say "is/are not one of the" or "not among the", using the grader's own number reader; then the
 development table recomputed from the metrics CSV (not with `metrics.py`), as graded and with
 those runs counted correct. The second table is a what-if: the grader does not change.
+Block version 2 (the Day 39 review's one revision, the company line only) is counted the same
+way; its rows are `agent-prompt-rules-v2`.
 
 Run from the repository root: uv run python eval/probes/2026-11-14_decline-wording.py
 """
@@ -25,6 +27,7 @@ ARMS = {
     "agent-checks-off": "2026-11-12_{s}_agent-checks-off-search-year",
     "agent-checks-on": "2026-11-12_{s}_agent-checks-on-search-year",
     "agent-prompt-rules": "2026-11-14_{s}_agent-prompt-rules",
+    "agent-prompt-rules-v2": "2026-11-14_{s}_agent-prompt-rules-v2",
 }
 NOT_ONE_OF = re.compile(r"\b(?:is|are) not (?:one of|among) the\b", re.IGNORECASE)
 SETS = ("dev_traps", "control")
@@ -66,7 +69,9 @@ def main() -> None:
             by_q = ", ".join(f"{qid} x{hits.count(qid)}" for qid in sorted(set(hits))) or "-"
             print(f"| {s} | {arm} | {len(hits)} | {by_q} |")
 
-    with (R / "2026-11-14_dev_agent-prompt-rules_metrics.csv").open(encoding="utf-8") as handle:
+    with (R / "2026-11-14_dev_agent-prompt-rules-v1-v2_metrics.csv").open(
+        encoding="utf-8"
+    ) as handle:
         rows = list(csv.DictReader(handle))
     flagged_cw = sum(
         r["confidently_wrong"] == "True"
