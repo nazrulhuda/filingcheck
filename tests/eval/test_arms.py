@@ -310,3 +310,13 @@ def test_make_eval_takes_rules_prompt() -> None:
     assert build_parser().parse_args(["run", "--set", "x", "--mode", "agent"]).rules is None
     with pytest.raises(SystemExit):
         build_parser().parse_args(["run", "--set", "x", "--mode", "agent", "--rules", "other"])
+
+
+def test_the_two_arm_page_is_for_the_checks_off_and_on_arms_only() -> None:
+    """The prompt-rules arm has the checks off but is not the checks-off arm: no two-arm page."""
+    from filingcheck.eval.arms import writes_two_arm_page
+
+    assert writes_two_arm_page(True, rules=False)
+    assert writes_two_arm_page(False, rules=False)
+    assert not writes_two_arm_page(False, rules=True)
+    assert not writes_two_arm_page(None, rules=False)  # the baseline
