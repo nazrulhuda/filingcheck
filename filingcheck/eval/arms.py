@@ -55,6 +55,14 @@ def arm_name(
     return f"{name}-{label}" if label else name
 
 
+def writes_two_arm_page(checks: bool | None, *, rules: bool) -> bool:
+    """Whether a run is one of the two arms the checks off-and-on page compares.
+
+    The prompt-rules arm has the checks off but is not the checks-off arm; the baseline has none.
+    """
+    return checks is not None and not rules
+
+
 def checks_argument(mode: str, value: str | None) -> bool | None:
     """`--checks on|off` for `make eval`: on by default for the agent, as everywhere else."""
     if mode != "agent":

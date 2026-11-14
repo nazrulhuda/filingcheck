@@ -346,7 +346,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     from filingcheck.answer.run import hybrid_retriever, retriever_for, settings_line
     from filingcheck.checks import reference_data
     from filingcheck.db import connect
-    from filingcheck.eval.arms import arm_name
+    from filingcheck.eval.arms import arm_name, writes_two_arm_page
     from filingcheck.eval.run import choose_results_path, read_questions, results_path, run_eval
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.llm import router_from_env
@@ -407,8 +407,8 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
             return 1
     print(summary.read_text(encoding="utf-8"))
     print(f"wrote {out.relative_to(REPO_ROOT)} and {summary.relative_to(REPO_ROOT)}")
-    if args.checks is not None:
-        _write_arms(set_name, out, args.checks, questions, args.repeats, args.label)
+    if writes_two_arm_page(args.checks, rules=bool(args.rules)):
+        _write_arms(set_name, out, bool(args.checks), questions, args.repeats, args.label)
     return 0
 
 
