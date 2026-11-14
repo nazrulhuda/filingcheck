@@ -378,7 +378,7 @@ No harm is said only as far as the interval shows: the interval does not include
 
 ## 7. Noise
 
-Per set and arm, the share of scored questions whose 3 runs do not all get the same outcome (the deciding grader's). For scale: in Week 5, a re-run of identical code gave the same outcome on 177 of 255 `dev_traps` runs where the first gave 182.
+Per set and arm, the share of scored questions whose 3 runs do not all get the same outcome (the deciding grader's). For scale: in Week 5, re-running identical code moved the count of correct `dev_traps` runs from 182 to 177 of 255.
 
 | Set | baseline-vector | baseline | agent-checks-off | agent-prompt-rules | agent-checks-on |
 |---|---:|---:|---:|---:|---:|
@@ -652,6 +652,26 @@ The checks-on runs that are not correct: on held-out 60 (60 drawn by seed 202611
 | 8. grader error (say which way) | 8 |
 | 9. provider error | 0 |
 | 10. other, with a note | 13 |
+
+*Added after the results:* the analysed failures in two groups, counted from the causes above (no new rule; the review chose the groups).
+
+| Group | Item | Held-out runs | dev_traps runs |
+|---|---|---:|---:|
+| caused by a check's own action | the fiscal-year check's calendar-year rejects (held-006, held-044, held-049) | 9 | 0 |
+| caused by a check's own action | an ambiguity reject despite the page filter (dev-010) | 0 | 3 |
+| caused by a check's own action | lowercase 'msft' not read, repaired to AAPL (dev-011) | 0 | 2 |
+| caused by a check's own action | 'the year before last' repaired one year too far (dev-031) | 0 | 3 |
+| caused by a check's own action | **all** | **9** | **8** |
+| a gap the checks do not cover | the fact tool lets the model's year stand when the question names none (held-053, held-059, held-063) | 8 | 0 |
+| a gap the checks do not cover | 'last yr' (held-003) | 1 | 0 |
+| a gap the checks do not cover | 'morgans' (held-030) | 3 | 0 |
+| a gap the checks do not cover | 'american' (held-004, held-035) | 3 | 0 |
+| a gap the checks do not cover | 'standard and poors' (held-038) | 2 | 0 |
+| a gap the checks do not cover | 'Citizens' (dev-003) | 0 | 2 |
+| a gap the checks do not cover | no company check on search_filings (dev-057) | 0 | 1 |
+| a gap the checks do not cover | **all** | **17** | **3** |
+
+The other 53 analysed runs are in neither group (the model's own choices, grader errors, and the rest).
 
 | Set | Question | Run | Outcome | Cause | Reason |
 |---|---|---:|---|---:|---|
