@@ -931,3 +931,82 @@ def render_report(
         *cost_section(f, billed),
     ]
     return "\n".join(lines).rstrip() + "\n"
+
+
+# ---------------------------------------------------------------- 9 (iii). the blind check
+
+
+def blind_section(f: Final, folder: Path, hidden: Path) -> list[str]:
+    """The reveal: each blind grader's agreement with the LLM grader, and every row that differs."""
+    from filingcheck.eval.final_report import (
+        agreement,
+        parse_blind_keys,
+        parse_pipe_grades,
+        parse_table_grades,
+    )
+
+    keys = parse_blind_keys(hidden.read_text(encoding="utf-8"))
+    reply = folder / f"{hidden.name[:10]}_final_blind_gemini_output.md"
+    session_file = folder / f"{hidden.name[:10]}_final_blind_reviewing_session_grades.md"
+    gemini = parse_pipe_grades(reply.read_text(encoding="utf-8"))
+    session = parse_table_grades(session_file.read_text(encoding="utf-8"))
+    llm: dict[int, tuple[str, str]] = {}
+    for n, key in enumerate(keys, 1):
+        path, qid, run = key.rsplit(":", 2)
+        set_name = path.split("2026-11-14_", 1)[1].split("_agent-checks-on", 1)[0]
+        g = f.llm[(set_name, ON)][(qid, int(run))]
+        llm[n] = (str(g.verdict), str(g.supported))
+        if n in session and session[n][0] != f"{qid}:{run}":
+            raise ValueError(f"row {n}: the session graded {session[n][0]}, the file has {key}")
+    if sorted(gemini) != list(range(1, len(keys) + 1)) or sorted(session) != sorted(gemini):
+        raise ValueError("a blind grader did not grade every row once")
+
+    def pick(grades: Mapping[int, Sequence[str]], i: int) -> dict[int, str]:
+        return {n: g[i] for n, g in grades.items()}
+
+    g_v, g_s = pick(gemini, 0), pick(gemini, 1)
+    s_v, s_s = (
+        pick({n: v[1:] for n, v in session.items()}, 0),
+        pick({n: v[1:] for n, v in session.items()}, 1),
+    )
+    l_v, l_s = pick(llm, 0), pick(llm, 1)
+    total = len(keys)
+    lines = [
+        f"{total} text-graded runs drawn by seed from the final `agent-checks-on` rows "
+        f"(`{hidden.as_posix().split('filingCheck/')[-1]}`, written with the LLM verdicts "
+        "hidden), graded blind before the LLM verdicts were shown, by the LLM grader's own "
+        "definitions:",
+        "",
+        "- Google Gemini (`gemini-3.8-flash`, the model rule's choice) through its API, one "
+        "request, its reply committed unedited. The newest Pro returned the free tier's quota "
+        "error on three tries and the newest Flash was overloaded on six, with no reply, before "
+        "it replied (each attempt is committed beside the reply).",
+        "- A reviewing AI session, from the same file only; its grades were hashed before the "
+        "reveal and copied in unedited.",
+        "",
+        "| Grader | Verdict agrees with the LLM grader | Supported agrees |",
+        "|---|---:|---:|",
+        f"| Gemini | {agreement(g_v, l_v)} of {total} | {agreement(g_s, l_s)} of {total} |",
+        f"| reviewing session | {agreement(s_v, l_v)} of {total} | "
+        f"{agreement(s_s, l_s)} of {total} |",
+        "",
+        f"The two blind graders agree with each other on {agreement(g_v, s_v)} verdicts and "
+        f"{agreement(g_s, s_s)} supported of {total}.",
+        "",
+        "Every row where a blind grader differs from the LLM grader (verdict, then supported):",
+        "",
+        "| # | Row | LLM | Gemini | Session | LLM | Gemini | Session |",
+        "|---:|---|---|---|---|---|---|---|",
+    ]
+    for n, key in enumerate(keys, 1):
+        if (g_v[n], s_v[n], g_s[n], s_s[n]) != (l_v[n], l_v[n], l_s[n], l_s[n]):
+            row = key.rsplit(":", 2)
+            lines.append(
+                f"| {n} | {row[1]} #{row[2]} | {l_v[n]} | {g_v[n]} | {s_v[n]} | {l_s[n]} | "
+                f"{g_s[n]} | {s_s[n]} |"
+            )
+    lines += [
+        "",
+        "The grader prompt does not change after this check; the result is reported as it is.",
+    ]
+    return lines

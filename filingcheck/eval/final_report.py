@@ -8,6 +8,7 @@ and development are pooled only when they agree; the prompt-rules sentence is st
 whichever way it comes out. Nothing here calls a model; the report reads committed rows only.
 """
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -135,3 +136,33 @@ def s1_sentence(c: Comparison) -> str:
         "following instructions, and a log of every decision (confidently wrong "
         f"{_difference(c)} with the checks on against the prompt rules)."
     )
+
+
+# ---------------------------------------------------------------- the blind check's reveal
+
+
+def parse_blind_keys(hidden: str) -> list[str]:
+    """The rows of the blind file, in its order (`file:id:run`)."""
+    return re.findall(r"^Row: `([^`]+)`$", hidden, flags=re.MULTILINE)
+
+
+def parse_pipe_grades(reply: str) -> dict[int, tuple[str, str]]:
+    """The outside grader's reply: one `n | verdict | supported` line per row."""
+    found: dict[int, tuple[str, str]] = {}
+    for m in re.finditer(r"^\s*(\d+)\s*\|\s*([\w/]+)\s*\|\s*([\w/]+)\s*$", reply, re.MULTILINE):
+        found[int(m.group(1))] = (m.group(2).lower(), m.group(3).lower())
+    return found
+
+
+def parse_table_grades(page: str) -> dict[int, tuple[str, str, str]]:
+    """The reviewing session's table: row number, `id:run`, verdict and supported."""
+    found: dict[int, tuple[str, str, str]] = {}
+    pattern = r"^\|\s*(\d+)\s*\|\s*([\w-]+:\d+)\s*\|\s*([\w/]+)\s*\|\s*([\w/]+)\s*\|"
+    for m in re.finditer(pattern, page, re.MULTILINE):
+        found[int(m.group(1))] = (m.group(2), m.group(3).lower(), m.group(4).lower())
+    return found
+
+
+def agreement(first: dict[int, str], second: dict[int, str]) -> int:
+    """How many rows both graders answered the same way."""
+    return sum(1 for n, v in first.items() if second.get(n) == v)

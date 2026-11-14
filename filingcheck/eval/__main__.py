@@ -440,14 +440,18 @@ def report_main(args: argparse.Namespace) -> int:
         (r["set"], r["arm"], r["id"], int(r["repeat"])): (r["confirmed"], r["note"])
         for r in read(args.contradictions)
     }
-    blind = (
-        (REPO_ROOT / args.blind).read_text(encoding="utf-8").splitlines()
-        if args.blind and (REPO_ROOT / args.blind).exists()
-        else [
-            "Not yet revealed: the outside grader's reply and the reviewing session's hashed "
-            "grades are compared with the LLM grader's verdicts after the reveal."
-        ]
-    )
+    from filingcheck.eval.final_render import blind_section
+
+    blind = [
+        "Not yet revealed: the outside grader's reply and the reviewing session's hashed "
+        "grades are compared with the LLM grader's verdicts after the reveal."
+    ]
+    if args.blind:  # the blind file; the two blind graders' files are in blind_<date>/
+        hidden = REPO_ROOT / args.blind
+        folder = hidden.parent / f"blind_{args.date}"
+        names = ("final_blind_gemini_output.md", "final_blind_reviewing_session_grades.md")
+        if all((folder / f"{args.date}_{n}").exists() for n in names):
+            blind = blind_section(final, folder, hidden)
     billed = (
         "Billed by the OpenRouter key over the final run and its grading: $1.6394 (its usage rose "
         "from $1.2613 to $2.9007; `eval/results/2026-11-14_final-run_record.md`). The recorded "
@@ -666,7 +670,7 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--out", required=True, help="the report's path without .md, from the repo")
     report.add_argument("--causes", type=Path, help="the error analysis's causes (CSV)")
     report.add_argument("--contradictions", type=Path, help="graders item (ii), read (CSV)")
-    report.add_argument("--blind", type=Path, help="the blind check's section, after the reveal")
+    report.add_argument("--blind", type=Path, help="the blind check's file (its graders beside it)")
     blind = commands.add_parser(
         "blind-sample", help="the final run's blind check: text-graded runs, verdicts hidden"
     )

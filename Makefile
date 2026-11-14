@@ -112,7 +112,7 @@ dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 
 	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY)) $(if $(LABEL),--label $(LABEL))
 
 report:  # the final report from the committed final rows: make report [DATE=2026-11-14]
-	uv run python -m filingcheck.eval report --date $(or $(DATE),2026-11-14) --out eval/results/$(or $(DATE),2026-11-14)_final_report --causes eval/results/$(or $(DATE),2026-11-14)_final_error_analysis.csv --contradictions eval/results/$(or $(DATE),2026-11-14)_final_grader_contradictions.csv --blind eval/llm_grades/$(or $(DATE),2026-11-14)_final_blind_section.md
+	uv run python -m filingcheck.eval report --date $(or $(DATE),2026-11-14) --out eval/results/$(or $(DATE),2026-11-14)_final_report --causes eval/results/$(or $(DATE),2026-11-14)_final_error_analysis.csv --contradictions eval/results/$(or $(DATE),2026-11-14)_final_grader_contradictions.csv --blind eval/llm_grades/$(or $(DATE),2026-11-14)_final_blind_hidden.md
 
 smoke-live:  # check a deployed API: make smoke-live URL=https://... (asks two questions, one baseline and one agent: 2 toward the daily cap)
 	uv run python -m filingcheck.app.smoke "$(URL)"
