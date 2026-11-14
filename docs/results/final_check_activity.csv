@@ -1,0 +1,10 @@
+category,repair,reject,pass
+control,66,0,439
+lookalike_company,6,6,350
+metric_not_supported,18,7,37
+prompt_injection,0,8,303
+relative_year,37,4,331
+segment_vs_total,1,18,264
+unanswerable_text,16,8,13
+units_scale,0,0,405
+wrong_fiscal_year,1,16,371
