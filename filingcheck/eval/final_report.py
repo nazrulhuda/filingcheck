@@ -52,6 +52,15 @@ def compare(
     return Comparison(result.first, result.second, interval, len(shared), bb, cc, p)
 
 
+def rate_interval(scores: Sequence[RunScore], value: Value) -> Interval:
+    """One arm's rate with a 95% interval: the same bootstrap over questions, seed and count.
+
+    For the charts' whiskers; every comparison stays paired (`compare`).
+    """
+    values = per_question(scores, value)
+    return paired_bootstrap(dict.fromkeys(values, 0.0), values)
+
+
 def _pct(value: float) -> str:
     return f"{100 * value:.1f}%"
 
