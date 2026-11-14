@@ -117,24 +117,54 @@ def confirmation_sentences(held: Comparison, dev: Comparison) -> list[str]:
     return sentences
 
 
-def s1_sentence(c: Comparison) -> str:
-    """The prompt-rules sentence (S1), on confidently wrong: checks on minus prompt rules."""
-    i = c.interval
-    if i.high < 0:
-        return (
-            "The server-side checks did better than the same rules given as instructions: "
-            f"confidently wrong {_difference(c)} with the checks on against the prompt rules."
-        )
-    if i.low > 0:
-        return (
+def s1_sentence(cw: Comparison, accuracy: Comparison) -> str:
+    """The prompt-rules sentence (S1): confidently wrong and accuracy, checks on minus rules.
+
+    Each metric is judged by its interval: better for one side when it is clear of zero. If
+    the prompt rules did better on either, that is said first; if neither interval is clear
+    of zero, the pre-registered "about as well" sentence. (Changed after the results: the first
+    version judged confidently wrong alone; S1 names both.)
+    """
+    lower_cw_on = cw.interval.high < 0  # fewer confidently wrong with the checks on
+    higher_cw_on = cw.interval.low > 0
+    higher_acc_on = accuracy.interval.low > 0
+    lower_acc_on = accuracy.interval.high < 0
+    parts = {
+        "cw": f"confidently wrong {_difference(cw)}",
+        "acc": f"accuracy {_difference(accuracy)}",
+    }
+    tail = " with the checks on against the prompt rules"
+    rules_won = [k for k, won in (("acc", lower_acc_on), ("cw", higher_cw_on)) if won]
+    checks_won = [k for k, won in (("acc", higher_acc_on), ("cw", lower_cw_on)) if won]
+    level = [k for k in ("acc", "cw") if k not in rules_won and k not in checks_won]
+    sentences: list[str] = []
+    if rules_won:
+        sentences.append(
             "The same rules written into the prompt did better than the server-side checks: "
-            f"confidently wrong {_difference(c)} with the checks on against the prompt rules."
+            + "; ".join(parts[k] for k in rules_won)
+            + f"{tail}."
         )
+    if checks_won:
+        sentences.append(
+            "The server-side checks did better than the same rules given as instructions: "
+            + "; ".join(parts[k] for k in checks_won)
+            + f"{tail}."
+        )
+    if rules_won or checks_won:
+        if level:
+            sentences.append(
+                "On "
+                + " and ".join("confidently wrong" if k == "cw" else "accuracy" for k in level)
+                + " the two are about the same (the interval includes zero): "
+                + "; ".join(parts[k] for k in level)
+                + "."
+            )
+        return " ".join(sentences)
     return (
         "On these questions, the same rules written into the prompt did about as well as the "
         "server-side checks; the checks add enforcement that does not depend on the model "
-        "following instructions, and a log of every decision (confidently wrong "
-        f"{_difference(c)} with the checks on against the prompt rules)."
+        f"following instructions, and a log of every decision ({parts['cw']}; {parts['acc']}"
+        f"{tail})."
     )
 
 

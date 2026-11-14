@@ -150,6 +150,7 @@ def headline_section(f: Final) -> list[str]:
     dev = compare(f.part(("dev_traps",), OFF), f.part(("dev_traps",), ON), _cw, majority=True)
     files = {s: compare(f.part((s,), OFF), f.part((s,), ON), _cw, majority=True) for s in HELD}
     s1 = compare(f.part(HELD, RULES), f.part(HELD, ON), _cw, majority=True)
+    s1_acc = compare(f.part(HELD, RULES), f.part(HELD, ON), _acc, majority=True)
     lines = [
         "## 1. The headline",
         "",
@@ -185,19 +186,24 @@ def headline_section(f: Final) -> list[str]:
             f"({_signed(a)} and {_signed(b)} points).",
             "",
         ]
-    lines += [f"**The prompt-rules comparison (S1):** {s1_sentence(s1)}", ""]
-    if s1.interval.low <= 0 <= s1.interval.high:
-        cat = [s for s in f.scores if s.set_name in HELD and s.category == "prompt_injection"]
-        if cat:
-            pi_rules = [s for s in cat if s.arm == RULES]
-            pi_on = [s for s in cat if s.arm == ON]
-            lines += [
-                "The prompt-injection questions apart (held-out): confidently wrong "
-                f"{_pct(rate(pi_rules, _cw))} with the prompt rules, {_pct(rate(pi_on, _cw))} "
-                f"with the checks on; accuracy {_pct(rate(pi_rules, _acc))} and "
-                f"{_pct(rate(pi_on, _acc))}; {len({s.id for s in pi_on if s.scored})} questions.",
-                "",
-            ]
+    lines += [
+        f"**The prompt-rules comparison (S1):** {s1_sentence(s1, s1_acc)} *(This sentence "
+        "was first coded on confidently wrong alone; read against S1, which names confidently "
+        "wrong and accuracy, it was changed after the results were seen, to judge both.)*",
+        "",
+    ]
+    # The prompt-injection category, shown apart whichever way S1 comes out.
+    cat = [s for s in f.scores if s.set_name in HELD and s.category == "prompt_injection"]
+    if cat:
+        pi_rules = [s for s in cat if s.arm == RULES]
+        pi_on = [s for s in cat if s.arm == ON]
+        lines += [
+            "The prompt-injection questions apart (held-out): confidently wrong "
+            f"{_pct(rate(pi_rules, _cw))} with the prompt rules, {_pct(rate(pi_on, _cw))} "
+            f"with the checks on; accuracy {_pct(rate(pi_rules, _acc))} and "
+            f"{_pct(rate(pi_on, _acc))}; {len({s.id for s in pi_on if s.scored})} questions.",
+            "",
+        ]
     if agree(held, dev):
         trap = (*HELD, "dev_traps")
         pooled = compare(f.part(trap, OFF), f.part(trap, ON), _cw, majority=True)
@@ -210,9 +216,23 @@ def headline_section(f: Final) -> list[str]:
             "",
         ]
     else:
+        h, d = held.interval, dev.interval
+        failed = []
+        if not (h.estimate * d.estimate > 0):
+            failed.append("their differences do not have the same sign")
+        if not d.low <= h.estimate <= d.high:
+            failed.append(
+                f"held-out's estimate ({_signed(h.estimate)}) is outside development's interval "
+                f"({_signed(d.low)} to {_signed(d.high)})"
+            )
+        if not h.low <= d.estimate <= h.high:
+            failed.append(
+                f"development's estimate ({_signed(d.estimate)}) is outside held-out's interval "
+                f"({_signed(h.low)} to {_signed(h.high)})"
+            )
         lines += [
-            "No pooled line: held-out and development do not agree (the same sign, and each "
-            "estimate inside the other's interval).",
+            "No pooled line: held-out and development agree only with the same sign and each "
+            "estimate inside the other's interval, and here " + "; ".join(failed) + ".",
             "",
         ]
     lines += confirmation_sentences(held, dev) and [
