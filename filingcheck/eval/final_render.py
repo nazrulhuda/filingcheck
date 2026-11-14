@@ -280,7 +280,7 @@ STEPS = (
 )
 
 
-def ablation_section(f: Final, floor: Sequence[RunScore]) -> list[str]:
+def ablation_section(f: Final, floor: Sequence[RunScore], live: Sequence[str] = ()) -> list[str]:
     """Per set: the five arms, each agent arm without the labels, the floor; then the steps."""
     lines = [
         "## 2. The ablation table, per set",
@@ -343,6 +343,7 @@ def ablation_section(f: Final, floor: Sequence[RunScore]) -> list[str]:
         f"it, the baseline's control p50 is {_secs(latencies, 50)} and p95 "
         f"{_secs(latencies, 95)}. No means are given.",
         "",
+        *live,
     ]
     return lines
 
@@ -928,6 +929,7 @@ def render_report(
     confirmed: Mapping[tuple[str, str, str, int], tuple[str, str]],
     causes: Mapping[tuple[str, str, int], tuple[int, str]],
     billed: str,
+    live: Sequence[str] = (),
 ) -> str:
     """The whole report, in the Day 41 order."""
     lines = [
@@ -939,7 +941,7 @@ def render_report(
         "",
         *METHOD,
         *headline_section(f),
-        *ablation_section(f, floor),
+        *ablation_section(f, floor, live),
         *secondary_section(f),
         *outcome_section(f),
         *check_section(f),

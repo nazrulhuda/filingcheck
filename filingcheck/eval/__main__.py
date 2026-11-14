@@ -457,9 +457,21 @@ def report_main(args: argparse.Namespace) -> int:
         "from $1.2613 to $2.9007; `eval/results/2026-11-14_final-run_record.md`). The recorded "
         "figures above come from the price table."
     )
+    live: list[str] = []
+    snapshot = REPO_ROOT / "eval" / "results" / f"{args.date}_live_stats.json"
+    if snapshot.exists():  # the live page's own latency, shown apart (definition 6)
+        s = json.loads(snapshot.read_text(encoding="utf-8"))
+        live = [
+            f"The live page's own latency, shown apart (`/stats`, fetched {s['fetched_at']}, "
+            f"since {s['since'][:19]} UTC): {s['requests']} requests, p50 "
+            f"{s['latency_ms_p50'] / 1000:.1f} s, p95 {s['latency_ms_p95'] / 1000:.1f} s. These "
+            "are the deploy checks' requests only, too few to compare with the batch runs "
+            f"(`{snapshot.relative_to(REPO_ROOT).as_posix()}`).",
+            "",
+        ]
     stem = REPO_ROOT / args.out
     page = render_report(
-        final, floor, blind=blind, confirmed=confirmed, causes=causes, billed=billed
+        final, floor, blind=blind, confirmed=confirmed, causes=causes, billed=billed, live=live
     )
     stem.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
     write_csv(final.scores, stem.with_suffix(".csv"))
