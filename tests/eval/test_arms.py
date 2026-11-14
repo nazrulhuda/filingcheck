@@ -242,3 +242,81 @@ def test_the_baselines_search_is_named_in_its_file() -> None:
     assert arm_name("baseline", None) == "baseline"
     with pytest.raises(ValueError, match="hybrid"):
         arm_name("agent", True, retriever="vector")  # the agent always searches hybrid
+
+
+# ---------------------------------------------------------------- the prompt-rules arm (Day 39)
+
+
+def test_the_prompt_rules_arm_is_named_and_has_the_checks_off() -> None:
+    assert arm_name("agent", False, rules=True) == "agent-prompt-rules"
+    assert arm_name("agent", False, "v2", rules=True) == "agent-prompt-rules-v2"
+    with pytest.raises(ValueError, match="CHECKS=off"):
+        arm_name("agent", True, rules=True)  # make eval's checks are on unless CHECKS=off
+    with pytest.raises(ValueError, match="agent"):
+        arm_name("baseline", None, rules=True)
+
+
+def test_the_prompt_rules_arm_runs_with_the_block_in_the_prompt_and_the_checks_off(
+    tmp_path: Path,
+) -> None:
+    from filingcheck.agent import SYSTEM_PROMPT
+
+    out = tmp_path / f"2026-11-13_examples_{arm_name('agent', False, rules=True)}.jsonl"
+    chat = FakeChat(replies()[:3])
+    summary = run_eval(
+        questions_file(tmp_path),
+        mode="agent",
+        repeats=1,
+        model=chat,
+        deps=apple_deps(),
+        out=out,
+        settings="s",
+        checks=False,
+        rules="THE BLOCK",
+    )
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    assert {r["rules"] for r in rows} == {"prompt"}
+    assert {r["checks"] for r in rows} == {False}
+    assert all(r["overrides"] == [] for r in rows)
+    assert {c["messages"][0]["content"] for c in chat.calls} == {SYSTEM_PROMPT + "\n\nTHE BLOCK"}
+    assert "agent, checks off, the checks' rules in the prompt" in summary.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_rows_without_the_block_record_no_rules(tmp_path: Path) -> None:
+    out = tmp_path / "2026-11-13_examples_agent-checks-off.jsonl"
+    run_eval(
+        questions_file(tmp_path),
+        mode="agent",
+        repeats=1,
+        model=FakeChat(replies()[:3]),
+        deps=apple_deps(),
+        out=out,
+        settings="s",
+        checks=False,
+    )
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    assert {r["rules"] for r in rows} == {None}
+
+
+def test_make_eval_takes_rules_prompt() -> None:
+    from filingcheck.eval.__main__ import build_parser
+
+    args = build_parser().parse_args(
+        ["run", "--set", "dev_traps", "--mode", "agent", "--checks", "off", "--rules", "prompt"]
+    )
+    assert args.rules == "prompt"
+    assert build_parser().parse_args(["run", "--set", "x", "--mode", "agent"]).rules is None
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["run", "--set", "x", "--mode", "agent", "--rules", "other"])
+
+
+def test_the_two_arm_page_is_for_the_checks_off_and_on_arms_only() -> None:
+    """The prompt-rules arm has the checks off but is not the checks-off arm: no two-arm page."""
+    from filingcheck.eval.arms import writes_two_arm_page
+
+    assert writes_two_arm_page(True, rules=False)
+    assert writes_two_arm_page(False, rules=False)
+    assert not writes_two_arm_page(False, rules=True)
+    assert not writes_two_arm_page(None, rules=False)  # the baseline

@@ -112,10 +112,12 @@ def run_eval(
     settings: str,
     retriever: Retriever | None = None,
     checks: bool | None = None,
+    rules: str | None = None,
 ) -> Path:
     """Answer, grade and summarize; return the path of the summary file.
 
     `checks` is the agent's switch (None for the baseline); the title names the arm.
+    `rules` is the prompt-rules arm's block (see `run_batch`).
     """
     questions = read_questions(questions_path)
     by_id = {q.id: q for q in questions}
@@ -135,6 +137,7 @@ def run_eval(
         repeats=repeats,
         checks=bool(checks),
         provenance=provenance(questions_path),
+        rules=rules,
     )
     rows = [
         json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()
@@ -152,6 +155,8 @@ def run_eval(
     summary = out.with_suffix(".md")
     runs = max((row.get("repeat", 1) for row, _ in graded), default=0)
     arm = mode if checks is None else f"{mode}, checks {'on' if checks else 'off'}"
+    if rules is not None:
+        arm += ", the checks' rules in the prompt"
     title = f"# Evaluation: {questions_path.stem}, {arm}, {runs} run(s) per question"
     note = (
         "Graded by the deterministic number grader (`filingcheck/eval/grade.py`). Written by "

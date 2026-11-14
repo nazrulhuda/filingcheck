@@ -53,6 +53,26 @@ OFF, ON = "agent-checks-off", "agent-checks-on"
 Value = Callable[[RunScore], float | bool | int]
 
 
+def arm_sources(arms: str, *, date: str, label: str | None) -> list[tuple[str, str, str]]:
+    """Each arm's name in the report, its run date and its file name part, from `--arms`.
+
+    An entry is an arm (`agent-checks-on`: the given date and label, the arm named without the
+    label), or an arm from another day (`agent-prompt-rules@2026-11-13`, no label), or one with
+    its own label (`agent-prompt-rules@2026-11-13/v2`, named with it, so a second version is a
+    row of its own). Day 39 reports the new arm next to the Week 5 arms, run the day before.
+    """
+    sources: list[tuple[str, str, str]] = []
+    for entry in arms.split(","):
+        arm, _, rest = entry.partition("@")
+        if not rest:
+            sources.append((arm, date, f"{arm}-{label}" if label else arm))
+            continue
+        day, _, own = rest.partition("/")
+        name = f"{arm}-{own}" if own else arm
+        sources.append((name, day, name))
+    return sources
+
+
 def write_csv(scores: Iterable[RunScore], path: Path) -> None:
     """One line per run, in the pre-registration's columns; empty cells for None."""
     with path.open("w", encoding="utf-8", newline="") as handle:

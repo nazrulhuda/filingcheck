@@ -23,15 +23,25 @@ OFF_WORDS = {"off", "0", "false", "no"}
 
 
 def arm_name(
-    mode: str, checks: bool | None, label: str | None = None, *, retriever: str = "hybrid"
+    mode: str,
+    checks: bool | None,
+    label: str | None = None,
+    *,
+    retriever: str = "hybrid",
+    rules: bool = False,
 ) -> str:
     """The run's name in its file name, as in 'baseline-vector' or 'agent-checks-on'.
 
     The baselines are 'baseline' (hybrid search) and 'baseline-vector'; the agent arms are
     'agent-checks-on' and 'agent-checks-off'. A `label` names a separate run of the same arm
     ('agent-checks-on-search-year'): a re-run after a change, kept apart from the day's earlier
-    files.
+    files. `rules` is the prompt-rules arm (Week 6): 'agent-prompt-rules', the agent with
+    the checks off and the checks' rules in its prompt.
     """
+    if rules and mode != "agent":
+        raise ValueError("the prompt-rules arm is an agent arm: MODE=agent")
+    if rules and checks:
+        raise ValueError("the prompt-rules arm has the checks off: add CHECKS=off")
     if mode != "agent":
         if checks is not None:
             raise ValueError("the checks apply to the agent only")
@@ -40,7 +50,17 @@ def arm_name(
         if retriever != "hybrid":
             raise ValueError("the agent always searches hybrid; RETRIEVER is the baseline's")
         name = "agent-checks-on" if checks else "agent-checks-off"
+        if rules:
+            name = "agent-prompt-rules"
     return f"{name}-{label}" if label else name
+
+
+def writes_two_arm_page(checks: bool | None, *, rules: bool) -> bool:
+    """Whether a run is one of the two arms the checks off-and-on page compares.
+
+    The prompt-rules arm has the checks off but is not the checks-off arm; the baseline has none.
+    """
+    return checks is not None and not rules
 
 
 def checks_argument(mode: str, value: str | None) -> bool | None:

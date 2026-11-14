@@ -158,3 +158,36 @@ def test_the_graders_disagreement_is_counted_in_each_direction() -> None:
     )
     assert "the deterministic grader passes and the LLM fails: 1" in page
     assert "the deterministic grader fails and the LLM passes: 1" in page
+
+
+# ---------------------------------------------------------------- arms from different days
+
+
+def test_an_arm_may_name_its_own_date_and_label() -> None:
+    """Day 39 reports the new arm next to the Week 5 arms, which ran on another day."""
+    from filingcheck.eval.metrics_report import arm_sources
+
+    sources = arm_sources(
+        "agent-checks-off,agent-checks-on,agent-prompt-rules@2026-11-13",
+        date="2026-11-12",
+        label="search-year",
+    )
+    assert sources == [
+        ("agent-checks-off", "2026-11-12", "agent-checks-off-search-year"),
+        ("agent-checks-on", "2026-11-12", "agent-checks-on-search-year"),
+        ("agent-prompt-rules", "2026-11-13", "agent-prompt-rules"),
+    ]
+    assert arm_sources("agent-prompt-rules@2026-11-14/v2", date="2026-11-12", label=None) == [
+        ("agent-prompt-rules-v2", "2026-11-14", "agent-prompt-rules-v2")
+    ]
+    assert arm_sources("agent-checks-on", date="2026-11-12", label=None) == [
+        ("agent-checks-on", "2026-11-12", "agent-checks-on")
+    ]
+
+
+def test_a_second_version_of_an_arm_is_its_own_row_in_the_report() -> None:
+    """A revised block's run is reported beside the first: the arm keeps the label."""
+    from filingcheck.eval.metrics_report import arm_sources
+
+    [(arm, _, name)] = arm_sources("agent-prompt-rules@2026-11-13/v2", date="x", label=None)
+    assert (arm, name) == ("agent-prompt-rules-v2", "agent-prompt-rules-v2")

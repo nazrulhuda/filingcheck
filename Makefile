@@ -97,9 +97,9 @@ validate-questions:
 eval-smoke:  # the deterministic gate: 21 scripted agent runs with the checks on (no model, no DB, no network); python -m, like `make test`, because Windows app control can block the pytest launcher
 	uv run python -m pytest tests/eval_gate -q --no-cov
 
-eval:  # ask and grade question sets, one after another: make eval SET=dev_traps,dev_unanswerable,control MODE=agent|baseline [CHECKS=on|off] [RETRIEVER=hybrid|vector] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money; resumable)
+eval:  # ask and grade question sets, one after another: make eval SET=dev_traps,dev_unanswerable,control MODE=agent|baseline [CHECKS=on|off] [RULES=prompt] [RETRIEVER=hybrid|vector] [REPEATS=3] [DATE=YYYY-MM-DD] (costs money; resumable)
 	@test -n "$(SET)" -a -n "$(MODE)" || { echo "give SET and MODE: make eval SET=examples MODE=agent [REPEATS=3]"; exit 1; }
-	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE)) $(if $(LABEL),--label $(LABEL)) $(if $(RETRIEVER),--retriever $(RETRIEVER))
+	uv run python -m filingcheck.eval run --set $(SET) --mode $(MODE) $(if $(CHECKS),--checks $(CHECKS)) $(if $(REPEATS),--repeats $(REPEATS)) $(if $(DATE),--date $(DATE)) $(if $(LABEL),--label $(LABEL)) $(if $(RETRIEVER),--retriever $(RETRIEVER)) $(if $(RULES),--rules $(RULES))
 
 run:  # the API on http://localhost:8000 (live mode: short waits, fallback models)
 	uv run python -m uvicorn filingcheck.app.main:app --reload

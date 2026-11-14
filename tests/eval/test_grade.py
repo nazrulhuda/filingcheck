@@ -504,3 +504,42 @@ def test_more_ways_of_declining() -> None:
         "The filings I have don't cover the third quarter.",
     ):
         assert asks_or_declines(text), text
+
+
+# ---------------------------------------------------------------- the checks' reject wordings
+
+
+REFUSE = {
+    "id": "trap-067",
+    "set": "trap",
+    "category": "metric_not_supported",
+    "expected_behavior": "refuse",
+    "style": None,
+}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Tesla is not one of the 25 companies in the dataset.",
+        "I'm sorry, but Capital Group is not one of the 25 companies in the dataset.",
+        "Tesla and Visa are not among the 25 companies in the dataset.",
+        "EBITDA is not one of the 13 metrics the data holds.",
+        "I'm sorry, but 'market cap' is not one of the 13 metrics the data holds.",
+    ],
+)
+def test_the_checks_reject_wordings_are_declines(text: str) -> None:
+    """The company and metric checks' reject reasons, added Nov 14 (the Day 39 review)."""
+    assert asks_or_declines(text)
+    assert grade(row(text), question(**REFUSE)).outcome == "correct"
+
+
+def test_a_reject_wording_with_an_amount_is_still_an_answer() -> None:
+    text = "Tesla is not one of the 25 companies in the dataset; its 2024 sales were $97.7 billion."
+    assert grade(row(text), question(**REFUSE)).outcome == "answered_when_should_ask"
+
+
+def test_a_calendar_year_that_is_no_fiscal_year_is_not_a_decline() -> None:
+    assert not asks_or_declines(
+        "Calendar 2024 is not one of Apple's fiscal years, which end in September."
+    )

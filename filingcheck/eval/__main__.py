@@ -140,18 +140,18 @@ def metrics_main(args: argparse.Namespace) -> int:
         error_share,
         score_run,
     )
-    from filingcheck.eval.metrics_report import render, write_csv
+    from filingcheck.eval.metrics_report import arm_sources, render, write_csv
     from filingcheck.eval.run import read_questions, set_names
 
     scores: list[RunScore] = []
     floor: list[RunScore] = []
     questions_by_set: dict[str, Any] = {}
+    sources = arm_sources(args.arms, date=args.date, label=args.label)
     for set_name in set_names(args.sets):
         by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
         questions_by_set[set_name] = by_id
-        for arm in args.arms.split(","):
-            name = f"{arm}-{args.label}" if args.label else arm
-            path = REPO_ROOT / "eval" / "results" / f"{args.date}_{set_name}_{name}.jsonl"
+        for arm, day, name in sources:
+            path = REPO_ROOT / "eval" / "results" / f"{day}_{set_name}_{name}.jsonl"
             if not path.exists():
                 print(f"no {path.relative_to(REPO_ROOT)}: that arm is left out")
                 continue
@@ -194,10 +194,11 @@ def metrics_main(args: argparse.Namespace) -> int:
                     )
                 floor.append(always_abstain(question, verdict, set_name=set_name))
     stem = REPO_ROOT / args.out
+    files = ", ".join(f"`eval/results/{day}_<set>_{name}.jsonl`" for _, day, name in sources)
     notes = [
-        f"Rows: `eval/results/{args.date}_<set>_<arm>{'-' + args.label if args.label else ''}"
-        ".jsonl` with their `_llm.jsonl` grades; definitions: `eval/PREREGISTRATION.md`; code: "
-        "`filingcheck/eval/metrics.py`, `filingcheck/eval/stats.py`. Per-run CSV: "
+        f"Rows: {files}, with their `_llm.jsonl` grades; definitions: "
+        "`eval/PREREGISTRATION.md`; code: `filingcheck/eval/metrics.py`, "
+        "`filingcheck/eval/stats.py`. Per-run CSV: "
         f"`{stem.with_suffix('.csv').relative_to(REPO_ROOT).as_posix()}`.",
     ]
     if args.demo:
@@ -345,7 +346,7 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     from filingcheck.answer.run import hybrid_retriever, retriever_for, settings_line
     from filingcheck.checks import reference_data
     from filingcheck.db import connect
-    from filingcheck.eval.arms import arm_name
+    from filingcheck.eval.arms import arm_name, writes_two_arm_page
     from filingcheck.eval.run import choose_results_path, read_questions, results_path, run_eval
     from filingcheck.facts.lookup import PostgresFacts
     from filingcheck.llm import router_from_env
@@ -355,7 +356,9 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     if not questions.exists():
         print(f"ERROR: no question file {questions.relative_to(REPO_ROOT)}")
         return 1
-    name = arm_name(args.mode, args.checks, args.label, retriever=args.retriever)
+    name = arm_name(
+        args.mode, args.checks, args.label, retriever=args.retriever, rules=bool(args.rules)
+    )
     if args.date:
         out = REPO_ROOT / results_path(set_name, name, args.date)
     else:
@@ -376,6 +379,12 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
     settings = settings_line(
         router.primary.name, filters="question text only, no filters", retriever=args.retriever
     )
+    rules = None
+    if args.rules:  # the prompt-rules arm: the block from the data the checks read
+        from filingcheck.agent.prompt_rules import rules_block
+
+        rules = rules_block(**reference_data())
+        settings += "; the checks' rules in the system prompt"
     print(f"{set_name}: mode batch, {name}; {args.repeats} run(s) per question; {settings}")
     with connect() as conn:
         extra = reference_data() if args.checks else {}
@@ -391,14 +400,15 @@ def _run_set(args: argparse.Namespace, set_name: str) -> int:
                 settings=settings,
                 retriever=retriever_for(conn, args.retriever) if args.mode == "baseline" else None,
                 checks=args.checks,
+                rules=rules,
             )
         except BatchFileError as exc:
             print(f"ERROR: {exc}")
             return 1
     print(summary.read_text(encoding="utf-8"))
     print(f"wrote {out.relative_to(REPO_ROOT)} and {summary.relative_to(REPO_ROOT)}")
-    if args.checks is not None:
-        _write_arms(set_name, out, args.checks, questions, args.repeats, args.label)
+    if writes_two_arm_page(args.checks, rules=bool(args.rules)):
+        _write_arms(set_name, out, bool(args.checks), questions, args.repeats, args.label)
     return 0
 
 
@@ -461,6 +471,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--checks", help="agent only: on (default) or off; the file name says which")
     run.add_argument("--label", help="a separate run of the same arm, named in the file")
     run.add_argument(
+        "--rules",
+        choices=["prompt"],
+        help="agent, checks off: the checks' rules in the system prompt (agent-prompt-rules)",
+    )
+    run.add_argument(
         "--retriever",
         choices=["hybrid", "vector"],
         default="hybrid",
@@ -481,7 +496,11 @@ def build_parser() -> argparse.ArgumentParser:
     metrics = commands.add_parser("metrics", help="the pre-registered metrics of a day's runs")
     metrics.add_argument("--date", required=True)
     metrics.add_argument("--sets", default="dev_traps,dev_unanswerable,control")
-    metrics.add_argument("--arms", default="agent-checks-off,agent-checks-on")
+    metrics.add_argument(
+        "--arms",
+        default="agent-checks-off,agent-checks-on",
+        help="arms, each optionally ARM@DATE or ARM@DATE/LABEL for a run of another day",
+    )
     metrics.add_argument("--label", help="the run label the result files carry")
     metrics.add_argument(
         "--out", required=True, help="the report's path without .md, from the repo"
@@ -497,7 +516,57 @@ def build_parser() -> argparse.ArgumentParser:
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
     dry.add_argument("--label", help="the run label the result files carry")
+    regrade = commands.add_parser(
+        "regrade", help="re-grade every stored row after the decline fix; list the changes"
+    )
+    regrade.add_argument("--out", required=True, help="a new folder for the grades, from the repo")
     return parser
+
+
+def regrade_main(args: argparse.Namespace) -> int:
+    """Grade every stored row before and after the decline fix into new files; list changes."""
+    from filingcheck.eval.regrade import Regraded, regrade_rows, render_changes, set_for
+    from filingcheck.eval.run import read_questions
+
+    out = REPO_ROOT / args.out
+    if out.exists():
+        print(f"ERROR: {out.relative_to(REPO_ROOT)} exists; choose a new folder")
+        return 1
+    set_names = [p.stem for p in QUESTIONS_DIR.glob("*.jsonl")]
+    by_file: dict[str, list[Regraded]] = {}
+    skipped = 0
+    results = sorted((REPO_ROOT / "eval" / "results").glob("*.jsonl"))
+    for path in [p for p in results if not p.name.endswith("_llm.jsonl")]:
+        set_name = set_for(path.name, set_names)
+        if set_name is None:
+            print(f"no question set for {path.name}: left out")
+            continue
+        questions = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
+        rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+        regraded, left_out = regrade_rows(rows, questions)
+        skipped += left_out
+        by_file[path.name] = regraded
+    out.mkdir(parents=True)
+    for name, regraded in by_file.items():
+        text = "".join(
+            json.dumps(
+                {
+                    "id": r.id,
+                    "repeat": r.repeat,
+                    "stored_outcome": r.stored,
+                    "before_outcome": r.before,
+                    "grade": r.after.model_dump(),
+                }
+            )
+            + "\n"
+            for r in regraded
+        )
+        (out / name).write_text(text, encoding="utf-8", newline="\n")
+    page = render_changes(by_file, skipped=skipped)
+    (out / "changes.md").write_text(page, encoding="utf-8", newline="\n")
+    print(page.split("\n\n")[2])
+    print(f"wrote {out.relative_to(REPO_ROOT)}: {len(by_file)} file(s) and changes.md")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -517,6 +586,8 @@ def main(argv: list[str] | None = None) -> int:
         return dryrun_main(args)
     if args.command == "metrics":
         return metrics_main(args)
+    if args.command == "regrade":
+        return regrade_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument
