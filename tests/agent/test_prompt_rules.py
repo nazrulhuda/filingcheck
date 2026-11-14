@@ -20,7 +20,6 @@ from filingcheck.checks.fiscal_year import (
 from filingcheck.checks.metric import QUARTER_RE, SUPPORTED, UNSUPPORTED_RE
 from filingcheck.checks.segment import EXCLUDED_BEFORE_RE, INCLUDE_RE
 from filingcheck.checks.units import SCALES
-from filingcheck.eval.grade import asks_or_declines
 from filingcheck.facts.metrics import METRICS
 from filingcheck.llm import FakeChat
 from tests.agent.test_agent import apple_deps
@@ -178,13 +177,23 @@ def test_the_company_instruction_is_in_the_checks_words() -> None:
 
     line = RULE_LINES[("get_financial_fact", CompanyCheck)]
     assert "ask the user which one" in line
-    # Block version 2 (the Day 39 review): the reply for a company outside the 25 is the
-    # company check's note, "X is not in the dataset", which the grader reads as a decline;
-    # version 1 had the reject reason's "is not one of the 25 companies in the dataset".
-    assert "say it is not in the dataset" in line
-    assert "say it is not one of the 25 companies" not in line
-    assert '{verb} not in the dataset"' in inspect.getsource(company_module)
-    assert asks_or_declines("Tesla is not in the dataset.")
+    # The company check's reject reason ("X is not one of the 25 companies in the dataset").
+    # Block version 2 reworded this line on a wrong premise and was withdrawn at the Day 39
+    # review: the final run uses version 1, the block as the rule built it.
+    assert "say it is not one of the 25 companies in the dataset" in line
+    assert '{verb} the 25 companies in the dataset"' in inspect.getsource(company_module)
+
+
+def test_the_block_is_version_1_byte_for_byte() -> None:
+    """The block the final run uses is version 1, as run on the development sets."""
+    import hashlib
+    from pathlib import Path
+
+    v1 = Path("eval/results/2026-11-14_agent-prompt-rules_block.txt").read_bytes()
+    assert hashlib.sha256(v1).hexdigest() == (
+        "5af14ef8bb31de6c9f0f8f064c2abfe479c88cc96d23c86c318d6e626d8bc806"
+    )
+    assert (BLOCK + "\n").encode("utf-8") == v1
 
 
 def test_the_block_ends_with_the_fiscal_year_and_period_rule() -> None:
