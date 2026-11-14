@@ -14,8 +14,9 @@ repos:
       # same package and version.
       - id: end-of-file-fixer
         entry: python -m pre_commit_hooks.end_of_file_fixer
-        # Raw agent prompts and outputs are kept byte for byte: their SHA-256 is recorded.
-        exclude: ^eval/(llm_grades/.*_agent_(prompt|output)\.md|questions/heldout_source/.*)$
+        # Raw agent prompts and outputs, and the blind graders' files, are kept byte for byte:
+        # their SHA-256 is recorded.
+        exclude: ^eval/(llm_grades/(.*_agent_(prompt|output)\.md|blind_[^/]+/.*)|questions/heldout_source/.*)$
       - id: check-yaml
         entry: python -m pre_commit_hooks.check_yaml
       - id: detect-private-key
