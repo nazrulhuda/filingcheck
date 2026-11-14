@@ -561,8 +561,8 @@ def noise_section(f: Final) -> list[str]:
         "## 7. Noise",
         "",
         "Per set and arm, the share of scored questions whose 3 runs do not all get the same "
-        "outcome (the deciding grader's). For scale: in Week 5, a re-run of identical code "
-        "gave the same outcome on 177 of 255 `dev_traps` runs where the first gave 182.",
+        "outcome (the deciding grader's). For scale: in Week 5, re-running identical code "
+        "moved the count of correct `dev_traps` runs from 182 to 177 of 255.",
         "",
         "| Set | " + " | ".join(ARMS) + " |",
         "|---|" + "---:|" * len(ARMS),
@@ -808,6 +808,64 @@ def error_sample(f: Final, seed: int = ERROR_SEED) -> list[RunScore]:
     return held + dev
 
 
+# Added after the results (the Day 41 review): the analysed failures in two groups, each an id
+# list and the causes that mark the runs where it acted, counted from the error-analysis CSV.
+CHECK_ACTION: tuple[tuple[str, frozenset[str], frozenset[int]], ...] = (
+    (
+        "the fiscal-year check's calendar-year rejects (held-006, held-044, held-049)",
+        frozenset({"held-006", "held-044", "held-049"}),
+        frozenset({5}),
+    ),
+    (
+        "an ambiguity reject despite the page filter (dev-010)",
+        frozenset({"dev-010"}),
+        frozenset({5}),
+    ),
+    (
+        "lowercase 'msft' not read, repaired to AAPL (dev-011)",
+        frozenset({"dev-011"}),
+        frozenset({10}),
+    ),
+    (
+        "'the year before last' repaired one year too far (dev-031)",
+        frozenset({"dev-031"}),
+        frozenset({10}),
+    ),
+)
+CHECK_GAP: tuple[tuple[str, frozenset[str], frozenset[int]], ...] = (
+    (
+        "the fact tool lets the model's year stand when the question names none "
+        "(held-053, held-059, held-063)",
+        frozenset({"held-053", "held-059", "held-063"}),
+        frozenset({1}),
+    ),
+    ("'last yr' (held-003)", frozenset({"held-003"}), frozenset({1})),
+    ("'morgans' (held-030)", frozenset({"held-030"}), frozenset({1})),
+    ("'american' (held-004, held-035)", frozenset({"held-004", "held-035"}), frozenset({1})),
+    ("'standard and poors' (held-038)", frozenset({"held-038"}), frozenset({5})),
+    ("'Citizens' (dev-003)", frozenset({"dev-003"}), frozenset({1})),
+    ("no company check on search_filings (dev-057)", frozenset({"dev-057"}), frozenset({1})),
+)
+
+
+def failure_groups(
+    causes: Mapping[tuple[str, str, int], tuple[int, str]],
+) -> tuple[list[tuple[str, int, int]], list[tuple[str, int, int]]]:
+    """Each group's items with their held-out and development counts of analysed runs."""
+
+    def count(
+        items: Sequence[tuple[str, frozenset[str], frozenset[int]]],
+    ) -> list[tuple[str, int, int]]:
+        out = []
+        for label, ids, marks in items:
+            hits = [k for k, (cause, _) in causes.items() if k[1] in ids and cause in marks]
+            held = sum(1 for k in hits if k[0] in HELD)
+            out.append((label, held, len(hits) - held))
+        return out
+
+    return count(CHECK_ACTION), count(CHECK_GAP)
+
+
 def error_section(
     f: Final, causes: Mapping[tuple[str, str, int], tuple[int, str]], seed: int = ERROR_SEED
 ) -> list[str]:
@@ -832,6 +890,29 @@ def error_section(
     )
     lines += ["| Cause | Held-out and dev_traps runs |", "|---|---:|"]
     lines += [f"| {n}. {CAUSES[n]} | {tally.get(n, 0)} |" for n in CAUSES]
+    action, gap = failure_groups(causes)
+    lines += [
+        "",
+        "*Added after the results:* the analysed failures in two groups, counted from the causes "
+        "above (no new rule; the review chose the groups).",
+        "",
+        "| Group | Item | Held-out runs | dev_traps runs |",
+        "|---|---|---:|---:|",
+    ]
+    for title, items in (
+        ("caused by a check's own action", action),
+        ("a gap the checks do not cover", gap),
+    ):
+        for label, held_n, dev_n in items:
+            lines.append(f"| {title} | {label} | {held_n} | {dev_n} |")
+        held_t, dev_t = sum(h for _, h, _ in items), sum(d for _, _, d in items)
+        lines.append(f"| {title} | **all** | **{held_t}** | **{dev_t}** |")
+    grouped = sum(h + d for _, h, d in action + gap)
+    lines += [
+        "",
+        f"The other {len(sample) - grouped} analysed runs are in neither group (the model's own "
+        "choices, grader errors, and the rest).",
+    ]
     lines += [
         "",
         "| Set | Question | Run | Outcome | Cause | Reason |",
