@@ -459,7 +459,12 @@ def report_main(args: argparse.Namespace) -> int:
     )
     stem.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
     write_csv(final.scores, stem.with_suffix(".csv"))
-    print(f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)} and the CSV")
+    from filingcheck.eval.final_charts import write_charts
+
+    charts = write_charts(final, REPO_ROOT / "docs" / "results")
+    print(
+        f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)}, the CSV and {len(charts)} charts"
+    )
     return 0
 
 
