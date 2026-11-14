@@ -150,12 +150,18 @@ ASK_PHRASE_RE = re.compile(
 QUESTION_TO_USER_RE = re.compile(
     r"\byou\b|^\W*(?:which|did|do|does|could|can|would|should|are|is|was|were)\b", re.IGNORECASE
 )
-# The company and metric checks' reject reasons, read as declines from Nov 14 (the Day 39
-# review): before, a refusal in these words was graded as an answer. `eval/regrade.py` rebuilds
-# the rule without them to list what the fix changed.
+# The checks' refusal reasons, read as declines from Nov 14 (the Day 39 review): a refusal
+# written in a check's own reject words. Company not covered, metric not held, quarter or other
+# period ("the dataset / the 10-K data has annual figures only"; "no quarterly" was read
+# already), segment figure, fiscal year not held. The checks' asks and retries are not here
+# (tests/eval/test_grade_reject_reasons.py). `eval/regrade.py` rebuilds the rule without them
+# to list what the fix changed.
 CHECK_REJECT_DECLINES = (
     r"|\bis not one of the 25 companies\b|\bare not among the 25 companies\b"
     r"|\bis not one of the 13 metrics\b"
+    r"|\bhas annual figures only\b"
+    r"|\bsegment figures (?:\([^)]*\) )?are not supported\b"
+    r"|\bhas no 10-K for fiscal \d{4} in the dataset\b"
 )
 # Declining: saying it cannot answer, or that the data is not there.
 DECLINE_RE = re.compile(
