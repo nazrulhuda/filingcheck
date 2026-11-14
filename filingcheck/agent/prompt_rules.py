@@ -145,9 +145,9 @@ RULE_LINES: dict[tuple[str, type[Check]], str] = {
         "named, the company the user selected. If the question names two or more companies, "
         "use only those. A name that fits two or more companies (listed above): the "
         "question's company is ambiguous; ask the user which one. A company that is not one "
-        "of the 25 (such as those listed as not in the dataset): say it is not one of the 25 "
-        "companies in the dataset. If the question names one company and the user selected "
-        "another, ask the user which one."
+        "of the 25 (such as those listed as not in the dataset): say it is not in the dataset. "
+        "If the question names one company and the user selected another, ask the user which "
+        "one."
     ),
     (CHECKED_TOOL, FiscalYearCheck): (
         '- Fiscal year (get_financial_fact\'s fiscal_year): a year in the question ("2025", '
