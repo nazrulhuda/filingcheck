@@ -10,6 +10,10 @@ those runs counted correct. The second table is a what-if: the grader does not c
 Block version 2 (the Day 39 review's one revision, the company line only) is counted the same
 way; its rows are `agent-prompt-rules-v2`.
 
+It describes the grader before the Nov 14 decline fix, so it grades under that rule
+(`filingcheck/eval/regrade.py`, `previous_decline_rule`); the fix's own effect on every
+stored row is `eval/results/regrade_2026-11-14/changes.md`.
+
 Run from the repository root: uv run python eval/probes/2026-11-14_decline-wording.py
 """
 
@@ -21,6 +25,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from filingcheck.eval.grade import asks_or_declines, find_numbers
+from filingcheck.eval.regrade import previous_decline_rule
 
 R = Path("eval/results")
 ARMS = {
@@ -38,7 +43,8 @@ def wording_only(answer: str, expected: str, outcome: str) -> bool:
     if expected != "refuse" or outcome != "answered_when_should_ask":
         return False
     no_amount = not [n for n in find_numbers(answer) if n.amount]
-    assert not (no_amount and asks_or_declines(answer)), answer  # the stored grade holds
+    with previous_decline_rule():  # the stored grade, from before the fix, holds
+        assert not (no_amount and asks_or_declines(answer)), answer
     return no_amount and NOT_ONE_OF.search(answer) is not None
 
 
