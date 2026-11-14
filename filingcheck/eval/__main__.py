@@ -516,7 +516,57 @@ def build_parser() -> argparse.ArgumentParser:
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
     dry.add_argument("--label", help="the run label the result files carry")
+    regrade = commands.add_parser(
+        "regrade", help="re-grade every stored row after the decline fix; list the changes"
+    )
+    regrade.add_argument("--out", required=True, help="a new folder for the grades, from the repo")
     return parser
+
+
+def regrade_main(args: argparse.Namespace) -> int:
+    """Grade every stored row before and after the decline fix into new files; list changes."""
+    from filingcheck.eval.regrade import Regraded, regrade_rows, render_changes, set_for
+    from filingcheck.eval.run import read_questions
+
+    out = REPO_ROOT / args.out
+    if out.exists():
+        print(f"ERROR: {out.relative_to(REPO_ROOT)} exists; choose a new folder")
+        return 1
+    set_names = [p.stem for p in QUESTIONS_DIR.glob("*.jsonl")]
+    by_file: dict[str, list[Regraded]] = {}
+    skipped = 0
+    results = sorted((REPO_ROOT / "eval" / "results").glob("*.jsonl"))
+    for path in [p for p in results if not p.name.endswith("_llm.jsonl")]:
+        set_name = set_for(path.name, set_names)
+        if set_name is None:
+            print(f"no question set for {path.name}: left out")
+            continue
+        questions = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
+        rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+        regraded, left_out = regrade_rows(rows, questions)
+        skipped += left_out
+        by_file[path.name] = regraded
+    out.mkdir(parents=True)
+    for name, regraded in by_file.items():
+        text = "".join(
+            json.dumps(
+                {
+                    "id": r.id,
+                    "repeat": r.repeat,
+                    "stored_outcome": r.stored,
+                    "before_outcome": r.before,
+                    "grade": r.after.model_dump(),
+                }
+            )
+            + "\n"
+            for r in regraded
+        )
+        (out / name).write_text(text, encoding="utf-8", newline="\n")
+    page = render_changes(by_file, skipped=skipped)
+    (out / "changes.md").write_text(page, encoding="utf-8", newline="\n")
+    print(page.split("\n\n")[2])
+    print(f"wrote {out.relative_to(REPO_ROOT)}: {len(by_file)} file(s) and changes.md")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -536,6 +586,8 @@ def main(argv: list[str] | None = None) -> int:
         return dryrun_main(args)
     if args.command == "metrics":
         return metrics_main(args)
+    if args.command == "regrade":
+        return regrade_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument

@@ -150,6 +150,13 @@ ASK_PHRASE_RE = re.compile(
 QUESTION_TO_USER_RE = re.compile(
     r"\byou\b|^\W*(?:which|did|do|does|could|can|would|should|are|is|was|were)\b", re.IGNORECASE
 )
+# The company and metric checks' reject reasons, read as declines from Nov 14 (the Day 39
+# review): before, a refusal in these words was graded as an answer. `eval/regrade.py` rebuilds
+# the rule without them to list what the fix changed.
+CHECK_REJECT_DECLINES = (
+    r"|\bis not one of the 25 companies\b|\bare not among the 25 companies\b"
+    r"|\bis not one of the 13 metrics\b"
+)
 # Declining: saying it cannot answer, or that the data is not there.
 DECLINE_RE = re.compile(
     r"\b(?:can't|cannot|can not|could not|couldn't|unable to|not able to|won't be able to"
@@ -160,10 +167,8 @@ DECLINE_RE = re.compile(
     r"(?:have|include|cover|contain|report|provide)\b"
     r"|\b(?:isn't|is not|aren't|are not|not)\s+(?:available|included|loaded|covered)\b"
     r"|\bnot in the (?:filings|data|dataset|10-K)\b|\bunavailable\b"
-    # The company and metric checks' reject reasons (added Nov 14, the Day 39 review).
-    r"|\bis not one of the 25 companies\b|\bare not among the 25 companies\b"
-    r"|\bis not one of the 13 metrics\b"
-    r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b|\bno (?:quarterly|such)\b"
+    + CHECK_REJECT_DECLINES
+    + r"|\bonly\s+(?:annual|10-K|have)\b|\b10-Q\b|\bno (?:quarterly|such)\b"
     r"|" + re.escape(ABSTAIN),
     re.IGNORECASE,
 )
