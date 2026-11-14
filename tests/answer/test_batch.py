@@ -397,3 +397,62 @@ def test_each_row_records_the_commit_the_clean_tree_and_the_question_file(tmp_pa
     )
     [row] = lines(out)
     assert {k: row[k] for k in record} == record
+
+
+def test_rows_record_the_prompt_rules_block_as_rules_prompt(tmp_path: Path) -> None:
+    """The prompt-rules arm (Day 39): the block goes to the agent, the row says so."""
+    from filingcheck.agent import SYSTEM_PROMPT
+
+    out = tmp_path / "rules.jsonl"
+    chat = FakeChat(agent_replies(1))
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out,
+        model=chat,
+        deps=apple_deps(),
+        settings="s",
+        rules="THE BLOCK",
+    )
+    (row,) = lines(out)
+    assert set(row) == set(BATCH_FIELDS) and "rules" in BATCH_FIELDS
+    assert (row["rules"], row["checks"], row["overrides"]) == ("prompt", False, [])
+    assert chat.calls[0]["messages"][0]["content"] == SYSTEM_PROMPT + "\n\nTHE BLOCK"
+    out2 = tmp_path / "plain.jsonl"
+    run_batch(
+        QUESTIONS[:1],
+        mode="agent",
+        out=out2,
+        model=FakeChat(agent_replies(1)),
+        deps=apple_deps(),
+        settings="s",
+    )
+    (row,) = lines(out2)
+    assert row["rules"] is None
+
+
+def test_the_block_is_for_the_agent_only(tmp_path: Path) -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="agent"):
+        run_batch(
+            QUESTIONS[:1],
+            mode="baseline",
+            out=tmp_path / "b.jsonl",
+            model=FakeChat(["Risk [1]."]),
+            deps=apple_deps(),
+            settings="s",
+            retriever=FakeRetriever(),
+            rules="THE BLOCK",
+        )
+    with pytest.raises(ValueError, match="checks off"):
+        run_batch(
+            QUESTIONS[:1],
+            mode="agent",
+            out=tmp_path / "c.jsonl",
+            model=FakeChat(agent_replies(1)),
+            deps=apple_deps(),
+            settings="s",
+            checks=True,
+            rules="THE BLOCK",
+        )
