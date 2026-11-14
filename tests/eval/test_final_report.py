@@ -74,13 +74,31 @@ def test_the_confirmation_sentences() -> None:
 
 
 def test_the_prompt_rules_sentence_is_stated_whichever_way_it_comes_out() -> None:
-    better = s1_sentence(comp(-0.04, -0.07, -0.01))
+    """S1 is confidently wrong and accuracy, checks on minus prompt rules; each is judged."""
+    level = comp(0.0, -0.02, 0.02)  # an interval that includes zero
+    better = s1_sentence(comp(-0.04, -0.07, -0.01), level)  # fewer confidently wrong with checks
     assert better.startswith("The server-side checks did better than the same rules given as")
-    same = s1_sentence(comp(-0.01, -0.04, 0.02))
+    assert better.count("confidently wrong") == 1 and "accuracy" in better
+    same = s1_sentence(level, level)
     assert same.startswith("On these questions, the same rules written into the prompt did about")
     assert "a log of every decision" in same
-    worse = s1_sentence(comp(0.04, 0.01, 0.07))
+    worse = s1_sentence(comp(0.04, 0.01, 0.07), level)  # more confidently wrong with the checks
     assert worse.startswith("The same rules written into the prompt did better than the server")
+
+
+def test_the_prompt_rules_arm_better_on_accuracy_alone_is_said_first() -> None:
+    """Accuracy lower with the checks on, interval clear of zero: the prompt rules did better."""
+    sentence = s1_sentence(comp(0.033, -0.009, 0.082), comp(-0.097, -0.164, -0.030))
+    assert sentence.startswith("The same rules written into the prompt did better than the server")
+    assert sentence.index("accuracy") < sentence.index("confidently wrong")
+    assert "-9.7 points (95% interval -16.4 to -3.0)" in sentence
+    assert "about the same" in sentence  # confidently wrong: its interval includes zero
+
+
+def test_a_split_result_says_the_prompt_rules_side_first() -> None:
+    sentence = s1_sentence(comp(-0.04, -0.07, -0.01), comp(-0.097, -0.164, -0.030))
+    assert sentence.startswith("The same rules written into the prompt did better than the server")
+    assert "The server-side checks did better" in sentence
 
 
 # ---------------------------------------------------------------- a paired comparison
