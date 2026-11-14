@@ -400,6 +400,69 @@ def blind_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def report_main(args: argparse.Namespace) -> int:
+    """Write the final report and its per-run CSV from the committed final rows."""
+    import csv
+
+    from filingcheck.answer.baseline import ABSTAIN
+    from filingcheck.eval.final_render import SETS, load, render_report
+    from filingcheck.eval.grade import grade
+    from filingcheck.eval.llm_grade import GRADER_MODEL, GradeCache, llm_grade, needs_llm
+    from filingcheck.eval.metrics import always_abstain
+    from filingcheck.eval.metrics_report import write_csv
+    from filingcheck.eval.run import read_questions
+    from filingcheck.llm.registry import make_chat
+
+    questions = {s: {q.id: q for q in read_questions(QUESTIONS_DIR / f"{s}.jsonl")} for s in SETS}
+    final = load(REPO_ROOT / "eval" / "results", questions, date=args.date, label=args.label)
+    model = make_chat(GRADER_MODEL, mode="batch")
+    cache = GradeCache(REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl")
+    floor = []
+    for set_name, by_id in questions.items():  # the abstain sentence, graded like any answer
+        for question in by_id.values():
+            row = {"id": question.id, "repeat": 1, "answer": ABSTAIN}
+            verdict = None
+            if needs_llm(question, grade(row, question)) == "text":
+                verdict = llm_grade(question, row, passages=[], facts=[], model=model, cache=cache)
+            floor.append(always_abstain(question, verdict, set_name=set_name))
+
+    def read(path: Path | None) -> list[dict[str, str]]:
+        if path is None or not (REPO_ROOT / path).exists():
+            return []
+        with (REPO_ROOT / path).open(encoding="utf-8", newline="") as handle:
+            return list(csv.DictReader(handle))
+
+    causes = {
+        (r["set"], r["id"], int(r["repeat"])): (int(r["cause"]), r["reason"])
+        for r in read(args.causes)
+    }
+    confirmed = {
+        (r["set"], r["arm"], r["id"], int(r["repeat"])): (r["confirmed"], r["note"])
+        for r in read(args.contradictions)
+    }
+    blind = (
+        (REPO_ROOT / args.blind).read_text(encoding="utf-8").splitlines()
+        if args.blind and (REPO_ROOT / args.blind).exists()
+        else [
+            "Not yet revealed: the outside grader's reply and the reviewing session's hashed "
+            "grades are compared with the LLM grader's verdicts after the reveal."
+        ]
+    )
+    billed = (
+        "Billed by the OpenRouter key over the final run and its grading: $1.6394 (its usage rose "
+        "from $1.2613 to $2.9007; `eval/results/2026-11-14_final-run_record.md`). The recorded "
+        "figures above come from the price table."
+    )
+    stem = REPO_ROOT / args.out
+    page = render_report(
+        final, floor, blind=blind, confirmed=confirmed, causes=causes, billed=billed
+    )
+    stem.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
+    write_csv(final.scores, stem.with_suffix(".csv"))
+    print(f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)} and the CSV")
+    return 0
+
+
 def _fact_text(fact: dict[str, Any]) -> str:
     period = fact.get("instant") or f"{fact.get('period_start')} to {fact.get('period_end')}"
     return f"{fact['concept']} = {fact['value']} {fact['unit']} ({period})"
@@ -592,6 +655,13 @@ def build_parser() -> argparse.ArgumentParser:
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
     dry.add_argument("--label", help="the run label the result files carry")
+    report = commands.add_parser("report", help="the final report from the committed rows")
+    report.add_argument("--date", required=True)
+    report.add_argument("--label", default="final")
+    report.add_argument("--out", required=True, help="the report's path without .md, from the repo")
+    report.add_argument("--causes", type=Path, help="the error analysis's causes (CSV)")
+    report.add_argument("--contradictions", type=Path, help="graders item (ii), read (CSV)")
+    report.add_argument("--blind", type=Path, help="the blind check's section, after the reveal")
     blind = commands.add_parser(
         "blind-sample", help="the final run's blind check: text-graded runs, verdicts hidden"
     )
@@ -678,6 +748,8 @@ def main(argv: list[str] | None = None) -> int:
         return regrade_main(args)
     if args.command == "blind-sample":
         return blind_main(args)
+    if args.command == "report":
+        return report_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument
