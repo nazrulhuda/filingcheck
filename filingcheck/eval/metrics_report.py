@@ -294,7 +294,8 @@ def render(
         ),
     ]
     second = [s for s in scores if s.graded_by == "number" and s.llm_verdict and not s.error]
-    disagree = [s for s in second if (s.outcome == "correct") != (s.llm_verdict == "correct")]
+    det_passes = [s for s in second if s.outcome == "correct" and s.llm_verdict != "correct"]
+    det_fails = [s for s in second if s.outcome != "correct" and s.llm_verdict == "correct"]
     pairs = Counter((s.outcome, str(s.llm_verdict)) for s in second)
     ungraded = [s for s in scores if s.text_ungraded]
     lines += [
@@ -302,7 +303,10 @@ def render(
         "## The graders",
         "",
         f"- Number-graded runs with an LLM second opinion: {len(second)}; where one grader "
-        f"passes the run and the other fails it: {len(disagree)}.",
+        f"passes the run and the other fails it: {len(det_passes) + len(det_fails)} (the "
+        f"deterministic grader passes and the LLM fails: {len(det_passes)}; the deterministic "
+        f"grader fails and the LLM passes: {len(det_fails)}). Rows graded before the final run "
+        "have a second opinion only on failed runs, so only the second direction can show there.",
         f"- Text-graded runs with no usable LLM verdict: {len(ungraded)}.",
         f"- Deciding outcomes seen: {', '.join(sorted({deciding_outcome(s) for s in scores}))}.",
         "",

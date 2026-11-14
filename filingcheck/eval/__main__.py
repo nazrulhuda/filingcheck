@@ -108,6 +108,7 @@ def grade_main(args: argparse.Namespace) -> int:
             model=model,
             cache=GradeCache(args.cache),
             cap_usd=args.cap,
+            every_number=args.every_number,
         )
     outcomes = {
         (r["id"], r.get("repeat", 1)): grade(r, questions[r["id"]]).outcome
@@ -469,6 +470,11 @@ def build_parser() -> argparse.ArgumentParser:
     llm.add_argument("--set", required=True, help="the question file the run answered, no .jsonl")
     llm.add_argument("--run", type=Path, required=True, help="a results file in eval/results/")
     llm.add_argument("--cap", type=float, default=1.0, help="stop once the spend passes this")
+    llm.add_argument(
+        "--every-number",
+        action="store_true",
+        help="a second opinion on every number-graded run, passed or failed (the final run)",
+    )
     llm.add_argument(
         "--cache", type=Path, default=REPO_ROOT / "eval" / "llm_grades" / "cache.jsonl"
     )
