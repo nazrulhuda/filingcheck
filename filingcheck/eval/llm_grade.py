@@ -87,13 +87,20 @@ def load_prompt(path: Path = PROMPT_FILE) -> tuple[str, str]:
     return text, f"{number}-{hashlib.sha256(text.encode()).hexdigest()[:12]}"
 
 
-def needs_llm(question: Question, deterministic: Grade) -> str | None:
-    """Why the LLM grader reads this row: "text", "also accept", "second opinion", or None."""
+def needs_llm(
+    question: Question, deterministic: Grade, *, every_number: bool = False
+) -> str | None:
+    """Why the LLM grader reads this row: "text", "also accept", "second opinion", or None.
+
+    The second opinion goes to number-graded runs the deterministic grader failed; with
+    `every_number` (the Week 6 final run) to every number-graded run, passed or failed, so a
+    wrong answer the deterministic grader passed is checked too. It never changes a grade.
+    """
     if question.gold_text or question.category == "unanswerable_text":
         return "text"
     if deterministic.llm_decides:  # the question's also_accept note: the LLM grader decides
         return "also accept"
-    if deterministic.outcome != "correct":
+    if every_number or deterministic.outcome != "correct":
         return "second opinion"
     return None
 
@@ -241,10 +248,12 @@ def grade_rows(
     model: ChatModel,
     cache: GradeCache,
     cap_usd: float,
+    every_number: bool = False,
 ) -> tuple[list[LlmGrade], bool]:
     """LLM grades for the rows that need one; stops once the spend passes `cap_usd`.
 
-    Returns the grades and whether the cap stopped the run.
+    Returns the grades and whether the cap stopped the run. `every_number` gives every
+    number-graded run a second opinion (see `needs_llm`).
     """
     prompt = load_prompt()
     grades: list[LlmGrade] = []
@@ -253,7 +262,7 @@ def grade_rows(
         question = questions.get(row["id"])
         if question is None or not isinstance(row.get("answer"), str):
             continue
-        use = needs_llm(question, grade(dict(row), question))
+        use = needs_llm(question, grade(dict(row), question), every_number=every_number)
         if use is None:
             continue
         passages, facts = sources_for(row)
@@ -297,8 +306,9 @@ SUPPORT: tuple[str, ...] = ("yes", "partly", "no", "n/a")
 def summary(graded: list[tuple[LlmGrade, str]], *, title: str) -> str:
     """The LLM grades as a page: verdicts per use, support on text answers, disagreements.
 
-    `graded` pairs each LLM grade with the row's deterministic outcome. A disagreement is a row
-    the deterministic grader did not pass that the LLM grader calls correct.
+    `graded` pairs each LLM grade with the row's deterministic outcome. Disagreements are listed
+    both ways: a row the deterministic grader failed that the LLM grader calls correct, and a row
+    it passed that the LLM grader does not.
     """
     lines = [f"# LLM grades: {title}", ""]
     if graded:
@@ -322,11 +332,9 @@ def summary(graded: list[tuple[LlmGrade, str]], *, title: str) -> str:
         "|" + "---:|" * 4,
         "| " + " | ".join(str(sum(1 for g in text if g.supported == s)) for s in SUPPORT) + " |",
     ]
-    disagree = [
-        (g, det)
-        for g, det in graded
-        if g.use == "second opinion" and g.verdict == "correct" and det != "correct"
-    ]
+    second = [(g, det) for g, det in graded if g.use == "second opinion" and g.verdict]
+    disagree = [(g, det) for g, det in second if g.verdict == "correct" and det != "correct"]
+    other_way = [(g, det) for g, det in second if g.verdict != "correct" and det == "correct"]
     lines += ["", "## Disagreements", ""]
     if not disagree:
         lines.append(
@@ -336,6 +344,17 @@ def summary(graded: list[tuple[LlmGrade, str]], *, title: str) -> str:
         lines += ["| Row | Deterministic | LLM | Reason |", "|---|---|---|---|"]
         lines += [
             f"| {g.id} #{g.repeat} | {det} | {g.verdict} | {g.reason} |" for g, det in disagree
+        ]
+    if other_way:
+        lines += [
+            "",
+            "Rows the deterministic grader passed and the LLM grader does not:",
+            "",
+            "| Row | Deterministic | LLM | Reason |",
+            "|---|---|---|---|",
+        ]
+        lines += [
+            f"| {g.id} #{g.repeat} | {det} | {g.verdict} | {g.reason} |" for g, det in other_way
         ]
     decided = [(g, det) for g, det in graded if g.use == "also accept"]
     if decided:  # rows whose also_accept note the LLM grader decides: its verdict is the grade

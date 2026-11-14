@@ -106,7 +106,7 @@ run:  # the API on http://localhost:8000 (live mode: short waits, fallback model
 
 grade:  # the LLM grader over a stored results file: make grade SET=examples RUN=eval/results/<file>.jsonl [CAP=1.0] (costs money)
 	@test -n "$(SET)" -a -n "$(RUN)" || { echo "give SET and RUN: make grade SET=examples RUN=eval/results/<file>.jsonl"; exit 1; }
-	uv run python -m filingcheck.eval grade --set $(SET) --run $(RUN) $(if $(CAP),--cap $(CAP))
+	uv run python -m filingcheck.eval grade --set $(SET) --run $(RUN) $(if $(CAP),--cap $(CAP)) $(if $(EVERY),--every-number)
 
 dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 20 text answers: make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>] (no model call)
 	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY)) $(if $(LABEL),--label $(LABEL))
