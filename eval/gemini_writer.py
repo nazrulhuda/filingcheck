@@ -16,6 +16,10 @@ retries, and gemini-2.5-pro returned 404, so the key has no usable Pro; that rec
 `--model models/gemini-3.8-flash` names it, and the script checks that it is the newest listed
 Flash that is not Flash-Lite.
 
+Day 41 calls it the same way for the final run's blind check of the text verdicts:
+`--prompt <file> --prompt-sha256 <hash> --name final_blind --out-dir <folder>` sends that
+committed prompt instead, under the same model rule, and names the three files by `--name`.
+
 Run: `uv run python eval/gemini_writer.py [--model models/...]`. Writes, in
 `eval/questions/heldout_source/`:
 `<date>_heldout2_gemini_output.md` (the reply's text, unedited),
@@ -95,11 +99,17 @@ def main() -> int:
     """List, choose, ask once, and write the reply and the record."""
     parser = argparse.ArgumentParser(prog="eval/gemini_writer.py")
     parser.add_argument("--model", help="the newest Flash, after no Pro answered (see above)")
+    parser.add_argument("--prompt", type=Path, default=PROMPT, help="a committed prompt file")
+    parser.add_argument("--prompt-sha256", default=PROMPT_SHA256, help="its SHA-256")
+    parser.add_argument("--name", default="heldout2", help="the output files' middle name")
+    parser.add_argument("--out-dir", type=Path, default=OUT, help="where the files go")
     args = parser.parse_args()
+    prompt_path = args.prompt if args.prompt.is_absolute() else REPO / args.prompt
+    out_dir = args.out_dir if args.out_dir.is_absolute() else REPO / args.out_dir
     load_dotenv(REPO / ".env")
     key = os.environ["GEMINI_API_KEY"]
-    prompt_bytes = PROMPT.read_bytes()
-    if hashlib.sha256(prompt_bytes).hexdigest() != PROMPT_SHA256:
+    prompt_bytes = prompt_path.read_bytes()
+    if hashlib.sha256(prompt_bytes).hexdigest() != args.prompt_sha256:
         raise SystemExit("the prompt file does not match its committed SHA-256")
     models = listed_models(key)
     names = [m["name"] for m in models]
@@ -137,8 +147,8 @@ def main() -> int:
         "endpoint": url,
         "model": model["name"],
         "model_listed_version": model.get("version"),
-        "prompt_file": str(PROMPT.relative_to(REPO)).replace("\\", "/"),
-        "prompt_sha256": PROMPT_SHA256,
+        "prompt_file": str(prompt_path.relative_to(REPO)).replace("\\", "/"),
+        "prompt_sha256": args.prompt_sha256,
         "request_body": {
             **body,
             "contents": "<the prompt file's text, unchanged>",
@@ -146,7 +156,7 @@ def main() -> int:
         "settings": "no system instruction, no tools, no search grounding, default temperature",
         "attempts": attempts,
     }
-    (OUT / f"{today}_heldout2_gemini_request.json").write_text(
+    (out_dir / f"{today}_{args.name}_gemini_request.json").write_text(
         json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     if response is None:
@@ -155,7 +165,7 @@ def main() -> int:
     candidate = (response.get("candidates") or [{}])[0]
     parts = (candidate.get("content") or {}).get("parts") or []
     text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-    output = OUT / f"{today}_heldout2_gemini_output.md"
+    output = out_dir / f"{today}_{args.name}_gemini_output.md"
     output.write_bytes(text.encode("utf-8"))
     meta = {
         "model_version": response.get("modelVersion"),
@@ -168,12 +178,12 @@ def main() -> int:
         "models_listed": names,
         "chosen_by_rule": model["name"],
     }
-    (OUT / f"{today}_heldout2_gemini_response.json").write_text(
+    (out_dir / f"{today}_{args.name}_gemini_response.json").write_text(
         json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
-    lines = [ln for ln in text.splitlines() if re.match(r"^\s*[1-7]\s*\|", ln)]
+    lines = [ln for ln in text.splitlines() if re.match(r"^\s*\d+\s*\|", ln)]
     print(
-        f"reply: {len(text)} characters, {len(lines)} question lines, "
+        f"reply: {len(text)} characters, {len(lines)} numbered lines, "
         f"finish {meta['finish_reason']}, model version {meta['model_version']}"
     )
     print("output SHA-256:", meta["output_sha256"])
