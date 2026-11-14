@@ -324,6 +324,82 @@ def dryrun_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def blind_main(args: argparse.Namespace) -> int:
+    """Draw the final run's blind check: text-graded runs by seed, written without verdicts."""
+    import random
+
+    from filingcheck.db import connect
+    from filingcheck.eval.llm_sample import (
+        HiddenRow,
+        blind_pool,
+        draw_sample,
+        render_hidden,
+        verdict_definitions,
+    )
+    from filingcheck.eval.run import read_questions, set_names
+
+    rows_by_key: dict[str, tuple[dict[str, Any], Any]] = {}
+    grades: dict[str, list[dict[str, Any]]] = {}
+    for set_name in set_names(args.sets):
+        by_id = {q.id: q for q in read_questions(QUESTIONS_DIR / f"{set_name}.jsonl")}
+        name = f"{args.date}_{set_name}_{args.arm}-{args.label}.jsonl"
+        path = REPO_ROOT / "eval" / "results" / name
+        rel = f"eval/results/{name}"
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                rows_by_key[f"{rel}:{row['id']}:{row.get('repeat', 1)}"] = (row, by_id[row["id"]])
+        llm_path = path.with_name(path.stem + "_llm.jsonl")
+        grades[rel] = [
+            json.loads(x) for x in llm_path.read_text(encoding="utf-8").splitlines() if x.strip()
+        ]
+    pool = blind_pool(grades)
+    sample = draw_sample(pool, {"text": args.size}, seed=args.seed)
+    random.Random(args.seed + 2).shuffle(sample)
+    hidden: list[HiddenRow] = []
+    with connect() as conn:
+        sources_for = sources_reader(conn)
+        for candidate in sample:
+            row, question = rows_by_key[candidate.key]
+            passages, facts = sources_for(row)
+            reference = []
+            if question.gold_value is not None:
+                reference.append(f"Gold value: {question.gold_value} {question.gold_unit}")
+            if question.gold_text:
+                reference.append(f"Gold text: {question.gold_text}")
+            if question.trap_note:
+                reference.append(f"Note: {question.trap_note}")
+            hidden.append(
+                HiddenRow(
+                    key=candidate.key,
+                    question=row["question"],
+                    expected=f"{question.expected_behavior}; company {question.company}, "
+                    f"fiscal year {question.fiscal_year}",
+                    reference=reference,
+                    answer=row["answer"],
+                    passages=passages,
+                    facts=[_fact_text(f) for f in facts],
+                )
+            )
+    prompt = (REPO_ROOT / "eval" / "grader_prompt.md").read_text(encoding="utf-8")
+    intro = (
+        f"Drawn by `python -m filingcheck.eval blind-sample` with seed {args.seed}: {args.size} "
+        f"of the {len(pool)} text-graded runs in the final run's `{args.arm}` rows, in an order "
+        "shuffled by the seed, with the LLM grader's verdicts hidden. For each row give a "
+        "**verdict** and **supported**, judging only from what the row shows, by these "
+        "definitions, copied from the LLM grader's prompt (`eval/grader_prompt.md`, version 2):"
+        "\n\n" + verdict_definitions(prompt)
+    )
+    out = REPO_ROOT / args.out
+    out.write_text(
+        render_hidden(hidden, title=f"Blind check of the text verdicts ({args.date})", intro=intro),
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"wrote {out.relative_to(REPO_ROOT)}: {len(hidden)} rows of a pool of {len(pool)}")
+    return 0
+
+
 def _fact_text(fact: dict[str, Any]) -> str:
     period = fact.get("instant") or f"{fact.get('period_start')} to {fact.get('period_end')}"
     return f"{fact['concept']} = {fact['value']} {fact['unit']} ({period})"
@@ -516,6 +592,18 @@ def build_parser() -> argparse.ArgumentParser:
     dry.add_argument("--sample-size", type=int, default=20)
     dry.add_argument("--seed", type=int, default=20261133)
     dry.add_argument("--label", help="the run label the result files carry")
+    blind = commands.add_parser(
+        "blind-sample", help="the final run's blind check: text-graded runs, verdicts hidden"
+    )
+    blind.add_argument("--date", required=True)
+    blind.add_argument("--label", default="final")
+    blind.add_argument("--arm", default="agent-checks-on")
+    blind.add_argument(
+        "--sets", default="heldout_traps,heldout_traps_2,dev_traps,dev_unanswerable,control"
+    )
+    blind.add_argument("--size", type=int, default=30)
+    blind.add_argument("--seed", type=int, required=True)
+    blind.add_argument("--out", required=True, help="the blind file's path, from the repo")
     regrade = commands.add_parser(
         "regrade", help="re-grade every stored row after the decline fix; list the changes"
     )
@@ -588,6 +676,8 @@ def main(argv: list[str] | None = None) -> int:
         return metrics_main(args)
     if args.command == "regrade":
         return regrade_main(args)
+    if args.command == "blind-sample":
+        return blind_main(args)
     if args.repeats < 1:
         parser.error("--repeats must be 1 or more")
     from filingcheck.eval.arms import checks_argument

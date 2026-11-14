@@ -7,8 +7,9 @@ blind, the owner reviews ten picked by the same seed, and then the verdicts are 
 """
 
 import random
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -84,3 +85,27 @@ def render_hidden(rows: list[HiddenRow], *, title: str, intro: str) -> str:
             "",
         ]
     return "\n".join(parts).rstrip() + "\n"
+
+
+def blind_pool(grades: Mapping[str, Sequence[Mapping[str, Any]]]) -> list[Candidate]:
+    """The text-graded runs with a verdict, keyed `file:id:run`, from each file's LLM grades.
+
+    The final run's blind check (Week 6) draws its 30 rows from these.
+    """
+    return [
+        Candidate(key=f"{file}:{g['id']}:{g['repeat']}", stratum="text")
+        for file, part in grades.items()
+        for g in part
+        if g.get("use") == "text" and g.get("verdict")
+    ]
+
+
+def verdict_definitions(prompt: str) -> str:
+    """The grader prompt's own definitions of the verdict and of support, and its rules.
+
+    Copied, not rewritten, so the blind graders judge by the LLM grader's definitions; the
+    reason, the evidence and the output format are left out.
+    """
+    start, end = prompt.index("1. **verdict**"), prompt.index("3. **reason**")
+    rules, stop = prompt.index("Rules:"), prompt.index("Answer with the JSON object only")
+    return prompt[start:end].rstrip() + "\n\n" + prompt[rules:stop].rstrip()
