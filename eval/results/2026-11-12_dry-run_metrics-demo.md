@@ -80,7 +80,7 @@ Number-tool calls stored with status error: 40; stopped without a check's reject
 
 ## The graders
 
-- Number-graded runs with an LLM second opinion: 134; where one grader passes the run and the other fails it: 10.
+- Number-graded runs with an LLM second opinion: 134; where one grader passes the run and the other fails it: 10 (the deterministic grader passes and the LLM fails: 0; the deterministic grader fails and the LLM passes: 10). Rows graded before the final run have a second opinion only on failed runs, so only the second direction can show there.
 - Text-graded runs with no usable LLM verdict: 0.
 - Deciding outcomes seen: abstained, answered_when_should_ask, asked_about_another_thing, asked_when_should_answer, correct, error, no_number, other_year_number, partly, wrong, wrong_number.
 

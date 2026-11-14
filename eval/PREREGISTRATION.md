@@ -151,7 +151,7 @@ How it is reported:
 
 **Per-run CSV columns:** set, id, repeat, arm, category, expected_behavior, graded_by (number or text), outcome, llm_verdict, correct, confidently_wrong, confidently_wrong_no_labels, confidently_wrong_both_graders, wrong_arg_ran, wrong_arg_sent, segment_total_calls, calls_ran, abstained, false_repair, latency_ms, cost_usd, error.
 
-## How the code reads six of the definitions
+## How the code reads seven of the definitions
 
 These follow from the definitions above; they are written down so a reader can check them.
 
@@ -161,3 +161,4 @@ These follow from the definitions above; they are written down so a reader can c
 - **The graders disagree** (graders item i) when one passes a number-graded run and the other fails it: the deterministic outcome is `correct` and the LLM's second opinion is not, or the other way round. Every pairing of the two (such as `asked` against `asked_when_should_answer`) is shown in a table beside the count.
 - **Noise** compares the deciding grader's outcome across a question's runs: the deterministic outcome for a number-graded run, the LLM verdict for a text-graded one, `error` for an error row.
 - **Wrong-argument calls per 100 calls that ran** is the arm's total of such calls over its total of calls that ran (a pooled ratio: a question with no call has no share of its own). The rate per 100 runs is per question first, like every rate.
+- **The second opinion covers every number-graded run in the final run**, passed or failed (`make grade ... EVERY=1`), with the same frozen grader prompt, which does not mention the deterministic grade; it changes no grade. Graders item (i) counts both directions: the deterministic grader passes and the LLM fails, and the other way round. Rows graded earlier, the Week 5 dry run's included, have a second opinion only on the runs the deterministic grader failed, so only one direction can show there.
