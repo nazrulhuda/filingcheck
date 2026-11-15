@@ -59,7 +59,8 @@ jobs:
             eval/results/2026-11-14_final_report.csv \
             docs/results/final_rates.csv \
             docs/results/final_difference.csv \
-            docs/results/final_check_activity.csv
+            docs/results/final_check_activity.csv \
+            docs/results/final_summary.csv
 
   integration:
     name: Integration tests (Postgres + pgvector)

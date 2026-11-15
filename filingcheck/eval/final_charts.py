@@ -2,7 +2,8 @@
 
 (a) accuracy and confidently wrong per arm, per set, with 95% interval whiskers; (b) the
 checks-off → on difference per set with its interval, held-out first; (c) check activity by
-question category. Plain dots and bars, axis labels in words, the set size in each title.
+question category; (d) the README's summary: (a)'s held-out numbers for four arms with plain
+names, each value printed. Plain dots and bars, axis labels in words, the set size in each title.
 """
 
 import csv
@@ -20,7 +21,9 @@ from filingcheck.eval.final_render import (
     HELD_OUT,
     OFF,
     ON,
+    RULES,
     Final,
+    Value,
     _acc,
     _cw,
 )
@@ -152,12 +155,85 @@ def chart_activity(f: Final, out: Path) -> None:
     )
 
 
+SUMMARY_ROWS: tuple[tuple[str, str], ...] = (
+    ("baseline", "search only, no agent (the hybrid baseline)"),
+    (OFF, "agent, no checks"),
+    (RULES, "agent, rules in the prompt"),
+    (ON, "agent, server checks"),
+)
+SUMMARY_PANELS: tuple[tuple[str, Value], ...] = (
+    ("Correct answers (higher is better)", _acc),
+    ("Confidently wrong answers (lower is better)", _cw),
+)
+
+
+def _wrap(text: str) -> str:
+    """A title or row name on two lines at its parenthesis, so it fits beside a narrow panel."""
+    return text.replace(" (", "\n(")
+
+
+def chart_summary(f: Final, out: Path) -> None:
+    """(d) The README's chart: held-out only, four rows with plain names, each value printed.
+
+    The same scores and the same interval per arm as (a); nothing new is computed. Sized to
+    read at README width: 1100 px wide, 13-point labels.
+    """
+    rows: list[list[object]] = []
+    n = len(SUMMARY_ROWS)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
+    for ax, (title, value) in zip(axes, SUMMARY_PANELS, strict=True):
+        for k, (arm, name) in enumerate(SUMMARY_ROWS):
+            y = n - 1 - k  # the first row at the top
+            i = rate_interval(f.part(HELD, arm), value)
+            rows.append([arm, name, title, i.estimate, i.low, i.high])
+            ax.errorbar(
+                100 * i.estimate,
+                y,
+                xerr=[[100 * (i.estimate - i.low)], [100 * (i.high - i.estimate)]],
+                fmt="o",
+                color="black",
+                capsize=4,
+                markersize=7,
+            )
+            # The value beside the whisker, on the side with room: the axis stops at 100%.
+            right = i.high < 0.8
+            ax.text(
+                100 * (i.high + 0.015) if right else 100 * (i.low - 0.015),
+                y,
+                f"{100 * i.estimate:.1f}%",
+                va="center",
+                ha="left" if right else "right",
+                fontsize=13,
+            )
+        ax.set_yticks(range(n), [_wrap(name) for _, name in SUMMARY_ROWS][::-1], fontsize=13)
+        ax.set_xlim(0, 100)
+        ax.set_xticks(range(0, 101, 20))
+        ax.tick_params(axis="x", labelsize=12)
+        ax.set_xlabel("% of runs (per question first)", fontsize=12)
+        ax.set_title(_wrap(title), fontsize=14)
+        ax.grid(axis="x", linewidth=0.3)
+    fig.suptitle(
+        f"{_questions(f, HELD)} held-out questions, 3 runs each, 95% intervals", fontsize=15
+    )
+    fig.tight_layout()
+    fig.savefig(out / "final_summary.png", dpi=100)
+    plt.close(fig)
+    _write(out / "final_summary.csv", ["arm", "row", "metric", "estimate", "low", "high"], rows)
+
+
 def write_charts(f: Final, out: Path) -> list[Path]:
-    """All three charts and their CSVs; returns the PNGs written."""
+    """All four charts and their CSVs; returns the PNGs written."""
     out.mkdir(parents=True, exist_ok=True)
     chart_rates(f, out)
     chart_difference(f, out)
     chart_activity(f, out)
+    chart_summary(f, out)
     return [
-        out / n for n in ("final_rates.png", "final_difference.png", "final_check_activity.png")
+        out / n
+        for n in (
+            "final_rates.png",
+            "final_difference.png",
+            "final_check_activity.png",
+            "final_summary.png",
+        )
     ]

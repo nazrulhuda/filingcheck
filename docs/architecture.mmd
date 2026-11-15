@@ -1,0 +1,8 @@
+flowchart TD
+    Q["Question, with the page's company and year filters"] --> A["The agent: one model, three tools<br/>up to 6 model calls and 8 tool calls<br/>(filingcheck/agent/graph.py)"]
+    A <-->|"down: a tool call (name and arguments)<br/>up: the tool's result, or a reject with its reason and options"| C["The server's checks, before the tool runs (filingcheck/checks)<br/>get_financial_fact: company, fiscal year, metric and period, units, segment<br/>search_filings: fiscal year<br/>Each call: pass, repair, or send back to the model once"]
+    C <-->|"down: a passed or repaired call<br/>up: results numbered [n] and [Fn]"| T["The tools (filingcheck/tools)<br/>search_filings: hybrid search over the 10-K passages<br/>get_financial_fact: the filings' own XBRL facts<br/>calculate: arithmetic on numbers already found"]
+    C --> O["The override log: every check decision"]
+    A -->|"the answer, citing [n] and [Fn]"| L["Number labels, computed after the model (filingcheck/labels)<br/>Verified, Conflict, Unverified"]
+    L --> R["What the reader gets: the answer, its citations, its labels<br/>and the override log (the page, the API, the evaluation rows)"]
+    O --> R
