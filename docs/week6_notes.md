@@ -30,7 +30,7 @@ The detail behind the [week 6 summary](week6_summary.md). Every number is from t
 - `make report` computes every section from the committed rows. The comparisons are paired by question with a bootstrap interval (seed 20261113, 10,000 resamples); accuracy and confidently wrong also get McNemar's exact test.
 - **Changed after the results, marked in the report:** the prompt-rules sentence was first coded on confidently wrong alone; the pre-registration's S1 names confidently wrong and accuracy, so it now judges both. The change goes against the checks.
 - **The blind check:** 30 text-graded checks-on runs drawn by seed 20261141, graded blind by Gemini (the newest Pro hit the free tier's quota and the newest Flash was overloaded several times before it replied; every attempt is committed) and by a reviewing AI session, whose grades were hashed before the reveal. Agreement with the LLM grader: 28 and 27 of 30.
-- **The error analysis** read 90 failed checks-on runs (60 held-out drawn by seed, 30 development): 36 asked or abstained when they should have answered, 22 used a wrong argument no check caught, 13 other (mostly a check misreading the question), 8 grader errors. In the review's two groups: 20 from gaps in the checks, 17 from a check's own action.
+- **The error analysis** read 90 failed checks-on runs (60 held-out drawn by seed, 30 development): 36 asked or abstained when they should have answered, 22 used a wrong argument no check caught, 13 other (mostly a check misreading the question), 8 grader errors. In the review's two groups: 23 from gaps in the checks, 17 from a check's own action, 50 in neither.
 
 ## Open for Week 7
 
