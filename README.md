@@ -6,30 +6,23 @@ An agent that answers questions about 25 public companies' SEC 10-K filings, whe
 
 **The result** (110 sealed held-out trap questions, 3 runs each, scored by rules fixed in advance; [full report](eval/results/2026-11-14_final_report.md)):
 
-- **The same rules written into the model's prompt were more accurate than enforcing them on the server.** The checks are five rules the server applies to each number lookup the model requests (the company, the fiscal year, the metric and period, the units, the segment): it repairs what the question settles and sends the rest back to the model. Written into the prompt instead, with no checks, the same rules scored 85.2% against 75.5% accuracy, at about two and a half times the cost per question, with no clear difference on confidently wrong answers (7.3% and 10.6%).
+- **The same rules written into the model's prompt were more accurate than enforcing them on the server.** The checks are six rules the server applies before a tool runs: five on each number lookup the model requests (the company, the fiscal year, the metric and period, the units, the segment) and one on each search (the fiscal year); they repair what the question settles and send the rest back to the model. Written into the prompt instead, with no checks, the same rules scored 85.2% against 75.5% accuracy, at about two and a half times the cost per question, with no clear difference on confidently wrong answers (7.3% and 10.6%).
 - **The pre-registered headline:** against no checks, the server checks cut confidently wrong answers from 18.5% to 10.6% (95% interval of the difference -12.7 to -3.6 points).
 - **How it was measured:** once, on sealed questions, by rules fixed in advance (`eval/PREREGISTRATION.md`), from the tagged commit `week6-measured`; reproducible with `make report`, with no API key and no database.
 
-![Accuracy and confidently wrong per arm and set, with 95% intervals](docs/results/final_rates.png)
+![Correct answers and confidently wrong answers on the 110 held-out questions, for search only, the agent with no checks, the agent with the rules in the prompt, and the agent with the server checks, each with its 95% interval](docs/results/final_summary.png)
 
 **How it is built** (the source is [docs/architecture.mmd](docs/architecture.mmd)):
 
 ```mermaid
 flowchart TD
-    Q["Question, with the page's company and year filters"] --> A["The agent: one model, up to 6 model calls, 8 tool calls<br/>(filingcheck/agent/graph.py)"]
-    A -->|"a tool call: name and arguments"| C{"The checks, in order<br/>(filingcheck/checks)"}
-    C -->|"get_financial_fact: company, fiscal year, metric and period, units, segment"| D
-    C -->|"search_filings: fiscal year"| D
-    D["pass, repair, or send back to the model once<br/>(every decision goes into the override log)"] -->|"pass or repair: the tool runs"| T
-    D -->|"reject: the reason and the options go back"| A
-    subgraph T["The tools (filingcheck/tools)"]
-        S["search_filings: hybrid search over the 10-K passages<br/>(filingcheck/retrieval)"]
-        F["get_financial_fact: the filings' own XBRL facts<br/>(filingcheck/facts)"]
-        K["calculate: arithmetic on numbers already found"]
-    end
-    T -->|"results, numbered [n] and [Fn]"| A
-    A -->|"the answer, citing [n] and [Fn]"| L["Number labels, computed after the model:<br/>Verified, Conflict, Unverified (filingcheck/labels)"]
-    L --> R["The answer with its citations, labels and override log<br/>(the page, the API, the evaluation rows)"]
+    Q["Question, with the page's company and year filters"] --> A["The agent: one model, three tools<br/>up to 6 model calls and 8 tool calls<br/>(filingcheck/agent/graph.py)"]
+    A <-->|"down: a tool call (name and arguments)<br/>up: the tool's result, or a reject with its reason and options"| C["The server's checks, before the tool runs (filingcheck/checks)<br/>get_financial_fact: company, fiscal year, metric and period, units, segment<br/>search_filings: fiscal year<br/>Each call: pass, repair, or send back to the model once"]
+    C <-->|"down: a passed or repaired call<br/>up: results numbered [n] and [Fn]"| T["The tools (filingcheck/tools)<br/>search_filings: hybrid search over the 10-K passages<br/>get_financial_fact: the filings' own XBRL facts<br/>calculate: arithmetic on numbers already found"]
+    C --> O["The override log: every check decision"]
+    A -->|"the answer, citing [n] and [Fn]"| L["Number labels, computed after the model (filingcheck/labels)<br/>Verified, Conflict, Unverified"]
+    L --> R["What the reader gets: the answer, its citations, its labels<br/>and the override log (the page, the API, the evaluation rows)"]
+    O --> R
 ```
 
 **How one question goes through it**, from the saved example "How much revenue did Nike make last year?" (`web/data/examples.json`; the page shows it):
@@ -40,7 +33,7 @@ flowchart TD
 4. The answer, as stored: "Nike’s revenue for its most recent fiscal year (ended May 31, 2026) was **$46,398 million**【F1】. This figure covers the period from June 1, 2025 to May 31, 2026."
 5. After the model, the labeler found $46,398 million in the cited fact F1 and labeled it **Verified**; the five check decisions are stored with the answer as its override log.
 
-Built and measured over seven weeks (October 25 to November 2026) by Nazrul Huda Shanto (New York). The measured commit is tagged `week6-measured`; the live API's `/health` shows the commit it runs.
+Built and measured between October 25 and November 2026, in seven stages that the documents call weeks (about three calendar weeks of work), by Nazrul Huda Shanto (New York). The measured commit is tagged `week6-measured`; the live API's `/health` shows the commit it runs.
 
 ## What the measurement showed
 
