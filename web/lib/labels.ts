@@ -37,10 +37,22 @@ export const BADGES: Record<
   conflict: { symbol: "⚠︎", name: "Conflict" },
 };
 
-export const LABEL_KEY =
-  "✓ Verified: in the SEC data this answer used · ? Unverified: not found in its sources · " +
-  "⚠︎ Conflict: differs from the cited fact. Verified means the number is in a cited source, " +
-  "not that the sentence is right.";
+/** One line per label, in the labeler's terms (filingcheck/labels, its rules 1 to 6). */
+export const LABEL_LINES: { label: NumberLabel["label"]; line: string }[] = [
+  {
+    label: "verified",
+    line: "the figure is in a fact the answer looked up or a passage it cites, or comes from them by a calculation",
+  },
+  { label: "conflict", line: "the figure differs from the fact its sentence cites" },
+  { label: "unverified", line: "the figure is in none of the answer's sources" },
+];
+
+export const VERIFIED_CAVEAT =
+  "Verified means the number is in a cited source, not that the sentence is right.";
+
+export const LABEL_KEY = `${LABEL_LINES.map(
+  ({ label, line }) => `${BADGES[label].symbol} ${BADGES[label].name}: ${line}`,
+).join(" · ")}. ${VERIFIED_CAVEAT}`;
 
 function grouped(value: string): string {
   const match = /^(-?)(\d+)(\.\d+)?$/.exec(value);

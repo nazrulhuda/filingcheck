@@ -64,6 +64,18 @@ function count(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+export const CHECKS_OFF =
+  "The checks were off for this answer: every tool call ran as the model sent it.";
+
+/** The panel for one answer: the checks were off, or the summary of its override log. */
+export function checkReport(answer: {
+  checks?: boolean;
+  overrides?: Override[];
+}): { summary: string; lookups: string[][] } {
+  if (answer.checks === false) return { summary: CHECKS_OFF, lookups: [] };
+  return checkSummary(answer.overrides ?? []);
+}
+
 /** A one-line summary, and the log's sentences grouped by lookup. */
 export function checkSummary(overrides: Override[]): { summary: string; lookups: string[][] } {
   if (overrides.length === 0) {
