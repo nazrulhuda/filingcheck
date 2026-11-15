@@ -1,5 +1,6 @@
 // The saved examples the page builds in (web/data/examples.json, from `make examples-export`).
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
@@ -66,4 +67,12 @@ test("every example names the company it was asked with", () => {
     assert.equal(ticker === null, company_name === null, question);
     assert.ok(company_name === null || company_name.length > ticker!.length, question);
   }
+});
+
+test("the seven saved answers are byte for byte as they were before the trap examples", () => {
+  const bytes = readFileSync(new URL("../data/examples.json", import.meta.url));
+  assert.equal(
+    createHash("sha256").update(bytes).digest("hex"),
+    "782553747aa1f1f14cae54bcbed058bad8eeb287f74f2659e70fb48c79cc807b",
+  );
 });

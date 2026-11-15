@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { type Override, checkLine, checkSummary } from "./checks.ts";
+import { CHECKS_OFF, type Override, checkLine, checkReport, checkSummary } from "./checks.ts";
 
 function record(fields: Partial<Override>): Override {
   return {
@@ -172,4 +172,13 @@ test("the summary: nothing looked up, all passed, or what changed", () => {
   const two = checkSummary([COMPANY_PASS, YEAR_REPAIR, COMPANY_PASS, YEAR_REPAIR]);
   assert.equal(two.summary, "2 arguments corrected.");
   assert.equal(two.lookups.length, 2);
+});
+
+test("an answer asked with the checks off says so instead of an empty log", () => {
+  assert.deepEqual(checkReport({ checks: false, overrides: [] }), {
+    summary: CHECKS_OFF,
+    lookups: [],
+  });
+  assert.match(CHECKS_OFF, /checks were off/);
+  assert.deepEqual(checkReport({ checks: true, overrides: [COMPANY_PASS] }), checkSummary([COMPANY_PASS]));
 });

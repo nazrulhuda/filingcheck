@@ -76,3 +76,12 @@ test("a saved example says which company and year it was asked with", () => {
   // Without the name, the ticker stands in for it.
   assert.equal(askedWith(null, "WMT", 2024), "Asked with: WMT · fiscal 2024");
 });
+
+test("the checks switch: off sends checks false; on sends what the page always sent", () => {
+  assert.deepEqual(pageQuestion("Risks?", "WMT", "2025", true), pageQuestion("Risks?", "WMT", "2025"));
+  assert.deepEqual(pageQuestion("Risks?", "", "", false), {
+    question: "Risks?",
+    mode: "agent",
+    checks: false,
+  });
+});

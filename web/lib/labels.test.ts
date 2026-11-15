@@ -8,6 +8,8 @@ import { type Citation, type FactCitation, segments } from "./citations.ts";
 import { lineHeading } from "./facts.ts";
 import {
   LABEL_KEY,
+  LABEL_LINES,
+  VERIFIED_CAVEAT,
   type NumberLabel,
   badgeText,
   hasBadges,
@@ -274,4 +276,17 @@ test("the passage chips of the saved examples carry their whole passage", () => 
       );
     }
   }
+});
+
+test("the three labels, one line each, and the key under an answer says the same", () => {
+  assert.deepEqual(
+    LABEL_LINES.map((l) => l.label),
+    ["verified", "conflict", "unverified"],
+  );
+  for (const l of LABEL_LINES) assert.ok(LABEL_KEY.includes(l.line), l.label);
+  assert.equal(
+    VERIFIED_CAVEAT,
+    "Verified means the number is in a cited source, not that the sentence is right.",
+  );
+  assert.ok(LABEL_KEY.endsWith(VERIFIED_CAVEAT));
 });
