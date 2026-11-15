@@ -107,7 +107,7 @@ The [full report](eval/results/2026-11-14_final_report.md) has every set, the pe
 - On questions the filings do not answer (a reason a filing never gives), searching the right filing makes the model answer more often, not less: with the checks on it answered more of the 10 unanswerable questions in the final run too.
 - The model sometimes says it can't find the answer without searching at all.
 - A number's chip can show the metric's standard line name instead of the company's own wording ("Revenues" for Verizon's "Total Operating Revenues").
-- Verified means the number is in a cited source, not that the sentence is right: a Verified figure can be the wrong number for the question.
+- Verified means the number is in the answer's sources, not that the sentence is right: a Verified figure can be the wrong number for the question.
 
 ## What works today
 
