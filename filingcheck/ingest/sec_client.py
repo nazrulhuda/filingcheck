@@ -165,6 +165,17 @@ class SecClient:
         self._write_cache(path, body)
         return body
 
+    def head_status(self, url: str) -> int:
+        """The HTTP status of `url` from a HEAD request, for checking that a link answers.
+
+        Sent like every request (the User-Agent, the shared rate limiter), but nothing is
+        downloaded or cached, so a filing is never fetched again.
+        """
+        if self._cache_only:
+            raise CacheMissError(f"cache-only client cannot ask: {url}")
+        self._limiter.acquire()
+        return self._http.head(url).status_code
+
     def get_text(self, url: str, refresh: bool = False) -> str:
         """Return the body of `url` as text; see `decode_document` for the encoding rules."""
         return decode_document(self.get_bytes(url, refresh=refresh))
