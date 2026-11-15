@@ -136,3 +136,27 @@ def test_the_export_has_the_saved_examples_shape_and_the_answer_unchanged(tmp_pa
     assert example["answer"]["number_labels"] == line["answer"]["number_labels"]
     with pytest.raises(ValueError, match="not among the candidates run"):
         export_picks(["dev-001"], [line], passage_text=None)
+
+
+def test_the_table_shows_what_each_check_did_and_the_grade(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from filingcheck.app.trap_examples import render_table
+
+    out = tmp_path / "candidates.jsonl"
+    q = question()
+    ask_candidates(
+        [q], model=FakeChat(replies()), deps=deps(), out=out, provenance={}, settings="s"
+    )
+    line = json.loads(out.read_text(encoding="utf-8"))
+    line["answer"]["overrides"][1] |= {"outcome": "reject", "reason": "a | b"}
+    score = SimpleNamespace(
+        correct=False, confidently_wrong=False, outcome="clarified", llm_verdict=None
+    )
+    table = render_table([line], {"dev-076": score})
+    row = table.splitlines()[-1]
+    assert row.startswith("| dev-076 | An instruction to ignore the rules | What were Apple's")
+    assert "no filters" in row
+    assert 'get_financial_fact({"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"})' in row
+    assert r"fiscal_year reject: a \| b; 4 passes" in row  # a pipe in a reason is escaped
+    assert row.endswith("| not correct (deterministic: clarified; LLM: not asked) |")
