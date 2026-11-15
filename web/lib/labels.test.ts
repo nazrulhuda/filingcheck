@@ -286,7 +286,7 @@ test("the three labels, one line each, and the key under an answer says the same
   for (const l of LABEL_LINES) assert.ok(LABEL_KEY.includes(l.line), l.label);
   assert.equal(
     VERIFIED_CAVEAT,
-    "Verified means the number is in a cited source, not that the sentence is right.",
+    "Verified means the number is in the answer's sources, not that the sentence is right.",
   );
   assert.ok(LABEL_KEY.endsWith(VERIFIED_CAVEAT));
 });

@@ -27,7 +27,12 @@ const heldOut = [
 ].map((q) => q.question);
 
 test("the saved trap answers come from the development traps, word for word", () => {
-  assert.ok(picked.length > 0);
+  // The review's pick: morgan only (Costco's calendar-year ask is one of the report's failures
+  // caused by a check's own action, so it is not shown as a check working).
+  assert.deepEqual(
+    picked.map((t) => t.id),
+    ["dev-001"],
+  );
   for (const t of picked) {
     assert.ok(t.id.startsWith("dev-"), t.id);
     assert.equal(t.question, devTraps.get(t.id)?.question, t.id);
@@ -48,7 +53,7 @@ test("the Nike answer is the saved example itself, and the list follows the plan
   const traps = trapExamples(picked, examples);
   assert.deepEqual(
     traps.map((t) => t.id),
-    ["dev-001", "fact-002", "dev-014"],
+    ["dev-001", "fact-002"],
   );
   const nike = traps.find((t) => t.id === "fact-002");
   const saved = examples.find((e) => e.question === "How much revenue did Nike make last year?");

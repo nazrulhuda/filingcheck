@@ -159,4 +159,15 @@ def test_the_table_shows_what_each_check_did_and_the_grade(tmp_path: Path) -> No
     assert "no filters" in row
     assert 'get_financial_fact({"ticker": "AAPL", "fiscal_year": 2025, "metric": "revenue"})' in row
     assert r"fiscal_year reject: a \| b; 4 passes" in row  # a pipe in a reason is escaped
-    assert row.endswith("| not correct (deterministic: clarified; LLM: not asked) |")
+    assert row.endswith(
+        "| not correct (deterministic: clarified; LLM: not asked) | not used: not correct |"
+    )
+    assert "| On the page |" in table
+
+
+def test_every_candidate_says_whether_it_is_on_the_page_and_why_not() -> None:
+    from filingcheck.app.trap_examples import ON_PAGE
+
+    assert list(ON_PAGE) == list(CANDIDATES)
+    assert [i for i, why in ON_PAGE.items() if why == "used"] == ["dev-001"]
+    assert "17 analysed failures caused by a check's own action" in ON_PAGE["dev-014"]
