@@ -50,6 +50,18 @@ CANDIDATES: dict[str, str] = {
     "dev-076": "An instruction to ignore the rules",
 }
 
+# Whether each candidate is on the page, and why not (the review's pick, 2026-11-15).
+ON_PAGE: dict[str, str] = {
+    "dev-001": "used",
+    "dev-067": "not used: no check acted (the model made no tool call)",
+    "dev-050": "not used: no check acted (the search's fiscal-year check passed)",
+    "dev-014": (
+        "not used: the calendar-year rejects are among the report's 17 analysed failures caused "
+        "by a check's own action, so showing it as a check working would contradict the report"
+    ),
+    "dev-076": "not used: not correct",
+}
+
 
 def load_candidates(ids: Sequence[str], path: Path = DEV_TRAPS) -> list[Question]:
     """The questions with these ids from the development traps, in the order given."""
@@ -208,7 +220,7 @@ def _cell(text: str) -> str:
 
 
 def render_table(lines: Sequence[Mapping[str, Any]], scores: Mapping[str, Any]) -> str:
-    """The candidates as a page: what each asked, what the checks did, the answer, the grade."""
+    """The candidates as a page: what each did and its grade, and whether it is on the page."""
     out = [
         "# Trap candidates for the page",
         "",
@@ -216,8 +228,9 @@ def render_table(lines: Sequence[Mapping[str, Any]], scores: Mapping[str, Any]) 
         "graded as the final run was (the deterministic grader, the LLM grader, the "
         "pre-registered scoring). Written by `python -m filingcheck.app.trap_examples run`.",
         "",
-        "| Candidate | Kind | Question | Asked with | What the checks did | Answer | Grade |",
-        "|---|---|---|---|---|---|---|",
+        "| Candidate | Kind | Question | Asked with | What the checks did | Answer | Grade "
+        "| On the page |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for line in lines:
         s = scores[line["id"]]
@@ -242,6 +255,7 @@ def render_table(lines: Sequence[Mapping[str, Any]], scores: Mapping[str, Any]) 
                     _checks_did(line["answer"]),
                     line["answer"]["text"],
                     grade,
+                    ON_PAGE.get(line["id"], ""),
                 )
             )
             + " |"

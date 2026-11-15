@@ -48,7 +48,7 @@ export const LABEL_LINES: { label: NumberLabel["label"]; line: string }[] = [
 ];
 
 export const VERIFIED_CAVEAT =
-  "Verified means the number is in a cited source, not that the sentence is right.";
+  "Verified means the number is in the answer's sources, not that the sentence is right.";
 
 export const LABEL_KEY = `${LABEL_LINES.map(
   ({ label, line }) => `${BADGES[label].symbol} ${BADGES[label].name}: ${line}`,

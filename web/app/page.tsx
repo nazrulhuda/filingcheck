@@ -75,16 +75,13 @@ type Shown =
     }
   | { kind: "error"; message: string };
 
-/** The measured result in the README's three lines; every number from results.json. */
-function ResultsStrip() {
+const RESULTS_TITLE = "What the measurement found";
+const BOX =
+  "mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
+
+function ResultsBody() {
   return (
-    <section
-      aria-labelledby="results-title"
-      className="mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
-    >
-      <h2 id="results-title" className="font-medium text-slate-800">
-        What the measurement found
-      </h2>
+    <>
       <ul className="mt-1 list-disc space-y-1 pl-5">
         {resultLines(RESULTS).map((line) => (
           <li key={line.lead}>
@@ -97,7 +94,28 @@ function ResultsStrip() {
           The full report
         </a>
       </p>
-    </section>
+    </>
+  );
+}
+
+/** The measured result in the README's three lines; every number from results.json. On
+ * phones a closed panel, so the question box is not pushed far down; on wider screens open. */
+function ResultsStrip() {
+  return (
+    <>
+      <details className={`${BOX} sm:hidden`}>
+        <summary className="cursor-pointer font-medium text-slate-800">
+          {RESULTS_TITLE}
+        </summary>
+        <ResultsBody />
+      </details>
+      <section aria-labelledby="results-title" className={`${BOX} hidden sm:block`}>
+        <h2 id="results-title" className="font-medium text-slate-800">
+          {RESULTS_TITLE}
+        </h2>
+        <ResultsBody />
+      </section>
+    </>
   );
 }
 
@@ -251,18 +269,18 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <p className="mb-6 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        The model answers with three tools. Before each tool call runs, the
-        server checks it against the question and the data: it can correct the
-        call or send it back to the model. Every number in the answer is then
-        labeled against the sources the answer used.
-      </p>
-
       <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
       <p className="mt-1 text-sm text-slate-600">
         Questions about the 10-K filings of 25 public companies, answered from
         the filings&apos; text and their own XBRL numbers; the model is asked to
         cite a passage or a fact for each claim.
+      </p>
+
+      <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        The model answers with three tools. Before each tool call runs, the
+        server checks it against the question and the data: it can correct the
+        call or send it back to the model. Every number in the answer is then
+        labeled against the sources the answer used.
       </p>
 
       <ResultsStrip />
