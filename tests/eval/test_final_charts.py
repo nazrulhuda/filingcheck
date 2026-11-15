@@ -12,12 +12,13 @@ from tests.eval.test_metrics import question, row
 
 RIGHT = "Apple's fiscal 2025 revenue was $416.2 billion."
 WRONG = "Apple's fiscal 2025 revenue was $5 billion."
+PREFIX = {"heldout_traps": "held-0", "heldout_traps_2": "held-1", "dev_traps": "dev-0"}
 
 
 def scores(set_name: str, arm: str, answers: list[str]) -> list[RunScore]:
     out: list[RunScore] = []
     for n, answer in enumerate(answers, 1):
-        q = question(id=f"{set_name}-{n:03d}")
+        q = question(id=f"{PREFIX[set_name]}{n:02d}")
         out += [
             score_run(row(answer, id=q.id, repeat=r), q, None, set_name=set_name, arm=arm)
             for r in (1, 2, 3)
