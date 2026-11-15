@@ -1,29 +1,54 @@
 # FilingCheck
 
-[![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
+An agent that answers questions about 25 public companies' SEC 10-K filings, where the server checks every number lookup the model asks for before it runs, and every number in the answer is labeled against the filing's own data.
 
-**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)**. It answers questions about the 25 companies' 10-K filings with an agent that searches the text and looks up the filings' own XBRL numbers, and the model is asked to cite a passage or a fact for each claim. Before the agent fetches a number, the server checks the company, fiscal year, metric, units and segment it asked for. Every number in an answer is labeled Verified, Conflict or Unverified against its cited source; text answers are not checked, so an answer can still be wrong. Measured on 110 held-out trap questions, the checks cut confidently wrong answers from 18.5% to 10.6%; the same rules written into the prompt were more accurate than the checks ([results](#results)).
+**Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)** [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
-FilingCheck answers questions about public companies' SEC 10-K filings and cites the passages each answer uses. It is a portfolio project by Nazrul Huda Shanto (New York), being built and measured over seven weeks.
+**The result** (110 sealed held-out trap questions, 3 runs each, scored by rules fixed in advance; [full report](eval/results/2026-11-14_final_report.md)):
 
-What the project built and measured: an LLM agent whose tools are *skeptical*. Before the number tool runs, the server checks the arguments the model sent (the company, the fiscal year, the metric, the units, the segment) against SEC data, fixes what the question settles and sends the rest back to the model. Every number in an answer is then labeled **Verified**, **Unverified** or **Conflict** against the facts and passages the answer cites. **What was measured** (week 6, pre-registered): on 110 held-out trap questions, turning the checks on cut confidently wrong answers from 18.5% to 10.6% (95% interval of the difference -12.7 to -3.6 points). Writing the same rules into the model's prompt instead, with no checks, showed no clear difference on confidently wrong answers (7.3% with the prompt rules, 10.6% with the checks) and was more accurate (85.2% against 75.5%). The [results](#results) and their limits are below.
+- **The same rules written into the model's prompt were more accurate than enforcing them on the server.** The checks are five rules the server applies to each number lookup the model requests (the company, the fiscal year, the metric and period, the units, the segment): it repairs what the question settles and sends the rest back to the model. Written into the prompt instead, with no checks, the same rules scored 85.2% against 75.5% accuracy, at about two and a half times the cost per question, with no clear difference on confidently wrong answers (7.3% and 10.6%).
+- **The pre-registered headline:** against no checks, the server checks cut confidently wrong answers from 18.5% to 10.6% (95% interval of the difference -12.7 to -3.6 points).
+- **How it was measured:** once, on sealed questions, by rules fixed in advance (`eval/PREREGISTRATION.md`), from the tagged commit `week6-measured`; reproducible with `make report`, with no API key and no database.
 
-**Status: week 6 of 7 done.** The page on Vercel, the API on Render and the database on Neon are deployed; the page runs the agent with its checks on and labels every number. The measurement ran once, from a tagged commit, on sealed questions ([week 6 summary](docs/week6_summary.md), [full report](eval/results/2026-11-14_final_report.md)).
+![Accuracy and confidently wrong per arm and set, with 95% intervals](docs/results/final_rates.png)
 
-## What works today
+**How it is built** (the source is [docs/architecture.mmd](docs/architecture.mmd)):
 
-- **75 filings, pinned and checked:** the last three 10-Ks of 25 companies, pinned by accession number, split into sections and 42,612 passages, and checked by `make verify-data` ([data report](docs/data_report.md), [spot check](docs/spot_check.md), [week 1 summary](docs/week1_summary.md)).
-- **Hybrid search, measured:** vector, keyword and hybrid search over the passages, scored on 40 questions with and without a company and year filter. Hybrid search did not beat vector search on these questions, and the report says so ([retrieval report](docs/retrieval_report.md)).
-- **Baseline answers with citations:** plain retrieval-augmented answers from one model call, asked to cite every claim to its passage; an answer with an uncited figure is flagged. They are not checked, and on the example trap questions they guess the company or the year, or decline to answer ([baseline answers](docs/baseline_examples.md)).
-- **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
-- **The web page:** a Next.js page that asks the agent with its checks on and shows each tool step as it runs, a chip for each cited passage or number (a number's chip opens to the value as filed, its period and the SEC document), a "What was checked" panel, and seven saved example answers ([web](web/)).
-- **The numbers and the agent:** company totals from each filing's own XBRL facts, cross-checked against the SEC's companyfacts; three tools with typed inputs (`search_filings`, `get_financial_fact`, `calculate`); and an agent that chooses between them and cites the passages and facts it used. It runs on the page, from the command line (`make ask MODE=agent`) and from the API (`mode: "agent"`) ([facts report](docs/facts_report.md), [metric coverage](docs/facts_coverage.md), [week 3 summary](docs/week3_summary.md)).
-- **Skeptical checks on the tools:** before `get_financial_fact` runs, five checks compare its arguments with the question's words and the SEC data: the company, the fiscal year (including "last year"), the metric and period, the units and the segment. Before `search_filings` runs, the fiscal-year check does the same for its year, and sends a search that names no year to the company's latest filing. Each passes the call, repairs it when the question settles the answer, or sends it back to the model with the options, once. Every decision, passes included, goes into an override log that is kept with each answer, in the request log and in the evaluation rows ([week 4 summary](docs/week4_summary.md)).
-- **Graders:** a deterministic grader for numbers, and an LLM grader for text answers and for a second opinion on number grades (on the failed ones in the development runs, on every number-graded run in the final run) ([eval](eval/README.md)). The LLM grader was checked on two samples of 40 stored answers, graded blind by AI: the first by a reviewing AI session, the second by that session and a fresh AI agent given the rules and the answers (it also received the project's description file, but no development question, gold value or verdict). On the second sample, after one fix to its prompt, it agreed with the reviewing session on 37 of 40 verdicts; on a later sample of 20 text answers, 16 of 20. In the final run, 30 text verdicts drawn by seed were graded blind by Google Gemini through its API and by a reviewing AI session: the LLM grader agreed with them on 28 and 27 of 30. The owner reviewed the grades on ten rows. No blind human grader took part.
-- **Two sealed held-out trap files** (112 questions, 110 scored; `eval/questions/heldout_traps.jsonl` and `heldout_traps_2.jsonl`), written by AI models, not by a person: the first 28 by an AI agent that also received the project's description file (it names the checks; no development question, gold value or verdict), the other 84 by Google Gemini through its API, outside the project. Both were sealed by SHA-256 before the final run and run once from the tagged commit.
-- **The measurement:** a pre-registration (`eval/PREREGISTRATION.md`) merged before the first final row was written; five arms on five question sets, 3 runs each (3,855 rows); `make report` computes every number from the committed rows ([full report](eval/results/2026-11-14_final_report.md)).
-- **Number labels:** every figure in an answer is labeled Verified (it is in a cited fact or passage), Conflict (it differs from the cited fact) or Unverified, after the model answers and without changing what it wrote; the page shows the label next to each figure ([labels](filingcheck/labels/), [week 5 summary](docs/week5_summary.md)).
-- **A deterministic gate in CI:** 24 scripted scenarios run the real agent, checks, lookup and grader with no model, and fail the build if a check's decision changes (`make eval-smoke`, [eval](eval/README.md)).
+```mermaid
+flowchart TD
+    Q["Question, with the page's company and year filters"] --> A["The agent: one model, up to 6 model calls, 8 tool calls<br/>(filingcheck/agent/graph.py)"]
+    A -->|"a tool call: name and arguments"| C{"The checks, in order<br/>(filingcheck/checks)"}
+    C -->|"get_financial_fact: company, fiscal year, metric and period, units, segment"| D
+    C -->|"search_filings: fiscal year"| D
+    D["pass, repair, or send back to the model once<br/>(every decision goes into the override log)"] -->|"pass or repair: the tool runs"| T
+    D -->|"reject: the reason and the options go back"| A
+    subgraph T["The tools (filingcheck/tools)"]
+        S["search_filings: hybrid search over the 10-K passages<br/>(filingcheck/retrieval)"]
+        F["get_financial_fact: the filings' own XBRL facts<br/>(filingcheck/facts)"]
+        K["calculate: arithmetic on numbers already found"]
+    end
+    T -->|"results, numbered [n] and [Fn]"| A
+    A -->|"the answer, citing [n] and [Fn]"| L["Number labels, computed after the model:<br/>Verified, Conflict, Unverified (filingcheck/labels)"]
+    L --> R["The answer with its citations, labels and override log<br/>(the page, the API, the evaluation rows)"]
+```
+
+**How one question goes through it**, from the saved example "How much revenue did Nike make last year?" (`web/data/examples.json`; the page shows it):
+
+1. The model asked `get_financial_fact` for Nike's revenue for fiscal **2025**.
+2. The fiscal-year check read "last year" as the latest annual report and **repaired** the year to 2026; its record reads: "'last year' read as the latest annual report; the model sent 2025; used fiscal 2026 (Jun 1, 2025 to May 31, 2026)". The company, metric, units and segment checks passed the call.
+3. The tool returned the filing's own fact: `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax = 46398000000 USD, 2025-06-01 to 2026-05-31`, cited as [F1].
+4. The answer, as stored: "Nike’s revenue for its most recent fiscal year (ended May 31, 2026) was **$46,398 million**【F1】. This figure covers the period from June 1, 2025 to May 31, 2026."
+5. After the model, the labeler found $46,398 million in the cited fact F1 and labeled it **Verified**; the five check decisions are stored with the answer as its override log.
+
+Built and measured over seven weeks (October 25 to November 2026) by Nazrul Huda Shanto (New York). The measured commit is tagged `week6-measured`; the live API's `/health` shows the commit it runs.
+
+## What the measurement showed
+
+1. **Telling the model the rules did better than enforcing them.** On the held-out questions, the prompt-rules arm was more accurate than the checks-on arm (85.2% against 75.5%; checks on minus prompt rules -9.7 points, 95% interval -16.4 to -3.0), with no clear difference on confidently wrong answers (report, sections 1 and 3).
+2. **The checks cut confidently wrong answers**, against no checks: 18.5% to 10.6% (-7.9 points, -12.7 to -3.6); both held-out files point the same way, and the development traps too (section 1).
+3. **Where the checks failed:** of 90 failed checks-on runs read one by one, 23 came from gaps in the checks (phrasings they do not read; a year the model chose when the question named none) and 17 from a check's own action (asking which fiscal year where the question's writer accepted the nearest one) (section 10).
+4. **The graders need checking too:** 30 text verdicts graded blind by Google Gemini and a reviewing AI session agreed with the LLM grader on 28 and 27 of 30; the LLM grader wrongly failed five cited answers that the questions' notes accept (sections 9 and 10).
+5. **The noise is large:** 18% to 29% of the trap questions change outcome between runs of the same arm, which is why every difference comes with an interval (section 7).
 
 ## Results
 
@@ -90,6 +115,27 @@ The [full report](eval/results/2026-11-14_final_report.md) has every set, the pe
 - The model sometimes says it can't find the answer without searching at all.
 - A number's chip can show the metric's standard line name instead of the company's own wording ("Revenues" for Verizon's "Total Operating Revenues").
 - Verified means the number is in a cited source, not that the sentence is right: a Verified figure can be the wrong number for the question.
+
+## What works today
+
+- **75 filings, pinned and checked:** the last three 10-Ks of 25 companies, pinned by accession number, split into sections and 42,612 passages, and checked by `make verify-data` ([data report](docs/data_report.md), [spot check](docs/spot_check.md), [week 1 summary](docs/week1_summary.md)).
+- **Hybrid search, measured:** vector, keyword and hybrid search over the passages, scored on 40 questions with and without a company and year filter. Hybrid search did not beat vector search on these questions, and the report says so ([retrieval report](docs/retrieval_report.md)).
+- **Baseline answers with citations:** plain retrieval-augmented answers from one model call, asked to cite every claim to its passage; an answer with an uncited figure is flagged. They are not checked, and on the example trap questions they guess the company or the year, or decline to answer ([baseline answers](docs/baseline_examples.md)).
+- **The API:** a FastAPI service that answers or streams questions, keeps a request log, and limits questions per address and per day; it runs in a Docker image ([filingcheck/app](filingcheck/app/)).
+- **The web page:** a Next.js page that asks the agent with its checks on and shows each tool step as it runs, a chip for each cited passage or number (a number's chip opens to the value as filed, its period and the SEC document), a "What was checked" panel, and seven saved example answers ([web](web/)).
+- **The numbers and the agent:** company totals from each filing's own XBRL facts, cross-checked against the SEC's companyfacts; three tools with typed inputs (`search_filings`, `get_financial_fact`, `calculate`); and an agent that chooses between them and cites the passages and facts it used. It runs on the page, from the command line (`make ask MODE=agent`) and from the API (`mode: "agent"`) ([facts report](docs/facts_report.md), [metric coverage](docs/facts_coverage.md), [week 3 summary](docs/week3_summary.md)).
+- **Skeptical checks on the tools:** before `get_financial_fact` runs, five checks compare its arguments with the question's words and the SEC data: the company, the fiscal year (including "last year"), the metric and period, the units and the segment. Before `search_filings` runs, the fiscal-year check does the same for its year, and sends a search that names no year to the company's latest filing. Each passes the call, repairs it when the question settles the answer, or sends it back to the model with the options, once. Every decision, passes included, goes into an override log that is kept with each answer, in the request log and in the evaluation rows ([week 4 summary](docs/week4_summary.md)).
+- **Graders:** a deterministic grader for numbers, and an LLM grader for text answers and for a second opinion on number grades (on the failed ones in the development runs, on every number-graded run in the final run) ([eval](eval/README.md)). The LLM grader was checked on two samples of 40 stored answers, graded blind by AI: the first by a reviewing AI session, the second by that session and a fresh AI agent given the rules and the answers (it also received the project's description file, but no development question, gold value or verdict). On the second sample, after one fix to its prompt, it agreed with the reviewing session on 37 of 40 verdicts; on a later sample of 20 text answers, 16 of 20. In the final run, 30 text verdicts drawn by seed were graded blind by Google Gemini through its API and by a reviewing AI session: the LLM grader agreed with them on 28 and 27 of 30. The owner reviewed the grades on ten rows. No blind human grader took part.
+- **Two sealed held-out trap files** (112 questions, 110 scored; `eval/questions/heldout_traps.jsonl` and `heldout_traps_2.jsonl`), written by AI models, not by a person: the first 28 by an AI agent that also received the project's description file (it names the checks; no development question, gold value or verdict), the other 84 by Google Gemini through its API, outside the project. Both were sealed by SHA-256 before the final run and run once from the tagged commit.
+- **The measurement:** a pre-registration (`eval/PREREGISTRATION.md`) merged before the first final row was written; five arms on five question sets, 3 runs each (3,855 rows); `make report` computes every number from the committed rows ([full report](eval/results/2026-11-14_final_report.md)).
+- **Number labels:** every figure in an answer is labeled Verified (it is in a cited fact or passage), Conflict (it differs from the cited fact) or Unverified, after the model answers and without changing what it wrote; the page shows the label next to each figure ([labels](filingcheck/labels/), [week 5 summary](docs/week5_summary.md)).
+- **A deterministic gate in CI:** 24 scripted scenarios run the real agent, checks, lookup and grader with no model, and fail the build if a check's decision changes (`make eval-smoke`, [eval](eval/README.md)).
+
+## Not built
+
+- The gaps in the checks found in the error analysis (the phrasings they do not read, the year the number tool keeps when the question names none, the calendar-year asks) are not fixed.
+- An arm with the rules in the prompt and the checks together; a stronger model; questions written by a person; search over tables; a reranker.
+- A changed system needs new sealed questions and a new pre-registration, because the held-out questions have now been seen.
 
 ## How to run
 
