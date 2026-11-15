@@ -2,6 +2,7 @@
 confirmation and the prompt-rules sentence (eval/PREREGISTRATION.md, "Comparisons")."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from filingcheck.eval.final_report import (
     Comparison,
@@ -220,3 +221,14 @@ def test_uniteds_is_the_same_gap_as_american() -> None:
     _, gap = failure_groups(causes)
     assert sum(h for _, h, _ in gap) == 3
     assert any("uniteds" in label for label, h, _ in gap if h == 3)
+
+
+def test_the_blind_files_path_is_shown_relative_to_the_repository_root(tmp_path: Path) -> None:
+    """On another machine the clone may sit anywhere, under any folder name."""
+    from filingcheck.eval.final_render import shown_path
+
+    root = tmp_path / "filingcheck-clone"
+    (root / "eval" / "llm_grades").mkdir(parents=True)
+    hidden = root / "eval" / "llm_grades" / "2026-11-14_final_blind_hidden.md"
+    hidden.write_text("# Blind check\n", encoding="utf-8")
+    assert shown_path(hidden, root) == "eval/llm_grades/2026-11-14_final_blind_hidden.md"
