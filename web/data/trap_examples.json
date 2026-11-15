@@ -1,0 +1,69 @@
+[
+  {
+    "id": "dev-001",
+    "trap": "An ambiguous company name",
+    "question": "how much net revenue did morgan make in 2024",
+    "ticker": null,
+    "fiscal_year": null,
+    "company_name": null,
+    "answer": {
+      "text": "I’m not sure which “Morgan” you’re referring to—JPMorgan Chase & Co. (ticker JPM) or Morgan Stanley (ticker MS). Could you specify?",
+      "citations": [],
+      "model_used": "openrouter:openai/gpt-oss-20b",
+      "retriever_name": "hybrid",
+      "usage": {
+        "prompt_tokens": 3068,
+        "completion_tokens": 123
+      },
+      "latency_ms": 2267.405800000006,
+      "cost_usd": 0.000267,
+      "finish_reason": "stop",
+      "abstained": false,
+      "has_uncited_claims": false,
+      "degraded": false,
+      "number_labels": [],
+      "mode": "agent",
+      "tool_calls": [
+        {
+          "name": "get_financial_fact",
+          "arguments": {
+            "fiscal_year": 2024,
+            "metric": "revenue",
+            "ticker": "MS"
+          },
+          "sent_arguments": {
+            "fiscal_year": 2024,
+            "metric": "revenue",
+            "ticker": "MS"
+          },
+          "defaults_applied": [],
+          "status": "error",
+          "result_summary": "error: the question's company is ambiguous: JPMorgan Chase & Co. (JPM) or Morgan Stanley (MS); ask the user which one",
+          "duration_ms": 11.023400000112815
+        }
+      ],
+      "facts_used": [],
+      "fact_citations": [],
+      "model_calls": 2,
+      "stopped_by": null,
+      "restarts": [],
+      "failed_attempts": [],
+      "checks": true,
+      "overrides": [
+        {
+          "check": "company",
+          "tool": "get_financial_fact",
+          "outcome": "reject",
+          "argument": "ticker",
+          "sent": "MS",
+          "used": null,
+          "reason": "the question's company is ambiguous: JPMorgan Chase & Co. (JPM) or Morgan Stanley (MS); ask the user which one",
+          "options": [
+            "JPM",
+            "MS"
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -53,6 +53,8 @@ export type Question = {
   mode?: "baseline" | "agent";
   ticker?: string;
   fiscal_year?: number;
+  /** The agent's checks: on unless this is false. */
+  checks?: boolean;
 };
 
 /** One tool call the agent made, as the page shows it while the answer is on its way. */

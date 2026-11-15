@@ -476,10 +476,16 @@ def report_main(args: argparse.Namespace) -> int:
     stem.with_suffix(".md").write_text(page, encoding="utf-8", newline="\n")
     write_csv(final.scores, stem.with_suffix(".csv"))
     from filingcheck.eval.final_charts import write_charts
+    from filingcheck.eval.final_render import results_summary
 
     charts = write_charts(final, REPO_ROOT / "docs" / "results")
+    # The page's results strip reads this file, so it types no number by hand.
+    results = REPO_ROOT / "web" / "data" / "results.json"
+    summary = results_summary(final, stem.with_suffix(".md").relative_to(REPO_ROOT).as_posix())
+    results.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(
-        f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)}, the CSV and {len(charts)} charts"
+        f"wrote {stem.with_suffix('.md').relative_to(REPO_ROOT)}, the CSV, {len(charts)} charts "
+        "and web/data/results.json"
     )
     return 0
 

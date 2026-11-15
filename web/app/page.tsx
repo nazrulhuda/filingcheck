@@ -1,9 +1,16 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import { AnswerText, ChecksPanel, CostLine } from "@/components/AnswerView";
+import {
+  AnswerText,
+  ChecksPanel,
+  CostLine,
+  LabelGuide,
+} from "@/components/AnswerView";
 import examplesData from "@/data/examples.json";
+import resultsData from "@/data/results.json";
+import trapData from "@/data/trap_examples.json";
 import {
   type Answer,
   ApiError,
@@ -14,6 +21,7 @@ import {
   type Health,
   type Progress,
 } from "@/lib/api";
+import { CANNOT, METRICS } from "@/lib/coverage";
 import {
   type AnswerSource,
   askedWith,
@@ -21,21 +29,27 @@ import {
   pageQuestion,
 } from "@/lib/display";
 import { reviewNote } from "@/lib/notes";
-
-type Example = {
-  question: string;
-  ticker: string | null;
-  fiscal_year: number | null;
-  company_name: string | null;
-  answer: Answer;
-};
+import { type Results, resultLines } from "@/lib/results";
+import {
+  type Example,
+  TRAP_NOTE,
+  type TrapExample,
+  plainExamples,
+  trapExamples,
+} from "@/lib/traps";
 
 const EXAMPLES = examplesData as Example[];
+const TRAPS = trapExamples(trapData as TrapExample[], EXAMPLES);
+const PLAIN = plainExamples(EXAMPLES, TRAPS);
+const RESULTS = resultsData as Results;
+const REPO = "https://github.com/nazrulhuda/filingcheck";
+const REPORT = `${REPO}/blob/main/${RESULTS.report}`;
 const MAX_QUESTION = 500;
 const HEALTH_TIMEOUT_MS = 3000;
 const WAKE_RETRY_MS = 5000;
 const WAKE_GIVE_UP_MS = 70_000;
 const NO_STEPS: Progress = { steps: [], restarted: null };
+const WIDE = "(min-width: 640px)";
 
 /** A finished tool call's status in words. */
 function statusWords(status: string): string {
@@ -61,12 +75,109 @@ type Shown =
     }
   | { kind: "error"; message: string };
 
+const RESULTS_TITLE = "What the measurement found";
+const BOX =
+  "mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
+
+function ResultsBody() {
+  return (
+    <>
+      <ul className="mt-1 list-disc space-y-1 pl-5">
+        {resultLines(RESULTS).map((line) => (
+          <li key={line.lead}>
+            <span className="font-medium">{line.lead}</span> {line.rest}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2">
+        <a href={REPORT} className="text-blue-700 underline hover:text-blue-900">
+          The full report
+        </a>
+      </p>
+    </>
+  );
+}
+
+/** The measured result in the README's three lines; every number from results.json. On
+ * phones a closed panel, so the question box is not pushed far down; on wider screens open. */
+function ResultsStrip() {
+  return (
+    <>
+      <details className={`${BOX} sm:hidden`}>
+        <summary className="cursor-pointer font-medium text-slate-800">
+          {RESULTS_TITLE}
+        </summary>
+        <ResultsBody />
+      </details>
+      <section aria-labelledby="results-title" className={`${BOX} hidden sm:block`}>
+        <h2 id="results-title" className="font-medium text-slate-800">
+          {RESULTS_TITLE}
+        </h2>
+        <ResultsBody />
+      </section>
+    </>
+  );
+}
+
+/** What the data holds and what it cannot answer: open on wide screens, closed on phones. */
+function WhatYouCanAsk({ companies }: { companies: Company[] }) {
+  const panel = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (panel.current && window.matchMedia(WIDE).matches) panel.current.open = true;
+  }, []);
+  return (
+    <details
+      ref={panel}
+      className="mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+    >
+      <summary className="cursor-pointer font-medium text-slate-800">
+        What you can ask
+      </summary>
+      <ul className="mt-2 list-disc space-y-1 pl-5">
+        <li>
+          <span className="font-medium">Numbers:</span> the {METRICS.length}{" "}
+          metrics below, annual, for the company as a whole, from each
+          filing&apos;s own XBRL data: {METRICS.map(([, name]) => name).join(", ")}.
+        </li>
+        <li>
+          <span className="font-medium">Text:</span> what the 10-K passages say,
+          for example about risks, legal claims or currency exposure.
+        </li>
+        <li>
+          <span className="font-medium">It cannot answer:</span>{" "}
+          {CANNOT.join("; ")}.
+        </li>
+        <li>Each question stands alone (no chat history).</li>
+      </ul>
+      <details className="mt-3">
+        <summary className="cursor-pointer font-medium text-slate-800">
+          The 25 companies and the fiscal years held
+        </summary>
+        {companies.length > 0 ? (
+          <ul className="mt-1 grid gap-x-6 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">
+            {companies.map((c) => (
+              <li key={c.ticker}>
+                {c.name} ({c.ticker}): {c.fiscal_years.join(", ")}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-xs text-slate-500">
+            The list appears when the backend answers.
+          </p>
+        )}
+      </details>
+    </details>
+  );
+}
+
 export default function Home() {
   const [backend, setBackend] = useState<Backend>("checking");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [question, setQuestion] = useState("");
   const [ticker, setTicker] = useState("");
   const [year, setYear] = useState("");
+  const [checks, setChecks] = useState(true);
   const [shown, setShown] = useState<Shown>({ kind: "none" });
   const [busy, setBusy] = useState(false);
 
@@ -107,7 +218,7 @@ export default function Home() {
     setShown({ kind: "streaming", text: "", progress });
     try {
       const result = await askStreaming(
-        pageQuestion(text, ticker, year),
+        pageQuestion(text, ticker, year, checks),
         (received) => {
           soFar = received;
           setShown({ kind: "streaming", text: soFar, progress });
@@ -158,21 +269,21 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <div
-        role="status"
-        className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-      >
-        Week 5: numbers are labeled against the SEC data the answer used.
-        Verified means the number is in a cited source, not that the sentence is
-        right.
-      </div>
-
       <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
       <p className="mt-1 text-sm text-slate-600">
         Questions about the 10-K filings of 25 public companies, answered from
         the filings&apos; text and their own XBRL numbers; the model is asked to
         cite a passage or a fact for each claim.
       </p>
+
+      <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        The model answers with three tools. Before each tool call runs, the
+        server checks it against the question and the data: it can correct the
+        call or send it back to the model. Every number in the answer is then
+        labeled against the sources the answer used.
+      </p>
+
+      <ResultsStrip />
 
       {backend === "waking" && (
         <p className="mt-4 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
@@ -191,6 +302,8 @@ export default function Home() {
           The backend is up but has no language model configured right now.
         </p>
       )}
+
+      <WhatYouCanAsk companies={companies} />
 
       <form onSubmit={submit} className="mt-6 space-y-3">
         <label htmlFor="question" className="block text-sm font-medium">
@@ -254,23 +367,28 @@ export default function Home() {
           >
             {busy ? "Answering…" : "Ask"}
           </button>
-          <label className="ml-auto flex cursor-not-allowed items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked
-              disabled
-              readOnly
-              className="h-4 w-4"
-            />
-            Skeptical checks: on
-          </label>
+          <div className="text-sm sm:ml-auto">
+            <label className="flex cursor-pointer items-center gap-2 text-slate-700">
+              <input
+                type="checkbox"
+                checked={checks}
+                onChange={(e) => setChecks(e.target.checked)}
+                aria-describedby="checks-hint"
+                className="h-4 w-4"
+              />
+              Skeptical checks: {checks ? "on" : "off"}
+            </label>
+            <p id="checks-hint" className="mt-0.5 text-xs text-slate-500">
+              Turn the checks off and ask the same question to compare.
+            </p>
+          </div>
         </div>
       </form>
 
       <section className="mt-6">
         <h2 className="text-sm font-medium text-slate-600">Examples</h2>
         <div className="mt-2 flex flex-wrap gap-2">
-          {EXAMPLES.map((example) => (
+          {PLAIN.map((example) => (
             <button
               key={example.question}
               type="button"
@@ -278,6 +396,26 @@ export default function Home() {
               className="rounded-full border border-slate-300 bg-white px-3 py-1 text-left text-sm hover:border-blue-600 hover:text-blue-800"
             >
               {example.question}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6" aria-labelledby="traps-title">
+        <h2 id="traps-title" className="text-sm font-medium text-slate-600">
+          Try a trap question
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-500">{TRAP_NOTE}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {TRAPS.map((trap) => (
+            <button
+              key={trap.id}
+              type="button"
+              onClick={() => showExample(trap)}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-left text-sm hover:border-blue-600 hover:text-blue-800"
+            >
+              <span className="block">{trap.question}</span>
+              <span className="block text-xs text-slate-500">{trap.trap}</span>
             </button>
           ))}
         </div>
@@ -350,6 +488,18 @@ export default function Home() {
           </p>
         )}
       </section>
+
+      <LabelGuide />
+
+      <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
+        <a href={REPO} className="text-blue-700 underline hover:text-blue-900">
+          The code on GitHub
+        </a>
+        {" · "}
+        <a href={REPORT} className="text-blue-700 underline hover:text-blue-900">
+          The full results report
+        </a>
+      </footer>
     </main>
   );
 }

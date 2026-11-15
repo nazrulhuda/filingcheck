@@ -34,14 +34,20 @@ export function costLine(answer: Answer, source: AnswerSource): string {
   return `${saved}${answer.model_used} · ${seconds(answer.latency_ms)} · ${tokens} · ${cost}${degraded}`;
 }
 
-/** What the page sends: the agent, whose checks are on unless a request turns them off. A
+/** What the page sends: the agent, whose checks are on unless the switch turns them off. A
  * fiscal year counts only with a company, as the page lists the years of the chosen company. */
-export function pageQuestion(text: string, ticker: string, year: string): Question {
+export function pageQuestion(
+  text: string,
+  ticker: string,
+  year: string,
+  checks = true,
+): Question {
   return {
     question: text,
     mode: "agent",
     ...(ticker ? { ticker } : {}),
     ...(ticker && year ? { fiscal_year: Number(year) } : {}),
+    ...(checks ? {} : { checks: false }),
   };
 }
 

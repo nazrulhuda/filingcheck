@@ -3,14 +3,16 @@
 import { Fragment, useState } from "react";
 
 import type { Answer } from "@/lib/api";
-import { checkSummary } from "@/lib/checks";
+import { checkReport } from "@/lib/checks";
 import { type Citation, type FactCitation, segments } from "@/lib/citations";
 import { type AnswerSource, costLine } from "@/lib/display";
 import { factDetail, lineHeading } from "@/lib/facts";
 import {
   BADGES,
   LABEL_KEY,
+  LABEL_LINES,
   type NumberLabel,
+  VERIFIED_CAVEAT,
   badgeText,
   hasBadges,
   withBadges,
@@ -96,6 +98,33 @@ const BADGE_CLASS: Record<NumberLabel["label"], string> = {
   unverified: "border-slate-400 bg-white text-slate-600",
   conflict: "border-orange-600 bg-orange-50 text-orange-800",
 };
+
+/** The three labels, one line each, with the badges the answers use. */
+export function LabelGuide() {
+  return (
+    <section className="mt-8 text-sm text-slate-700" aria-labelledby="labels-title">
+      <h2 id="labels-title" className="text-sm font-medium text-slate-600">
+        The three labels on a number
+      </h2>
+      <ul className="mt-2 space-y-1">
+        {LABEL_LINES.map(({ label, line }) => (
+          <li key={label} className="flex gap-2">
+            <span
+              aria-hidden="true"
+              className={`mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded border px-0.5 text-[10px] font-bold leading-none ${BADGE_CLASS[label]}`}
+            >
+              {BADGES[label].symbol}
+            </span>
+            <span>
+              <span className="font-medium">{BADGES[label].name}</span>: {line}.
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-slate-500">{VERIFIED_CAVEAT}</p>
+    </section>
+  );
+}
 
 /** A figure's label: a small badge; hover shows its text, a tap shows it beside the badge. */
 function LabelBadge({
@@ -211,7 +240,7 @@ export function AnswerText({ answer }: { answer: Answer }) {
 /** The agent's override log in plain words; shown for agent answers only. */
 export function ChecksPanel({ answer }: { answer: Answer }) {
   if (answer.mode !== "agent") return null;
-  const { summary, lookups } = checkSummary(answer.overrides ?? []);
+  const { summary, lookups } = checkReport(answer);
   return (
     <section className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
       <h3 className="font-medium text-slate-800">What was checked</h3>

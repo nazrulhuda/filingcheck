@@ -1,0 +1,33 @@
+{
+  "report": "eval/results/2026-11-14_final_report.md",
+  "tag": "week6-measured",
+  "held_out": {
+    "questions": 110,
+    "runs": 3
+  },
+  "headline": {
+    "checks_off": "18.5%",
+    "checks_on": "10.6%",
+    "difference": "-7.9",
+    "low": "-12.7",
+    "high": "-3.6",
+    "claimed": true
+  },
+  "prompt_rules": {
+    "accuracy": "85.2%",
+    "accuracy_checks": "75.5%",
+    "accuracy_difference": "-9.7",
+    "accuracy_low": "-16.4",
+    "accuracy_high": "-3.0",
+    "accuracy_clear": true,
+    "confidently_wrong": "7.3%",
+    "confidently_wrong_checks": "10.6%",
+    "confidently_wrong_difference": "+3.3",
+    "confidently_wrong_low": "-0.9",
+    "confidently_wrong_high": "+8.2",
+    "confidently_wrong_clear": false,
+    "cost_per_100": "$0.2300",
+    "cost_per_100_checks": "$0.0920",
+    "cost_ratio": "2.5"
+  }
+}

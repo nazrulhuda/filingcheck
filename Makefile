@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: dry-run grade report verify-measured setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: dry-run grade report verify-measured setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export trap-candidates trap-examples smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -83,6 +83,13 @@ examples:  # answer the example questions with the agent, checks on (batch mode)
 
 examples-export:  # write the stored example answers to web/data/examples.json for the page; no model call
 	uv run python -m filingcheck.app.examples --export web/data/examples.json
+
+trap-candidates:  # ask the page's trap candidates (development traps) once each, checks on, and grade them; the stored examples are not touched (costs money)
+	uv run python -m filingcheck.app.trap_examples run
+
+trap-examples:  # write the picked trap answers to web/data/trap_examples.json: make trap-examples PICK=dev-001,dev-050; no model call
+	@test -n "$(PICK)" || { echo "give PICK: make trap-examples PICK=dev-001,dev-050"; exit 1; }
+	uv run python -m filingcheck.app.trap_examples export --pick $(PICK)
 
 snapshot:  # rewrite the section, chunk and facts snapshots in data/ after an intended change
 	uv run python -m filingcheck.ingest.verify --write-snapshots
