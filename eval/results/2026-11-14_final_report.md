@@ -665,13 +665,13 @@ The checks-on runs that are not correct: on held-out 60 (60 drawn by seed 202611
 | a gap the checks do not cover | the fact tool lets the model's year stand when the question names none (held-053, held-059, held-063) | 8 | 0 |
 | a gap the checks do not cover | 'last yr' (held-003) | 1 | 0 |
 | a gap the checks do not cover | 'morgans' (held-030) | 3 | 0 |
-| a gap the checks do not cover | 'american' (held-004, held-035) | 3 | 0 |
+| a gap the checks do not cover | 'american', 'uniteds' (held-004, held-035, held-032) | 6 | 0 |
 | a gap the checks do not cover | 'standard and poors' (held-038) | 2 | 0 |
 | a gap the checks do not cover | 'Citizens' (dev-003) | 0 | 2 |
 | a gap the checks do not cover | no company check on search_filings (dev-057) | 0 | 1 |
-| a gap the checks do not cover | **all** | **17** | **3** |
+| a gap the checks do not cover | **all** | **20** | **3** |
 
-The other 53 analysed runs are in neither group (the model's own choices, grader errors, and the rest).
+The other 50 analysed runs are in neither group (the model's own choices, grader errors, and the rest).
 
 | Set | Question | Run | Outcome | Cause | Reason |
 |---|---|---:|---|---:|---|

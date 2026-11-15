@@ -210,3 +210,13 @@ def test_the_analysed_failures_are_counted_by_the_review_groups() -> None:
     assert sum(h for _, h, _ in action) == 2 and sum(d for _, _, d in action) == 1
     assert sum(h for _, h, _ in gap) == 2 and sum(d for _, _, d in gap) == 1
     assert {label.split(" (")[0]: h + d for label, h, d in gap}["'last yr'"] == 1
+
+
+def test_uniteds_is_the_same_gap_as_american() -> None:
+    """The review's correction: held-032 ('uniteds') counts with 'american' in the gap group."""
+    from filingcheck.eval.final_render import failure_groups
+
+    causes = {("heldout_traps_2", "held-032", n): (1, "guessed UnitedHealth") for n in (1, 2, 3)}
+    _, gap = failure_groups(causes)
+    assert sum(h for _, h, _ in gap) == 3
+    assert any("uniteds" in label for label, h, _ in gap if h == 3)
