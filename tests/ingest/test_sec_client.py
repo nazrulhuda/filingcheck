@@ -259,3 +259,29 @@ def test_the_module_imports_without_a_contact_email() -> None:
 def test_creating_a_client_without_a_contact_email_fails_clearly(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="SEC_CONTACT_EMAIL"):
         SecClient(cache_dir=tmp_path, contact_email="  ")
+
+
+def test_head_status_asks_without_downloading_or_caching(tmp_path: Path) -> None:
+    """For the link check: a HEAD request, with the User-Agent, through the limiter."""
+    seen: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.headers["User-Agent"]))
+        return httpx.Response(200 if request.url.path.endswith("ok.htm") else 404)
+
+    clock = FakeClock()
+    client = make_client(tmp_path, httpx.MockTransport(handler), clock)
+    base = "https://www.sec.gov/Archives/edgar/data/1/2/"
+    assert client.head_status(base + "ok.htm") == 200
+    assert client.head_status(base + "gone.htm") == 404
+    email = os.environ["SEC_CONTACT_EMAIL"].strip()
+    assert seen == [("HEAD", user_agent(email))] * 2
+    assert client.downloads == 0 and not (tmp_path / "cache").exists()
+
+
+def test_head_status_refuses_in_cache_only_mode(tmp_path: Path) -> None:
+    client = make_client(
+        tmp_path, httpx.MockTransport(lambda r: httpx.Response(200)), FakeClock(), cache_only=True
+    )
+    with pytest.raises(CacheMissError):
+        client.head_status("https://www.sec.gov/x.htm")

@@ -3,7 +3,7 @@
 # Python's UTF-8 mode makes Windows read, write and print text as UTF-8, the same as Linux CI.
 export PYTHONUTF8 = 1
 
-.PHONY: dry-run grade report verify-measured setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export trap-candidates trap-examples smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
+.PHONY: dry-run grade report check-links verify-measured setup lint format test test-integration verify-data verify-facts snapshot embed embed-dry-run retrieval-eval ask baseline-examples examples examples-export trap-candidates trap-examples smoke-live docker-build db-up db-down db-reset ingest validate-questions eval-smoke eval run
 
 setup:
 	uv python install 3.12
@@ -117,6 +117,9 @@ grade:  # the LLM grader over a stored results file: make grade SET=examples RUN
 
 dry-run:  # the Day 33 report over a day's result files, and a hidden sample of 20 text answers: make dry-run [DATE=YYYY-MM-DD] [KEY=<file outside the repo>] (no model call)
 	uv run python -m filingcheck.eval dry-run $(if $(DATE),--date $(DATE)) $(if $(KEY),--sample-key $(KEY)) $(if $(LABEL),--label $(LABEL))
+
+check-links:  # every link in the README and docs/ resolves: relative ones name a file, web ones answer (sec.gov through the SEC client, HEAD only)
+	uv run python -m filingcheck.links
 
 verify-measured:  # the answering, grading and scoring code and the measured data equal the tag week6-measured (CI runs it on every push)
 	uv run python -m filingcheck.measured
