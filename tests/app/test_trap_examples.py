@@ -81,7 +81,11 @@ def test_the_row_is_the_batch_runners_row_for_the_same_answer(tmp_path: Path) ->
     expected = json.loads(out.read_text(encoding="utf-8"))
     answer = run_agent(q.question, model=FakeChat(replies()), deps=deps(), checks=True)
     row = batch_row(q, json.loads(answer.model_dump_json()), settings="s", provenance=provenance)
-    assert row.pop("latency_ms") > 0 and expected.pop("latency_ms") > 0
+    # Two runs differ only in their timings: the run's and each tool call's.
+    for r in (row, expected):
+        assert r.pop("latency_ms") > 0
+        for call in r["tool_calls"]:
+            assert call.pop("duration_ms") >= 0
     assert row == expected
 
 
