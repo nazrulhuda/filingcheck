@@ -841,7 +841,11 @@ CHECK_GAP: tuple[tuple[str, frozenset[str], frozenset[int]], ...] = (
     ),
     ("'last yr' (held-003)", frozenset({"held-003"}), frozenset({1})),
     ("'morgans' (held-030)", frozenset({"held-030"}), frozenset({1})),
-    ("'american' (held-004, held-035)", frozenset({"held-004", "held-035"}), frozenset({1})),
+    (
+        "'american', 'uniteds' (held-004, held-035, held-032)",
+        frozenset({"held-004", "held-035", "held-032"}),
+        frozenset({1}),
+    ),
     ("'standard and poors' (held-038)", frozenset({"held-038"}), frozenset({5})),
     ("'Citizens' (dev-003)", frozenset({"dev-003"}), frozenset({1})),
     ("no company check on search_filings (dev-057)", frozenset({"dev-057"}), frozenset({1})),
