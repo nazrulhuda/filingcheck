@@ -6,9 +6,9 @@
 
 **The README (Day 45):** the result in three lines (the prompt-rules result first, as the pre-registration requires), a summary chart, the architecture as a Mermaid diagram checked box by box against the code, one saved question followed step by step, and [where each claim can be checked](evidence.md).
 
-**The page (Day 46):** what it can and cannot answer; the three labels in the labeler's terms; the measured result read from `make report`'s output; a working checks switch; and two saved trap answers, said on the page to be chosen. Five development-trap candidates were asked once each and graded as the measurement was; two show a check acting and are right ("morgan", with the saved Nike answer). The Costco calendar-year answer was right but is not shown, because the calendar-year rejects are among the report's failures caused by a check's own action.
+**The page (Day 46):** what it can and cannot answer; the three labels in the labeler's terms; the measured result read from `make report`'s output; a working checks switch; and two saved trap answers, said on the page to be chosen. Five development-trap candidates were asked once each and graded as the measurement was; two show a check acting and are right ("morgan" and Costco's calendar year). The page shows "morgan", with the saved Nike answer; the Costco answer is not shown, because the calendar-year rejects are among the report's failures caused by a check's own action.
 
-**Launch checks (Day 47):** the deployed API runs the merged commit and passes `make smoke-live`; `make verify-measured` passes on it; all 82 links in the README and `docs/` resolve (`make check-links`); no stale status wording; the secret scan over the whole history (320 commits with changes) finds nothing.
+**Launch checks (Day 47):** the deployed API runs the merged commit and passes `make smoke-live`; `make verify-measured` passes on it; all 84 links on 21 pages in the README and `docs/` resolve (`make check-links`); no stale status wording; the secret scan over the whole history (320 commits with changes) finds nothing.
 
 **Cost:** under one cent of model calls (the key had $2.0993 left before the Day 46 runs and $2.0971 after Day 47's smoke test; the live page shares it).
 
