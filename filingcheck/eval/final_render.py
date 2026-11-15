@@ -242,6 +242,68 @@ def headline_section(f: Final) -> list[str]:
     return lines
 
 
+def _cost_per_100(part: Sequence[RunScore]) -> float:
+    """The answers' recorded cost per 100 scored questions, as the ablation table shows it."""
+    questions = len({s.id for s in part if s.scored})
+    return 100 * sum(s.cost_usd for s in part) / questions if questions else 0.0
+
+
+def _clear(c: Comparison) -> bool:
+    """Whether the 95% interval of the difference leaves out zero."""
+    return c.interval.high < 0 or c.interval.low > 0
+
+
+def results_summary(
+    f: Final, report: str = "eval/results/2026-11-14_final_report.md"
+) -> dict[str, Any]:
+    """The page's results strip (web/data/results.json): the headline and S1, held-out.
+
+    The same comparisons as section 1, formatted as the report formats them, so the page
+    types no number by hand.
+    """
+    from filingcheck.measured import TAG
+
+    held = compare(f.part(HELD, OFF), f.part(HELD, ON), _cw, majority=True)
+    acc = compare(f.part(HELD, RULES), f.part(HELD, ON), _acc, majority=True)
+    cw = compare(f.part(HELD, RULES), f.part(HELD, ON), _cw, majority=True)
+    rules_cost = _cost_per_100(f.part(HELD, RULES))
+    on_cost = _cost_per_100(f.part(HELD, ON))
+    on = [s for s in f.part(HELD, ON) if s.scored]
+    return {
+        "report": report,
+        "tag": TAG,
+        "held_out": {
+            "questions": len({s.id for s in on}),
+            "runs": max((s.repeat for s in on), default=0),
+        },
+        "headline": {
+            "checks_off": _pct(held.first),
+            "checks_on": _pct(held.second),
+            "difference": _signed(held.interval.estimate),
+            "low": _signed(held.interval.low),
+            "high": _signed(held.interval.high),
+            "claimed": claims_reduction(held),
+        },
+        "prompt_rules": {
+            "accuracy": _pct(acc.first),
+            "accuracy_checks": _pct(acc.second),
+            "accuracy_difference": _signed(acc.interval.estimate),
+            "accuracy_low": _signed(acc.interval.low),
+            "accuracy_high": _signed(acc.interval.high),
+            "accuracy_clear": _clear(acc),
+            "confidently_wrong": _pct(cw.first),
+            "confidently_wrong_checks": _pct(cw.second),
+            "confidently_wrong_difference": _signed(cw.interval.estimate),
+            "confidently_wrong_low": _signed(cw.interval.low),
+            "confidently_wrong_high": _signed(cw.interval.high),
+            "confidently_wrong_clear": _clear(cw),
+            "cost_per_100": f"${rules_cost:.4f}",
+            "cost_per_100_checks": f"${on_cost:.4f}",
+            "cost_ratio": f"{rules_cost / on_cost:.1f}" if on_cost else "-",
+        },
+    }
+
+
 # ---------------------------------------------------------------- 2. the ablation table
 
 
