@@ -181,6 +181,8 @@ def default_services() -> Services:
 # The company list, the not-covered list and the manifest change only with a re-pin, so
 # they are read once per process.
 _reference_data = functools.cache(reference_data)
+# The platform's build variable that names the deployed commit (Render sets it).
+COMMIT_ENV = "RENDER_GIT_COMMIT"
 
 
 def create_app(services: Services | None = None) -> FastAPI:
@@ -560,10 +562,19 @@ def create_app(services: Services | None = None) -> FastAPI:
 
     @app.get("/health", response_model=None)
     def health() -> JSONResponse:
-        """Cheap: no database query, so the platform's health checks never wake the database."""
+        """Cheap: no database query, so the platform's health checks never wake the database.
+
+        `commit` is the platform's build variable (Render sets `RENDER_GIT_COMMIT`), so a
+        reader can see which commit the live API runs; "unknown" when it is not set.
+        """
         ready = services.model_ready()
+        commit = os.environ.get(COMMIT_ENV, "").strip() or "unknown"
         return JSONResponse(
-            {"status": "ok" if ready else "no model key", "model": services.primary_name},
+            {
+                "status": "ok" if ready else "no model key",
+                "model": services.primary_name,
+                "commit": commit,
+            },
             status_code=200 if ready else 503,
         )
 

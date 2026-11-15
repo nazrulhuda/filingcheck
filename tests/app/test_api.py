@@ -514,3 +514,15 @@ def test_a_normal_answer_is_not_cached_and_names_no_example() -> None:
     assert body["cached"] is False and body["example"] is None
     final = events(client.post("/ask/stream", json={"question": QUESTION}).text)[-1][1]
     assert final["cached"] is False and final["example"] is None
+
+
+def test_health_shows_the_platforms_commit_or_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Render sets RENDER_GIT_COMMIT at build time; /health shows it, still without the database."""
+    client, store = make(FakeChat([]))
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "da7a451e0a0ab872b2bc3f05a96699690b82d0eb")
+    body = client.get("/health").json()
+    assert body["commit"] == "da7a451e0a0ab872b2bc3f05a96699690b82d0eb"
+    assert body["status"] == "ok" and body["model"] == "fake:chat"
+    monkeypatch.delenv("RENDER_GIT_COMMIT")
+    assert client.get("/health").json()["commit"] == "unknown"
+    assert store.calls == []

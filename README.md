@@ -106,6 +106,17 @@ cd web && npm ci && npm run dev   # the page on http://localhost:3000
 
 `make lint` and `make test` run the same checks as CI; `make test-integration` runs the database tests against the local database from `make db-up`. In `web/`, `npm run lint`, `npm run typecheck` and `npm test` do the same for the page.
 
+## Reproduce the results
+
+```bash
+make setup     # uv sync and the pre-commit hooks (needs uv and GNU make; about two minutes)
+make report    # recomputes the report, its per-run CSV and the charts (under a minute)
+```
+
+No API key and no database are needed: `make report` reads the committed answers and grades (`eval/results/2026-11-14_*-final.jsonl` and `_llm.jsonl`) and writes `eval/results/2026-11-14_final_report.md`, the CSV beside it and the charts in `docs/results/`. Afterwards `git diff` shows no change in the report or any CSV; that is what the `reproduce` job in CI checks on every push (the chart images are redrawn, not compared, because their bytes depend on the machine's fonts). This proves that every number in the report, and so in this README, is computed from the committed answers and grades by the committed code.
+
+It does not ask the model again. Re-running the answers (`make eval`) costs about $2 and gives slightly different rows, because the model runs at temperature 0.6. The run itself is checked another way: the pre-registration's SHA-256, the two held-out files' seals and the tagged commit `week6-measured` are recorded in `eval/results/2026-11-14_final-run_record.md`, and every row records that commit and its question file's hash. `make verify-measured` (also in CI) fails if any of the measured code or data differs from the tag's commit (`da7a451`, recorded in the code, so a moved tag fails too), or if any of the 50 final row and grade files differs from the commit that merged them (`4082c4e`), or if a new file appears under those names.
+
 ## Related work
 
 - **VeriFin: A Neurosymbolic Framework for Verifying LLM-Generated Financial Claims** ([arXiv:2608.10213](https://arxiv.org/abs/2608.10213))
