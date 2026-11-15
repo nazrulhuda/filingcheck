@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the whole history, so the tag week6-measured is there
       - uses: astral-sh/setup-uv@v10.3.2  # setup-uv publishes no floating v10 tag
         with:
           python-version: "3.12"
@@ -26,6 +28,8 @@ jobs:
         run: make test
       - name: The deterministic gate (21 scripted scenarios, facts fixture)
         run: make eval-smoke
+      - name: The measured system is unchanged since the tag week6-measured
+        run: make verify-measured
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
@@ -34,6 +38,28 @@ jobs:
           path: |
             coverage.xml
             htmlcov/
+
+  reproduce:
+    name: Reproduce the report (no keys, no database)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies from the lock file
+        run: uv sync --locked
+      - name: Recompute the report from the committed rows and grades
+        run: make report
+      - name: The report and every CSV it writes are unchanged (the chart images are redrawn, not compared)
+        run: |
+          git diff --exit-code --stat -- \
+            eval/results/2026-11-14_final_report.md \
+            eval/results/2026-11-14_final_report.csv \
+            docs/results/final_rates.csv \
+            docs/results/final_difference.csv \
+            docs/results/final_check_activity.csv
 
   integration:
     name: Integration tests (Postgres + pgvector)

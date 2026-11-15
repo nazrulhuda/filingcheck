@@ -451,7 +451,7 @@ def report_main(args: argparse.Namespace) -> int:
         folder = hidden.parent / f"blind_{args.date}"
         names = ("final_blind_gemini_output.md", "final_blind_reviewing_session_grades.md")
         if all((folder / f"{args.date}_{n}").exists() for n in names):
-            blind = blind_section(final, folder, hidden)
+            blind = blind_section(final, folder, hidden, REPO_ROOT)
     billed = (
         "Billed by the OpenRouter key over the final run and its grading: $1.6394 (its usage rose "
         "from $1.2613 to $2.9007; `eval/results/2026-11-14_final-run_record.md`). The recorded "

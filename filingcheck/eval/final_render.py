@@ -1043,7 +1043,15 @@ def render_report(
 # ---------------------------------------------------------------- 9 (iii). the blind check
 
 
-def blind_section(f: Final, folder: Path, hidden: Path) -> list[str]:
+def shown_path(path: Path, root: Path) -> str:
+    """A file's path as the report prints it: relative to the repository root, forward slashes.
+
+    The same on every machine and under any folder name.
+    """
+    return path.resolve().relative_to(root.resolve()).as_posix()
+
+
+def blind_section(f: Final, folder: Path, hidden: Path, root: Path) -> list[str]:
     """The reveal: each blind grader's agreement with the LLM grader, and every row that differs."""
     from filingcheck.eval.final_report import (
         agreement,
@@ -1080,7 +1088,7 @@ def blind_section(f: Final, folder: Path, hidden: Path) -> list[str]:
     total = len(keys)
     lines = [
         f"{total} text-graded runs drawn by seed from the final `agent-checks-on` rows "
-        f"(`{hidden.as_posix().split('filingCheck/')[-1]}`, written with the LLM verdicts "
+        f"(`{shown_path(hidden, root)}`, written with the LLM verdicts "
         "hidden), graded blind before the LLM verdicts were shown, by the LLM grader's own "
         "definitions:",
         "",
