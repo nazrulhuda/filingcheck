@@ -1,4 +1,4 @@
-"""Ask Google Gemini, outside the coding session, to write the second held-out file (Day 37).
+"""Ask Google Gemini, with no access to the project, to write the second held-out file (Day 37).
 
 The model receives only the committed prompt's bytes as one user message: no system
 instruction, no tools, no search grounding, the provider's default temperature, and an output

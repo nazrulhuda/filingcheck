@@ -2,7 +2,7 @@
 
 A fixed random sample, by seed, in strata (Week 5: 15 text answers, 15 number answers whose
 deterministic grade is not `correct`, 10 that are), is written with each row's question,
-answer and sources and the LLM verdict hidden. A reviewing AI session grades all of them
+answer and sources and the LLM verdict hidden. Another language model grades all of them
 blind, the owner reviews ten picked by the same seed, and then the verdicts are compared.
 """
 

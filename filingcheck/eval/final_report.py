@@ -185,7 +185,7 @@ def parse_pipe_grades(reply: str) -> dict[int, tuple[str, str]]:
 
 
 def parse_table_grades(page: str) -> dict[int, tuple[str, str, str]]:
-    """The reviewing session's table: row number, `id:run`, verdict and supported."""
+    """The second blind grader's table: row number, `id:run`, verdict and supported."""
     found: dict[int, tuple[str, str, str]] = {}
     pattern = r"^\|\s*(\d+)\s*\|\s*([\w-]+:\d+)\s*\|\s*([\w/]+)\s*\|\s*([\w/]+)\s*\|"
     for m in re.finditer(pattern, page, re.MULTILINE):
