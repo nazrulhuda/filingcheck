@@ -58,9 +58,10 @@ export const MORE_CARDS: ExampleCard[] = [
   },
 ];
 
-/** Whether the answer card's top is on the screen with at least `margin` px of it showing. */
-export function answerInView(top: number, viewport: number, margin = 96): boolean {
-  return top >= 0 && top <= viewport - margin;
+/** Whether the whole answer card is on the screen; if not, the page brings its top to just under
+ * the top of the screen. */
+export function answerInView(top: number, bottom: number, viewport: number): boolean {
+  return top >= 0 && bottom <= viewport;
 }
 
 /** How to scroll to the answer: no animation for visitors who ask for reduced motion. */

@@ -348,11 +348,12 @@ export default function Home() {
     el.style.height = `${Math.min(el.scrollHeight + 2, BOX_MAX_PX)}px`;
   }, [question]);
 
-  // Bring the answer card into view if its top is off the screen.
+  // Unless the whole answer card is on screen, bring its top to just under the top of the screen.
   useEffect(() => {
     const el = answerArea.current;
     if (reveal === 0 || !el) return;
-    if (answerInView(el.getBoundingClientRect().top, window.innerHeight)) return;
+    const { top, bottom } = el.getBoundingClientRect();
+    if (answerInView(top, bottom, window.innerHeight)) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: scrollBehavior(reduced), block: "start" });
   }, [reveal]);
