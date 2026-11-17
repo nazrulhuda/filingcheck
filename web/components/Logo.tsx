@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // The text logo: a small check mark in the accent, then the name. The mark is plain SVG drawn
 // here; app/icon.svg (the favicon) and app/opengraph-image.tsx draw the same mark.
 
@@ -27,17 +29,17 @@ export function LogoMark({ size = 28 }: { size?: number }) {
   );
 }
 
-/** The logo in the top bar: the mark and "FilingCheck", read as one word, linking to the top. */
+/** The logo in the top bar: the mark and "FilingCheck", read as one word, linking home. */
 export function Logo() {
   return (
-    <a
-      href="#top"
+    <Link
+      href="/"
       className="flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-[23px]"
     >
       <LogoMark size={26} />
       <span>
         Filing<span className="text-accent">Check</span>
       </span>
-    </a>
+    </Link>
   );
 }

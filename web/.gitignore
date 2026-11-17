@@ -4,3 +4,5 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 .env*.local
+# Copied from the repository before each build (scripts/about-assets.mjs)
+/public/about/

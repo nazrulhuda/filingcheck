@@ -51,7 +51,7 @@ test("the About page holds the README's sections, in its order", () => {
 
 test("it leaves out the title block, its badges and How to run", () => {
   const all = JSON.stringify(sections);
-  for (const left of ["How to run", "Live demo:", "badge.svg", "<!--", "Built with Python", "make setup"]) {
+  for (const left of ["How to run", "Live demo:", "badge.svg", "<!--", "Built with Python", "make ingest"]) {
     assert.ok(!all.includes(left), left);
   }
 });
