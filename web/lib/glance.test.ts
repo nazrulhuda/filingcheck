@@ -357,3 +357,20 @@ test("the top bar's links reach their targets from both pages, with no result fi
   assert.ok(readmeSections(read("README.md")).some((s) => s.id === "results"), "/about#results");
   assert.doesNotMatch(JUMP_LINKS.map((l) => l.label).join(" "), /\d/);
 });
+
+test("on phones the top bar shows short labels, each part of its full label", () => {
+  assert.deepEqual(
+    JUMP_LINKS.map((link) => link.short),
+    ["How it works", "Inside", "Results", "About", "GitHub"],
+  );
+  for (const link of JUMP_LINKS) {
+    assert.ok(link.label.toLowerCase().includes(link.short.toLowerCase()), link.label);
+  }
+});
+
+test("the footer's Known limits goes to the About page's section", () => {
+  const chrome = read("web/components/SiteChrome.tsx");
+  assert.ok(chrome.includes('"/about#known-limits"'));
+  assert.ok(!chrome.includes("#known-limits`"), "not the README on GitHub");
+  assert.ok(readmeSections(read("README.md")).some((s) => s.id === "known-limits"));
+});

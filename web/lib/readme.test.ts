@@ -10,6 +10,7 @@ import {
   ABOUT_SECTIONS,
   ABOUT_TITLE,
   type Block,
+  type InlineNode,
   href,
   imageSrc,
   inline,
@@ -154,4 +155,47 @@ test("the About page has its own title, and its description is the README's one 
   assert.equal(ABOUT_TITLE, "About FilingCheck: the results and how it was built");
   assert.equal(readmeDescription(README), README.split("\n")[2]);
   assert.ok(readmeDescription(README).startsWith("An agent that answers questions"));
+});
+
+test("single-asterisk emphasis is italic", () => {
+  assert.deepEqual(inline("server-side *repair* of arguments"), [
+    { kind: "text", text: "server-side " },
+    { kind: "italic", children: [{ kind: "text", text: "repair" }] },
+    { kind: "text", text: " of arguments" },
+  ]);
+});
+
+/** Every piece of text the About page renders from the README's inline markdown. */
+function renderedTexts(nodes: InlineNode[]): string[] {
+  return nodes.flatMap((node) =>
+    node.kind === "text" || node.kind === "code" ? [node.text] : renderedTexts(node.children),
+  );
+}
+
+test("no rendered text on the About page still holds a markdown marker", () => {
+  const sources = sections.flatMap((s) =>
+    s.blocks.flatMap((b) =>
+      b.kind === "paragraph"
+        ? [b.text]
+        : b.kind === "list"
+          ? b.items
+          : b.kind === "table"
+            ? [...b.header, ...b.rows.flat()]
+            : [],
+    ),
+  );
+  const marker = /\*\*|`|\]\(|(^|[\s(])\*[^\s*]|[^\s*]\*($|[\s.,;:)])|(^|\s)#{1,6}\s|<!--/;
+  for (const source of sources) {
+    for (const piece of renderedTexts(inline(source))) {
+      assert.doesNotMatch(piece, marker, source.slice(0, 80));
+    }
+  }
+});
+
+test("the About page says it shows the README, and its charts open full size", () => {
+  const page = read("web/app/about/page.tsx");
+  assert.ok(page.includes("This page shows the project's"));
+  assert.ok(page.includes("https://github.com/nazrulhuda/filingcheck/blob/main/README.md"));
+  assert.ok(page.includes("<a href={imageSrc(block.src)}>"), "each chart links to its picture");
+  assert.ok(page.includes('<a href={imageSrc("docs/architecture.svg")}>'), "and so does the diagram");
 });

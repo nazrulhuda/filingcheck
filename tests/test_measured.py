@@ -1,6 +1,7 @@
 """The measured system is pinned: `make verify-measured` fails on a change under a pinned path,
 on a moved tag, and on a changed or new final row or grade file."""
 
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -195,7 +196,13 @@ def test_the_pinned_lists_are_the_plans_lists() -> None:
 
 MARK = "**Who wrote this and when.**"
 NEW_MARK = "**When this was written.**"
-LEADS = (MARK, NEW_MARK)
+
+
+def exempt(paragraph: str) -> dict[str, tuple[str, str, str]]:
+    """The exemption for the test file: its old lead, its new lead, and the new paragraph's hash."""
+    return {"pinned/prereg.md": (MARK, NEW_MARK, hashlib.sha256(paragraph.encode()).hexdigest())}
+
+
 PREREG = """# Pre-registration
 
 **Who wrote this and when.** Written on day 1.
@@ -225,13 +232,11 @@ def test_without_paragraph_drops_only_the_marked_paragraph() -> None:
 
 def test_a_reworded_first_paragraph_passes_and_any_other_change_fails(tmp_path: Path) -> None:
     root, commit = prereg_repo(tmp_path)
-    reworded = {"pinned/prereg.md": LEADS}
+    paragraph = f"{NEW_MARK} Day 1, with a note.\nReworded on day 9."
+    reworded = exempt(paragraph)
     page = root / "pinned" / "prereg.md"
     page.write_text(
-        PREREG.replace(
-            "**Who wrote this and when.** Written on day 1.",
-            f"{NEW_MARK} Day 1, with a note.\nReworded on day 9.",
-        ),
+        PREREG.replace("**Who wrote this and when.** Written on day 1.", paragraph),
         encoding="utf-8",
     )
     assert changed_files(root, commit, ("pinned",), reworded) == []
@@ -257,22 +262,27 @@ def test_the_command_says_when_only_the_paragraph_differs(
         encoding="utf-8",
     )
     pin = (Pin(commit=commit, paths=("pinned",), tag=TAG),)
-    assert main(["--root", str(root)], pins=pin, reworded={"pinned/prereg.md": LEADS}) == 0
+    assert main(["--root", str(root)], pins=pin, reworded=exempt(f"{NEW_MARK} Day 1.")) == 0
     out = capsys.readouterr().out
     assert "pinned/prereg.md" in out and "first paragraph" in out and "unchanged" in out
 
 
-def test_only_the_pre_registrations_first_paragraph_may_be_reworded() -> None:
-    assert REWORDED == {
-        "eval/PREREGISTRATION.md": ("**Who wrote this and when.**", "**When this was written.**")
-    }
-    assert "eval/PREREGISTRATION.md" in PINNED
+def test_only_the_pre_registrations_first_paragraph_may_be_reworded_to_its_pinned_text() -> None:
+    (path,) = REWORDED
+    assert path == "eval/PREREGISTRATION.md" and path in PINNED
+    old_lead, new_lead, digest = REWORDED[path]
+    assert (old_lead, new_lead) == ("**Who wrote this and when.**", "**When this was written.**")
+    text = (Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8")
+    (paragraph,) = [p for p in text.split("\n\n") if p.startswith(new_lead)]
+    assert hashlib.sha256(paragraph.encode()).hexdigest() == digest
+    # #90 was merged on 2026-11-17 (15:05 -0500); the paragraph gives that date.
+    assert "reworded on 2026-11-17" in paragraph and "2026-11-18" not in paragraph
 
 
 def test_the_paragraph_may_take_its_new_lead_but_not_lose_it(tmp_path: Path) -> None:
     root, commit = prereg_repo(tmp_path)
     page = root / "pinned" / "prereg.md"
-    reworded = {"pinned/prereg.md": LEADS}
+    reworded = exempt(f"{NEW_MARK} Day 1.")
     page.write_text(
         PREREG.replace("**Who wrote this and when.** Written on day 1.", f"{NEW_MARK} Day 1."),
         encoding="utf-8",
@@ -285,3 +295,24 @@ def test_the_paragraph_may_take_its_new_lead_but_not_lose_it(tmp_path: Path) -> 
         PREREG.replace("**Who wrote this and when.** Written on day 1.", "Day 1."), encoding="utf-8"
     )
     assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
+
+
+def test_a_sentence_added_to_the_reworded_paragraph_fails(tmp_path: Path) -> None:
+    root, commit = prereg_repo(tmp_path)
+    page = root / "pinned" / "prereg.md"
+    reworded = exempt(f"{NEW_MARK} Day 1.")
+    page.write_text(
+        PREREG.replace(
+            "**Who wrote this and when.** Written on day 1.", f"{NEW_MARK} Day 1. And a new rule."
+        ),
+        encoding="utf-8",
+    )
+    assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
+
+
+def test_the_dates_of_the_reworded_paragraph_are_the_merge_day() -> None:
+    root = Path(__file__).resolve().parents[1]
+    measured = (root / "filingcheck/measured.py").read_text(encoding="utf-8")
+    assert "reworded on 2026-11-17" in measured and "2026-11-18" not in measured
+    log = (root / "docs/decisions.md").read_text(encoding="utf-8")
+    assert "2026-11-18" not in log
