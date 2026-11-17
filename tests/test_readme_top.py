@@ -24,10 +24,17 @@ def number(text: str) -> int:
 
 
 def block(title: str) -> str:
-    """The README block that starts with the bold title, up to the next bold title."""
+    """The README block that starts with the bold title, up to the next bold title or heading."""
     start = README.index(f"\n**{title}**")
-    end = README.index("\n**", start + 1)
-    return README[start:end]
+    ends = [i for i in (README.find("\n**", start + 1), README.find("\n## ", start + 1)) if i > 0]
+    return README[start : min(ends)]
+
+
+def section(title: str) -> str:
+    """The README's "## title" section, up to the next heading."""
+    start = README.index(f"\n## {title}\n")
+    end = README.find("\n## ", start + 1)
+    return README[start : end if end > 0 else len(README)]
 
 
 def rows() -> dict[str, str]:
@@ -43,7 +50,7 @@ def find(pattern: str, text: str) -> re.Match[str]:
     return match
 
 
-def test_the_table_has_the_page_tiles_then_the_four_more_lines() -> None:
+def test_the_table_has_the_page_tiles_then_the_two_more_lines() -> None:
     assert list(rows()) == [
         "Data",
         "Search",
@@ -51,11 +58,11 @@ def test_the_table_has_the_page_tiles_then_the_four_more_lines() -> None:
         "Agent",
         "Checks",
         "Testing",
-        "Coverage",
-        "Not compared",
         "CI gate",
         "Reproduction",
     ]
+    # Coverage and the figures not compared stay in the facts pages; the Numbers row links one.
+    assert "(docs/facts_report.md)" in rows()["Numbers"]
 
 
 def test_data_is_the_pinned_manifest() -> None:
@@ -124,29 +131,6 @@ def test_testing_is_the_committed_final_rows() -> None:
     assert (number(m[1]), number(m[2])) == (answers, len(setups))
 
 
-def test_coverage_is_the_coverage_pages_totals_and_nothing_is_derived() -> None:
-    coverage = read("docs/facts_coverage.md")
-    found = [(number(a), number(b)) for a, b in re.findall(r"\| (\d+) of (\d+) \|", coverage)]
-    assert len(found) == 13
-    m = find(r"^([\d,]+) of ([\d,]+) company-year metric values", rows()["Coverage"])
-    assert number(m[1]) == sum(a for a, _ in found)
-    assert number(m[2]) == sum(b for _, b in found)
-    assert '"unavailable"' in rows()["Coverage"] and "derives nothing" in rows()["Coverage"]
-    assert "Nothing is derived." in coverage
-
-
-def test_not_compared_is_the_facts_reports_count_all_from_one_filing() -> None:
-    facts = read("docs/facts_report.md")
-    m = find(r"^(\d+) figures had no companyfacts entry to compare", rows()["Not compared"])
-    assert number(m[1]) == number(find(r"- Not in companyfacts: ([\d,]+)", facts)[1])
-    missing = re.findall(
-        r"^\| (\w+) \| (\d{4}) \| `[^`]+` \| [^|]+ \| not in companyfacts \|", facts, re.M
-    )
-    assert len(missing) == number(m[1])
-    assert set(missing) == {("SPGI", "2024")}
-    assert "S&P Global's fiscal 2024 filing" in rows()["Not compared"]
-
-
 def test_the_gate_count_is_the_scenario_files_wherever_it_is_stated() -> None:
     scenarios = yaml.safe_load(read("tests/eval_gate/scenarios.yaml"))["scenarios"]
     count = len(scenarios)
@@ -158,7 +142,7 @@ def test_the_gate_count_is_the_scenario_files_wherever_it_is_stated() -> None:
         "eval/README.md": r"Each of the (\d+) scenarios in `tests/eval_gate/scenarios.yaml`",
         "tests/eval_gate/scenarios.yaml": "^# " + header,
         "tests/eval_gate/test_gate.py": '^"""' + header,
-        "README.md": r"A deterministic gate in CI:\*\* (\d+) scripted scenarios",
+        "docs/what_works_today.md": r"A deterministic gate in CI:\*\* (\d+) scripted scenarios",
     }
     for path, pattern in stated.items():
         assert number(find(pattern, read(path))[1]) == count, path
@@ -176,8 +160,8 @@ def test_what_this_project_shows_is_three_lines_with_no_effect_claim() -> None:
     assert not re.search(r"cut|better|fewer|reduc|improv|accura", " ".join(lines), re.IGNORECASE)
 
 
-def test_the_additions_sit_above_the_results_which_still_lead_with_the_prompt_rules() -> None:
-    result = README.index("\n**The result**")
+def test_the_additions_sit_above_the_results() -> None:
+    result = README.index("\n## Results\n")
     title_end = README.index("\n\n", README.index("# FilingCheck\n\n") + len("# FilingCheck\n\n"))
     shot = README.index("![", title_end)
     assert shot < README.index("**Live demo:") < result
@@ -193,24 +177,93 @@ def test_the_additions_sit_above_the_results_which_still_lead_with_the_prompt_ru
         "Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, Docker, "
         "GitHub Actions." in top
     )
-    first = README[result:].split("\n- ", 1)[1]
-    assert first.startswith(
-        "**The same rules written into the model's prompt were more accurate than enforcing them "
-        "on the server.**"
+
+
+def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() -> None:
+    results = section("Results")
+    assert README.count("\n## Results\n") == 1
+    assert "**The result**" not in README and "## What the measurement showed" not in README
+    lines = [line for line in results.splitlines()[1:] if line.strip()]
+    # The first claim is the prompt-rules result with its interval; nothing comes before it.
+    assert lines[0].startswith(
+        "- **The same rules written into the model's prompt were more accurate than enforcing "
+        "them on the server:**"
     )
+    assert (
+        "85.2% against 75.5%" in lines[0] and "-9.7 points, 95% interval -16.4 to -3.0" in lines[0]
+    )
+    bullets = [line for line in lines if line.startswith("- ")]
+    assert len(bullets) == 4
+    assert "18.5% to 10.6%" in bullets[1] and "-12.7 to -3.6" in bullets[1]
+    assert "23" in bullets[2] and "17" in bullets[2] and "90" in bullets[2]
+    assert "18% to 29%" in bullets[3]
+    assert lines[4] == next(line for line in lines if line.startswith("![")), "then the chart"
+    assert "(docs/results/final_summary.png)" in lines[4]
+    after = " ".join(lines[5:])
+    assert len(re.findall(r"[.!?](?:\s|$)", after)) <= 3
+    assert "(eval/PREREGISTRATION.md)" in after
+    assert "(eval/results/2026-11-14_final_report.md)" in after
+    assert "make report" in after
+    words = len(re.sub(r"\]\([^)]*\)|[*`#\[\]!]", " ", results).split())
+    assert 150 <= words <= 260, words
+    assert "final_rates.png" not in README
 
 
-def test_known_limits_says_the_control_questions_were_seen_in_development() -> None:
-    limits = README[README.index("## Known limits") : README.index("## What works today")]
+def test_known_limits_has_the_eight_and_links_all_sixteen() -> None:
+    limits = section("Known limits")
+    mine = [line[2:] for line in limits.splitlines() if line.startswith("- ")]
+    assert len(mine) == 8
+    assert "[All known limits](docs/known_limits.md)" in limits
+    page = read("docs/known_limits.md")
+    everything = [line[2:] for line in page.splitlines() if line.startswith("- ")]
+    assert len(everything) == 16
+    # Each of the eight is one of the sixteen, word for word or cut short at a sentence's end.
+    for limit in mine:
+        assert any(full.startswith(limit) for full in everything), limit[:60]
+    for words in (
+        "One model was measured",
+        "The intervals are wide",
+        "miss phrasings",
+        "cover the arguments of the tools",
+        "Verified means",
+        "The graders are automatic",
+        "gold values come from the same lookup",
+        "In an answer with a calculation",
+    ):
+        assert sum(words in limit for limit in mine) == 1, words
+
+
+def test_what_works_today_moved_to_its_own_page_linked_once() -> None:
+    assert "## What works today" not in README
+    assert README.count("(docs/what_works_today.md)") == 1
+    page = read("docs/what_works_today.md")
+    assert page.startswith("# What works today")
+    assert len([line for line in page.splitlines() if line.startswith("- **")]) >= 10
+
+
+def test_reproduce_is_the_two_commands_and_two_sentences() -> None:
+    reproduce = section("Reproduce the results")
+    assert "make setup" in reproduce and "make report" in reproduce
+    prose = re.sub(r"```.*?```", " ", reproduce, flags=re.S).replace("## Reproduce the results", "")
+    assert len(re.findall(r"[.!?](?:\s|$)", prose.strip())) == 2
+    assert "make verify-measured" in prose
+    assert len(reproduce.split()) <= 110
+
+
+def test_the_readme_is_about_1600_words() -> None:
+    assert len(README.split()) <= 1800, len(README.split())
+
+
+def test_known_limits_page_says_the_control_questions_were_seen_in_development() -> None:
     assert (
         "- The control questions were used during development: the fiscal-year check on searches "
         "was built after a dry run on them (decisions, Nov 12), so the rise in control accuracy "
-        "is not held-out evidence." in limits
+        "is not held-out evidence." in read("docs/known_limits.md")
     )
 
 
 def test_known_limits_says_a_figure_rewritten_in_the_working_is_unverified() -> None:
-    limits = README[README.index("## Known limits") : README.index("## What works today")]
+    limits = section("Known limits")
     assert (
         "- In an answer with a calculation, a figure the model writes again in its working (for "
         'example "130,497 M") is labeled Unverified, because the labeler reads figures as written.'

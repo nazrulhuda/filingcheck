@@ -32,13 +32,10 @@ test("the About page holds the README's sections, in its order", () => {
   assert.deepEqual(ABOUT_SECTIONS, [
     "What this project shows",
     "By the numbers",
-    "The result",
+    "Results",
     "How it is built",
     "How one question goes through it",
-    "What the measurement showed",
-    "Results",
     "Known limits",
-    "What works today",
     "Not built",
     "Reproduce the results",
     "Related work",
@@ -73,19 +70,19 @@ test("every paragraph, list item, table cell and code block is the README's own 
   }
 });
 
-test("the Results section's first claim is the README's first: the prompt-rules result", () => {
-  const claims = blocks("Results").filter(
-    (b): b is Extract<Block, { kind: "paragraph" }> => b.kind === "paragraph" && b.text.startsWith("**"),
-  );
+test("the Results section opens with the prompt-rules result, before anything else", () => {
+  const [first] = blocks("Results");
+  assert.ok(first.kind === "list", "the section starts with its four bullets");
+  assert.equal(first.items.length, 4);
   assert.ok(
-    claims[0].text.startsWith(
-      "**The same rules written into the prompt did better than the server-side checks on accuracy.**",
+    first.items[0].startsWith(
+      "**The same rules written into the model's prompt were more accurate than enforcing them on the server:**",
     ),
   );
-  const afterHeading = README.slice(README.indexOf("## Results")).split("\n");
+  const afterHeading = README.slice(README.indexOf("\n## Results\n")).split("\n").slice(1);
   assert.equal(
-    afterHeading.find((line) => line.startsWith("**")),
-    claims[0].text,
+    afterHeading.find((line) => line.trim()),
+    `- ${first.items[0]}`,
   );
 });
 
@@ -105,8 +102,9 @@ test("the README's pictures in these sections are served by the site", () => {
     .filter((b): b is Extract<Block, { kind: "image" }> => b.kind === "image");
   assert.deepEqual(
     images.map((i) => i.src),
-    ["docs/results/final_summary.png", "docs/results/final_rates.png"],
+    ["docs/results/final_summary.png"],
   );
+  assert.deepEqual(Object.keys(ABOUT_ASSETS).sort(), ["docs/architecture.svg", "docs/results/final_summary.png"]);
   for (const image of images) {
     assert.ok(ABOUT_ASSETS[image.src], image.src);
     assert.equal(imageSrc(image.src), `/about/${ABOUT_ASSETS[image.src]}`);
@@ -145,10 +143,8 @@ test("tables keep their header, alignment and cells", () => {
   const table = blocks("By the numbers").find((b) => b.kind === "table");
   assert.ok(table && table.kind === "table");
   assert.deepEqual(table.header, ["Part", "What it is"]);
-  assert.equal(table.rows.length, 10);
-  const results = blocks("Results").find((b) => b.kind === "table");
-  assert.ok(results && results.kind === "table");
-  assert.deepEqual(results.align.slice(0, 2), ["left", "right"]);
+  assert.equal(table.rows.length, 8);
+  assert.deepEqual(table.align, ["left", "left"]);
 });
 
 test("the About page has its own title, and its description is the README's one line", () => {
