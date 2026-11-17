@@ -194,9 +194,11 @@ test("the README's By the numbers table starts with the six tiles, word for word
   const readme = read("README.md");
   const start = readme.indexOf("\n**By the numbers**");
   assert.ok(start > 0, "the README's By the numbers table");
-  const table = readme.slice(start, readme.indexOf("\n**", start + 1));
+  const table = readme.slice(start, readme.indexOf("\n## ", start + 1));
+  // A row may link its source (the Numbers row links the facts report); the words are the tile's.
+  const unlinked = (text: string) => text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   const rows = [...table.matchAll(/^\| ([^|]+?) \| (.+?) \|$/gm)]
-    .map((m) => ({ name: m[1], text: m[2] }))
+    .map((m) => ({ name: m[1], text: unlinked(m[2]) }))
     .filter((row) => row.name !== "Part");
   assert.deepEqual(rows.slice(0, 6), INSIDE);
 });
@@ -346,26 +348,23 @@ test("the top bar's links reach their targets from both pages, with no result fi
     JUMP_LINKS.map((link) => [link.label, link.href]),
     [
       ["How it works", "/#how-it-works"],
-      ["What's inside", "/#whats-inside"],
       ["Results", "/about#results"],
-      ["About the project", "/about"],
+      ["About", "/about"],
       ["GitHub", "https://github.com/nazrulhuda/filingcheck"],
     ],
   );
   const home = read("web/app/page.tsx");
-  for (const id of ["how-it-works", "whats-inside"]) assert.ok(home.includes(`id="${id}"`), id);
+  assert.ok(home.includes('id="how-it-works"'), "how-it-works");
   assert.ok(readmeSections(read("README.md")).some((s) => s.id === "results"), "/about#results");
   assert.doesNotMatch(JUMP_LINKS.map((l) => l.label).join(" "), /\d/);
 });
 
-test("on phones the top bar shows short labels, each part of its full label", () => {
-  assert.deepEqual(
-    JUMP_LINKS.map((link) => link.short),
-    ["How it works", "Inside", "Results", "About", "GitHub"],
-  );
-  for (const link of JUMP_LINKS) {
-    assert.ok(link.label.toLowerCase().includes(link.short.toLowerCase()), link.label);
-  }
+test("the top bar shows the same four labels on every screen size", () => {
+  for (const link of JUMP_LINKS) assert.ok(!("short" in link), link.label);
+  const chrome = read("web/components/SiteChrome.tsx");
+  assert.ok(!chrome.includes("sm:hidden") && !chrome.includes("link.short"));
+  // What's inside stays on the home page, below How it works.
+  assert.ok(read("web/app/page.tsx").includes('id="whats-inside"'));
 });
 
 test("the footer's Known limits goes to the About page's section", () => {

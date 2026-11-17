@@ -88,14 +88,13 @@ export function enterAsks(key: string, shift: boolean, composing: boolean): bool
   return key === "Enter" && !shift && !composing;
 }
 
-/** The top bar's links, the same on both pages: two home sections, the About page's results, the
- * About page, and the code on GitHub. Phones show the short labels, on a row of their own. */
+/** The top bar's links, the same on both pages and on every screen size, in the order of a
+ * visitor's questions: what it is, does it work, more detail, the code (last, as it leaves the site). */
 export const JUMP_LINKS = [
-  { label: "How it works", short: "How it works", href: "/#how-it-works" },
-  { label: "What's inside", short: "Inside", href: "/#whats-inside" },
-  { label: "Results", short: "Results", href: "/about#results" },
-  { label: "About the project", short: "About", href: "/about" },
-  { label: "GitHub", short: "GitHub", href: "https://github.com/nazrulhuda/filingcheck" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Results", href: "/about#results" },
+  { label: "About", href: "/about" },
+  { label: "GitHub", href: "https://github.com/nazrulhuda/filingcheck" },
 ];
 
 export const STEPS = [
