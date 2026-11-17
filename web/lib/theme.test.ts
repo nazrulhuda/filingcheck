@@ -75,3 +75,12 @@ test("the favicon, the logo mark and the link preview draw the same mark in the 
   assert.ok(icon.includes(`fill="${colour("accent")}"`), "icon.svg uses the accent");
   assert.ok(preview.includes(`const ACCENT = "${colour("accent")}"`), "the preview uses the accent");
 });
+
+test("the header band keeps the logo and the sentence readable", () => {
+  const band = colour("band");
+  assert.ok(contrast(colour("accent"), band) >= 4.5, "the logo's accent on the band");
+  // The sentence is Tailwind's slate-700, the name's first half slate-900.
+  assert.ok(contrast("#334155", band) >= 4.5, "the sentence on the band");
+  assert.ok(contrast("#0f172a", band) >= 4.5, "the name on the band");
+  assert.ok(contrast(band, WHITE) < 1.2, "the band is a soft tint");
+});

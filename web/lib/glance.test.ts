@@ -6,16 +6,21 @@ import { test } from "node:test";
 
 import { checkReport } from "./checks.ts";
 import {
+  answerInView,
+  CHIPS,
   CONTROL,
   FIRST_EXAMPLE,
   INSIDE,
   INSIDE_FIGURES,
   insideTiles,
+  MORE_CHIPS,
+  PRIVACY_NOTE,
   resultTiles,
+  scrollBehavior,
   STEPS,
 } from "./glance.ts";
 import type { Results } from "./results.ts";
-import type { Example } from "./traps.ts";
+import { type Example, type TrapExample, trapExamples } from "./traps.ts";
 
 const repo = (path: string) => new URL(`../../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(repo(path), "utf8");
@@ -187,4 +192,59 @@ test("the README's By the numbers table starts with the six tiles, word for word
     .map((m) => ({ name: m[1], text: m[2] }))
     .filter((row) => row.name !== "Part");
   assert.deepEqual(rows.slice(0, 6), INSIDE);
+});
+
+test("the chips are the five the plan names, in its order, then three behind More", () => {
+  assert.deepEqual(
+    CHIPS.map((chip) => chip.label),
+    [
+      "Costco: operating income",
+      "Citi: money in Argentina",
+      "Netflix: IP claims",
+      "Trap: Nike, 'last year'",
+      "Trap: 'morgan'",
+    ],
+  );
+  assert.equal(MORE_CHIPS.length, 3);
+  for (const chip of [...CHIPS, ...MORE_CHIPS]) assert.ok(chip.label.length <= 36, chip.label);
+});
+
+test("each saved question has exactly one chip, and the trap chips are the saved trap examples", () => {
+  const examples = JSON.parse(read("web/data/examples.json")) as Example[];
+  const traps = trapExamples(JSON.parse(read("web/data/trap_examples.json")) as TrapExample[], examples);
+  const saved = new Set([...examples, ...traps].map((e) => e.question));
+  const chipped = [...CHIPS, ...MORE_CHIPS].map((chip) => chip.question);
+  assert.deepEqual([...chipped].sort(), [...saved].sort());
+  assert.deepEqual(
+    CHIPS.filter((chip) => chip.label.startsWith("Trap:")).map((chip) => chip.question).sort(),
+    traps.map((t) => t.question).sort(),
+  );
+  for (const chip of [...CHIPS, ...MORE_CHIPS]) {
+    const words = chip.label.replace(/^Trap: /, "").split(/[^A-Za-z]+/).filter((w) => w.length > 3);
+    assert.ok(
+      words.some((w) => chip.question.toLowerCase().includes(w.toLowerCase())),
+      `${chip.label} names its question`,
+    );
+  }
+});
+
+test("the privacy note drops only its first sentence, which stays in What you can ask", () => {
+  const page = read("web/app/page.tsx");
+  assert.equal(
+    PRIVACY_NOTE,
+    "Questions are logged to improve the demo. Each question is sent to OpenAI to search the " +
+      "filings, and through OpenRouter to Groq, or to Google if that is busy, to write the " +
+      "answer; please don't enter personal information.",
+  );
+  assert.ok(page.includes("<li>Each question stands alone (no chat history).</li>"));
+});
+
+test("the answer card is brought into view only when its top is off the screen", () => {
+  assert.equal(answerInView(300, 800), true);
+  assert.equal(answerInView(0, 800), true);
+  assert.equal(answerInView(-40, 800), false, "above the screen");
+  assert.equal(answerInView(760, 800), false, "only its first 40 px show");
+  assert.equal(answerInView(704, 800), true, "96 px show");
+  assert.equal(scrollBehavior(true), "auto", "no animation with reduced motion");
+  assert.equal(scrollBehavior(false), "smooth");
 });
