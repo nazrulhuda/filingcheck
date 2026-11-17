@@ -1,4 +1,4 @@
-# The deterministic gate (make eval-smoke): 21 scripted agent runs with the checks on.
+# The deterministic gate (make eval-smoke): 24 scripted agent runs with the checks on.
 #
 # Each scenario is a question, the page filters, the model's scripted tool calls (one model
 # turn each; a turn may ask for two calls), the scripted final answer, and what must come out:

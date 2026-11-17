@@ -1,4 +1,4 @@
-"""The deterministic gate (make eval-smoke): 21 scripted agent runs with the checks on.
+"""The deterministic gate (make eval-smoke): 24 scripted agent runs with the checks on.
 
 Each scenario in scenarios.yaml runs the real agent graph, the real checks, the real lookup
 and the real grader, with FakeChat in place of the model. The facts come from the facts

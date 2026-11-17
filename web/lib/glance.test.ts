@@ -177,3 +177,14 @@ test("how it works is three steps", () => {
     "Every number is labeled against its source",
   ]);
 });
+
+test("the README's By the numbers table starts with the six tiles, word for word", () => {
+  const readme = read("README.md");
+  const start = readme.indexOf("\n**By the numbers**");
+  assert.ok(start > 0, "the README's By the numbers table");
+  const table = readme.slice(start, readme.indexOf("\n**", start + 1));
+  const rows = [...table.matchAll(/^\| ([^|]+?) \| (.+?) \|$/gm)]
+    .map((m) => ({ name: m[1], text: m[2] }))
+    .filter((row) => row.name !== "Part");
+  assert.deepEqual(rows.slice(0, 6), INSIDE);
+});

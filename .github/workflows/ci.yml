@@ -26,7 +26,7 @@ jobs:
         run: make lint
       - name: Unit tests with coverage
         run: make test
-      - name: The deterministic gate (21 scripted scenarios, facts fixture)
+      - name: The deterministic gate (24 scripted scenarios, facts fixture)
         run: make eval-smoke
       - name: The measured system is unchanged since the tag week6-measured
         run: make verify-measured
