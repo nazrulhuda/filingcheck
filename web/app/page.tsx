@@ -32,11 +32,13 @@ import {
 } from "@/lib/display";
 import {
   answerInView,
+  cardLine,
   CHIPS,
   type Chip,
+  enterAsks,
   FIRST_EXAMPLE,
-  FIRST_EXAMPLE_LINE,
   INSIDE,
+  JUMP_LINKS,
   MORE_CHIPS,
   PRIVACY_NOTE,
   resultTiles,
@@ -48,12 +50,7 @@ import {
 } from "@/lib/glance";
 import { reviewNote } from "@/lib/notes";
 import { type Results, resultLines } from "@/lib/results";
-import {
-  type Example,
-  TRAP_NOTE,
-  type TrapExample,
-  trapExamples,
-} from "@/lib/traps";
+import { type Example, type TrapExample, trapExamples } from "@/lib/traps";
 
 const EXAMPLES = examplesData as Example[];
 const TRAPS = trapExamples(trapData as TrapExample[], EXAMPLES);
@@ -78,7 +75,10 @@ const BOX = "rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-
 const TILE = "rounded-lg border border-slate-200 bg-white p-4";
 const SECTION_TITLE = "text-lg font-semibold text-slate-900";
 const CHIP =
-  "rounded-full border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:border-accent hover:text-accent-strong";
+  "rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[13px] text-slate-700 hover:border-accent hover:text-accent-strong";
+// The answer card is the only box with an accent border, and its strip says what it holds.
+const CARD = "overflow-hidden rounded-lg border-2 border-accent bg-white";
+const STRIP = "bg-accent-soft px-4 py-1.5 text-xs font-semibold text-accent-strong";
 
 /** A finished tool call's status in words. */
 function statusWords(status: string): string {
@@ -101,15 +101,13 @@ type Shown =
       /** For a clicked example: the filters it was asked with, and any review note. */
       asked?: string;
       note?: string | null;
-      /** The line above the saved example shown on first load. */
-      intro?: string;
-      /** A saved trap example: its card carries the trap row's note. */
+      /** A saved trap example: its strip says it was chosen. */
       trap?: boolean;
     }
   | { kind: "error"; message: string };
 
 /** A saved example's answer as the page shows it, with no request made. */
-function exampleShown(example: Example, intro?: string): Shown {
+function exampleShown(example: Example): Shown {
   return {
     kind: "answer",
     question: example.question,
@@ -119,12 +117,11 @@ function exampleShown(example: Example, intro?: string): Shown {
     asked: askedWith(example.company_name, example.ticker, example.fiscal_year),
     note: reviewNote(example.question),
     trap: TRAP_QUESTIONS.has(example.question),
-    ...(intro ? { intro } : {}),
   };
 }
 
 const FIRST = SAVED.get(FIRST_EXAMPLE);
-const FIRST_SHOWN: Shown = FIRST ? exampleShown(FIRST, FIRST_EXAMPLE_LINE) : { kind: "none" };
+const FIRST_SHOWN: Shown = FIRST ? exampleShown(FIRST) : { kind: "none" };
 
 /** What the data holds and what it cannot answer: closed until opened, on every screen. */
 function WhatYouCanAsk({ companies }: { companies: Company[] }) {
@@ -174,7 +171,7 @@ function WhatYouCanAsk({ companies }: { companies: Company[] }) {
 /** Three steps in a row (stacked on phones); the earlier explainer, unchanged, in a closed panel. */
 function HowItWorks() {
   return (
-    <section className="mt-12" aria-labelledby="how-title">
+    <section id="how-it-works" className="mt-12 scroll-mt-4" aria-labelledby="how-title">
       <h2 id="how-title" className={SECTION_TITLE}>
         How it works
       </h2>
@@ -206,7 +203,7 @@ function HowItWorks() {
  * in a closed panel. Every number is from results.json or checked against the report. */
 function ResultsSection() {
   return (
-    <section className="mt-12" aria-labelledby="results-title">
+    <section id="results" className="mt-12 scroll-mt-4" aria-labelledby="results-title">
       <h2 id="results-title" className={SECTION_TITLE}>
         What the measurement found
       </h2>
@@ -244,7 +241,7 @@ function ResultsSection() {
 /** One tile per part of the system: what it is, with no claim about its effect. */
 function Inside() {
   return (
-    <section className="mt-12" aria-labelledby="inside-title">
+    <section id="whats-inside" className="mt-12 scroll-mt-4" aria-labelledby="inside-title">
       <h2 id="inside-title" className={SECTION_TITLE}>
         What&apos;s inside
       </h2>
@@ -361,6 +358,7 @@ export default function Home() {
   }, [reveal]);
 
   const years = companies.find((c) => c.ticker === ticker)?.fiscal_years ?? [];
+  const canAsk = !busy && question.trim() !== "" && backend === "ok";
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -391,6 +389,7 @@ export default function Home() {
         answer: result.answer,
         source: result.cached ? "after-limit" : "new",
         notice: cachedNotice(result),
+        trap: Boolean(result.cached && result.example && TRAP_QUESTIONS.has(result.example.question)),
       });
     } catch (error) {
       const message =
@@ -431,12 +430,21 @@ export default function Home() {
   return (
     <>
       <header className="border-b border-slate-200 bg-band">
-        <div className="mx-auto flex max-w-4xl flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
+        <div className="mx-auto flex max-w-5xl flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
           <Logo />
-          <p className="text-sm text-slate-700 sm:text-[15px]">{SENTENCE}</p>
+          <div>
+            <p className="text-sm text-slate-700 sm:text-[15px]">{SENTENCE}</p>
+            <nav aria-label="On this page" className="mt-1 flex flex-wrap gap-x-4 text-sm">
+              {JUMP_LINKS.map((link) => (
+                <a key={link.href} href={link.href} className={LINK}>
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-4 pb-8 pt-3">
+      <main className="mx-auto max-w-5xl px-4 pb-8 pt-3">
         {backend === "waking" && (
           <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
             The backend is waking up (up to a minute). The saved examples below
@@ -464,6 +472,11 @@ export default function Home() {
             ref={box}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (!enterAsks(e.key, e.shiftKey, e.nativeEvent.isComposing)) return;
+              e.preventDefault();
+              if (canAsk) e.currentTarget.form?.requestSubmit();
+            }}
             maxLength={MAX_QUESTION}
             rows={3}
             placeholder="For example: What does Netflix say about intellectual-property claims?"
@@ -524,7 +537,7 @@ export default function Home() {
             </label>
             <button
               type="submit"
-              disabled={busy || !question.trim() || backend !== "ok"}
+              disabled={!canAsk}
               className="ml-auto rounded-md bg-accent px-6 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {busy ? "Answering…" : "Ask"}
@@ -541,7 +554,7 @@ export default function Home() {
             onClick={() => setMore((open) => !open)}
             aria-expanded={more}
             aria-controls="more-examples"
-            className="rounded-full px-2 py-1 text-sm text-accent underline hover:text-accent-strong"
+            className={CHIP}
           >
             {more ? "Fewer" : "More"}
           </button>
@@ -552,66 +565,66 @@ export default function Home() {
 
         <section ref={answerArea} className="mt-3 scroll-mt-4" aria-live="polite">
           {shown.kind === "streaming" && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              {shown.progress.restarted && (
-                <p className="mb-2 text-sm text-slate-500">
-                  {shown.progress.restarted}
+            <div className={CARD}>
+              <p className={STRIP}>{cardLine("working", false)}</p>
+              <div className="px-4 py-3">
+                {shown.progress.restarted && (
+                  <p className="mb-2 text-sm text-slate-500">
+                    {shown.progress.restarted}
+                  </p>
+                )}
+                {shown.progress.steps.length > 0 && (
+                  <ul className="mb-3 space-y-1 text-sm text-slate-600">
+                    {shown.progress.steps.map((step, i) => (
+                      <li key={i}>
+                        {step.label}…{" "}
+                        <span className="text-slate-400">
+                          {statusWords(step.status)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="whitespace-pre-line leading-7 text-slate-800">
+                  {shown.text || "Working on it…"}
                 </p>
-              )}
-              {shown.progress.steps.length > 0 && (
-                <ul className="mb-3 space-y-1 text-sm text-slate-600">
-                  {shown.progress.steps.map((step, i) => (
-                    <li key={i}>
-                      {step.label}…{" "}
-                      <span className="text-slate-400">
-                        {statusWords(step.status)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="whitespace-pre-line leading-7 text-slate-800">
-                {shown.text || "Working on it…"}
-              </p>
+              </div>
             </div>
           )}
           {shown.kind === "answer" && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              {shown.intro && (
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-accent-strong">
-                  {shown.intro}
-                </p>
-              )}
-              {shown.notice ? (
-                <p
-                  role="status"
-                  className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
-                >
-                  {shown.notice}
-                </p>
-              ) : (
-                <div className="mb-2">
-                  <p className="text-sm font-medium text-slate-600">
-                    {shown.question}
+            <div className={CARD}>
+              <p className={STRIP}>
+                {cardLine(shown.source === "new" ? "new" : shown.source, Boolean(shown.trap))}
+              </p>
+              <div className="px-4 py-3">
+                {shown.notice ? (
+                  <p
+                    role="status"
+                    className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                  >
+                    {shown.notice}
                   </p>
-                  {shown.asked && (
-                    <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>
-                  )}
-                </div>
-              )}
-              {/* A new answer starts with every citation closed. */}
-              <AnswerText
-                key={`${shown.question}\n${shown.answer.text}`}
-                answer={shown.answer}
-              />
-              {shown.note && (
-                <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  {shown.note}
-                </p>
-              )}
-              <ChecksPanel answer={shown.answer} />
-              {shown.trap && <p className="mt-2 text-xs text-slate-500">{TRAP_NOTE}</p>}
-              <CostLine answer={shown.answer} source={shown.source} />
+                ) : (
+                  <p className="mb-2 text-sm font-medium text-slate-600">
+                    {shown.question}
+                    {shown.asked && (
+                      <span className="ml-2 inline-block text-xs font-normal text-slate-500">{shown.asked}</span>
+                    )}
+                  </p>
+                )}
+                {/* A new answer starts with every citation closed. */}
+                <AnswerText
+                  key={`${shown.question}\n${shown.answer.text}`}
+                  answer={shown.answer}
+                />
+                {shown.note && (
+                  <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    {shown.note}
+                  </p>
+                )}
+                <ChecksPanel answer={shown.answer} />
+                <CostLine answer={shown.answer} source={shown.source} />
+              </div>
             </div>
           )}
           {shown.kind === "error" && (

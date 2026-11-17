@@ -3,6 +3,7 @@
 // tiles are matched with their source files by glance.test.ts. No number here is new.
 
 import type { Results } from "./results.ts";
+import { TRAP_NOTE } from "./traps.ts";
 
 export const SENTENCE =
   "Ask about 25 companies' annual reports. Before the AI looks anything up, the server checks " +
@@ -59,9 +60,32 @@ export function scrollBehavior(reducedMotion: boolean): ScrollBehavior {
   return reducedMotion ? "auto" : "smooth";
 }
 
-/** The saved example shown on first load, and the line above it. */
+/** The saved example shown on first load (a trap example, so its card says it was chosen). */
 export const FIRST_EXAMPLE = "How much revenue did Nike make last year?";
-export const FIRST_EXAMPLE_LINE = "Saved example, chosen to show a check at work";
+
+/** What the answer card is, said once in its strip: the model at work, a live answer, or a saved
+ * example (a trap example says it was chosen, and where to find how often the checks work). */
+export function cardLine(
+  state: "working" | "new" | "example" | "after-limit",
+  trap: boolean,
+): string {
+  if (state === "working") return "Answering…";
+  if (state === "new") return "Answer";
+  return trap ? TRAP_NOTE : "Saved example";
+}
+
+/** Enter asks the question; Shift+Enter starts a new line, and nothing happens mid-composition. */
+export function enterAsks(key: string, shift: boolean, composing: boolean): boolean {
+  return key === "Enter" && !shift && !composing;
+}
+
+/** The header's jump links: three sections lower on the page, then the code. */
+export const JUMP_LINKS = [
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Results", href: "#results" },
+  { label: "What's inside", href: "#whats-inside" },
+  { label: "Code", href: "https://github.com/nazrulhuda/filingcheck" },
+];
 
 export const STEPS = [
   "You ask a question",

@@ -20,8 +20,9 @@ const SAVED: Record<string, { question: string; trap: string }> = {
   "fact-002": { question: "How much revenue did Nike make last year?", trap: "A relative year" },
 };
 
+/** The line in a saved trap example's card strip. */
 export const TRAP_NOTE =
-  "Saved examples, chosen to show a check at work. How often the checks work is in the results.";
+  "Saved example, chosen to show a check at work. How often the checks work is in the results.";
 
 /** The picked trap answers and the saved examples shown as traps, in the plan's order. */
 export function trapExamples(picked: TrapExample[], examples: Example[]): TrapExample[] {
