@@ -700,5 +700,388 @@
         }
       ]
     }
+  },
+  {
+    "question": "How much did NVIDIA's revenue grow from fiscal 2024 to fiscal 2025, in percent?",
+    "ticker": "NVDA",
+    "fiscal_year": null,
+    "company_name": "NVIDIA Corporation",
+    "answer": {
+      "mode": "agent",
+      "text": "NVIDIA’s revenue increased by **114.20 %** from fiscal 2024 to fiscal 2025.  \n- Fiscal 2024 revenue: $60,922 million【F1】 (period 2023‑01‑30 – 2024‑01‑28).  \n- Fiscal 2025 revenue: $130,497 million【F2】 (period 2024‑01‑29 – 2025‑01‑26).  \nGrowth calculation: \\((130,497 - 60,922)/60,922 × 100 = 114.20\\%\\).",
+      "usage": {
+        "prompt_tokens": 7134,
+        "completion_tokens": 308
+      },
+      "checks": true,
+      "cost_usd": 0.00062745,
+      "degraded": false,
+      "restarts": [],
+      "abstained": false,
+      "citations": [],
+      "overrides": [
+        {
+          "sent": "NVDA",
+          "tool": "get_financial_fact",
+          "used": "NVDA",
+          "check": "company",
+          "reason": "the question names NVIDIA Corporation (NVDA); the model sent NVDA",
+          "options": [],
+          "outcome": "pass",
+          "argument": "ticker"
+        },
+        {
+          "sent": 2024,
+          "tool": "get_financial_fact",
+          "used": 2024,
+          "check": "fiscal_year",
+          "reason": "the question says fiscal 2024; the model sent 2024: fiscal 2024 (Jan 30, 2023 to Jan 28, 2024)",
+          "options": [],
+          "outcome": "pass",
+          "argument": "fiscal_year"
+        },
+        {
+          "sent": "revenue",
+          "tool": "get_financial_fact",
+          "used": "revenue",
+          "check": "metric",
+          "reason": "an annual metric the data holds (revenue)",
+          "options": [],
+          "outcome": "pass",
+          "argument": "metric"
+        },
+        {
+          "sent": null,
+          "tool": "get_financial_fact",
+          "used": null,
+          "check": "units",
+          "reason": "no scale asked for",
+          "options": [],
+          "outcome": "pass",
+          "argument": null
+        },
+        {
+          "sent": null,
+          "tool": "get_financial_fact",
+          "used": null,
+          "check": "segment",
+          "reason": "no segment tied to the number",
+          "options": [],
+          "outcome": "pass",
+          "argument": null
+        },
+        {
+          "sent": "NVDA",
+          "tool": "get_financial_fact",
+          "used": "NVDA",
+          "check": "company",
+          "reason": "the question names NVIDIA Corporation (NVDA); the model sent NVDA",
+          "options": [],
+          "outcome": "pass",
+          "argument": "ticker"
+        },
+        {
+          "sent": 2025,
+          "tool": "get_financial_fact",
+          "used": 2025,
+          "check": "fiscal_year",
+          "reason": "the question says fiscal 2025; the model sent 2025: fiscal 2025 (Jan 29, 2024 to Jan 26, 2025)",
+          "options": [],
+          "outcome": "pass",
+          "argument": "fiscal_year"
+        },
+        {
+          "sent": "revenue",
+          "tool": "get_financial_fact",
+          "used": "revenue",
+          "check": "metric",
+          "reason": "an annual metric the data holds (revenue)",
+          "options": [],
+          "outcome": "pass",
+          "argument": "metric"
+        },
+        {
+          "sent": null,
+          "tool": "get_financial_fact",
+          "used": null,
+          "check": "units",
+          "reason": "no scale asked for",
+          "options": [],
+          "outcome": "pass",
+          "argument": null
+        },
+        {
+          "sent": null,
+          "tool": "get_financial_fact",
+          "used": null,
+          "check": "segment",
+          "reason": "no segment tied to the number",
+          "options": [],
+          "outcome": "pass",
+          "argument": null
+        }
+      ],
+      "facts_used": [
+        {
+          "note": null,
+          "unit": "USD",
+          "value": "60922000000",
+          "metric": "revenue",
+          "ticker": "NVDA",
+          "concept": "us-gaap:Revenues",
+          "instant": null,
+          "decimals": "-6",
+          "accession": "0001045810-24-000029",
+          "line_label": "Revenues",
+          "period_end": "2024-01-28",
+          "source_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000029/nvda-20240128.htm",
+          "fiscal_year": 2024,
+          "period_start": "2023-01-30"
+        },
+        {
+          "note": null,
+          "unit": "USD",
+          "value": "130497000000",
+          "metric": "revenue",
+          "ticker": "NVDA",
+          "concept": "us-gaap:Revenues",
+          "instant": null,
+          "decimals": "-6",
+          "accession": "0001045810-25-000023",
+          "line_label": "Revenues",
+          "period_end": "2025-01-26",
+          "source_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000023/nvda-20250126.htm",
+          "fiscal_year": 2025,
+          "period_start": "2024-01-29"
+        }
+      ],
+      "latency_ms": 2541.825400025118,
+      "model_used": "openrouter:openai/gpt-oss-20b",
+      "stopped_by": null,
+      "tool_calls": [
+        {
+          "name": "get_financial_fact",
+          "status": "ok",
+          "arguments": {
+            "metric": "revenue",
+            "ticker": "NVDA",
+            "fiscal_year": 2024
+          },
+          "duration_ms": 48.33869999856688,
+          "result_summary": "F1: us-gaap:Revenues = 60922000000 USD, 2023-01-30 to 2024-01-28",
+          "sent_arguments": {
+            "metric": "revenue",
+            "ticker": "NVDA",
+            "fiscal_year": 2024
+          },
+          "defaults_applied": []
+        },
+        {
+          "name": "get_financial_fact",
+          "status": "ok",
+          "arguments": {
+            "metric": "revenue",
+            "ticker": "NVDA",
+            "fiscal_year": 2025
+          },
+          "duration_ms": 47.108300001127645,
+          "result_summary": "F2: us-gaap:Revenues = 130497000000 USD, 2024-01-29 to 2025-01-26",
+          "sent_arguments": {
+            "metric": "revenue",
+            "ticker": "NVDA",
+            "fiscal_year": 2025
+          },
+          "defaults_applied": []
+        },
+        {
+          "name": "calculate",
+          "status": "ok",
+          "arguments": {
+            "expression": "(130497000000-60922000000)/60922000000*100"
+          },
+          "duration_ms": 0.3893999964930117,
+          "result_summary": "114.2034076359935655428252520",
+          "sent_arguments": {
+            "expression": "(130497000000-60922000000)/60922000000*100"
+          },
+          "defaults_applied": []
+        }
+      ],
+      "model_calls": 4,
+      "finish_reason": "stop",
+      "number_labels": [
+        {
+          "figure": "114.20 %",
+          "value": "114.20",
+          "percent": true,
+          "label": "verified",
+          "basis": "calculation",
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": "(130497000000-60922000000)/60922000000*100",
+          "cited_value": null,
+          "source": "calculation: (130497000000-60922000000)/60922000000*100",
+          "inputs": [
+            "F2",
+            "F1"
+          ],
+          "end": 40
+        },
+        {
+          "figure": "$60,922 million",
+          "value": "60922000000",
+          "percent": false,
+          "label": "verified",
+          "basis": "fact",
+          "fact": 1,
+          "concept": "us-gaap:Revenues",
+          "period": "2023-01-30 to 2024-01-28",
+          "fiscal_year": 2024,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": "F1, us-gaap:Revenues, fiscal 2024 (2023-01-30 to 2024-01-28)",
+          "inputs": [],
+          "end": 116
+        },
+        {
+          "figure": "$130,497 million",
+          "value": "130497000000",
+          "percent": false,
+          "label": "verified",
+          "basis": "fact",
+          "fact": 2,
+          "concept": "us-gaap:Revenues",
+          "period": "2024-01-29 to 2025-01-26",
+          "fiscal_year": 2025,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": "F2, us-gaap:Revenues, fiscal 2025 (2024-01-29 to 2025-01-26)",
+          "inputs": [],
+          "end": 196
+        },
+        {
+          "figure": "((130,497",
+          "value": "130497",
+          "percent": false,
+          "label": "unverified",
+          "basis": null,
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": null,
+          "inputs": [],
+          "end": 267
+        },
+        {
+          "figure": "60,922)",
+          "value": "60922",
+          "percent": false,
+          "label": "unverified",
+          "basis": null,
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": null,
+          "inputs": [],
+          "end": 277
+        },
+        {
+          "figure": "60,922",
+          "value": "60922",
+          "percent": false,
+          "label": "unverified",
+          "basis": null,
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": null,
+          "inputs": [],
+          "end": 284
+        },
+        {
+          "figure": "100",
+          "value": "100",
+          "percent": false,
+          "label": "unverified",
+          "basis": null,
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": null,
+          "cited_value": null,
+          "source": null,
+          "inputs": [],
+          "end": 290
+        },
+        {
+          "figure": "114.20",
+          "value": "114.20",
+          "percent": false,
+          "label": "verified",
+          "basis": "calculation",
+          "fact": null,
+          "concept": null,
+          "period": null,
+          "fiscal_year": null,
+          "passage": null,
+          "calculation": "(130497000000-60922000000)/60922000000*100",
+          "cited_value": null,
+          "source": "calculation: (130497000000-60922000000)/60922000000*100",
+          "inputs": [
+            "F2",
+            "F1"
+          ],
+          "end": 299
+        }
+      ],
+      "fact_citations": [
+        {
+          "unit": "USD",
+          "value": "60922000000",
+          "number": 1,
+          "concept": "us-gaap:Revenues",
+          "instant": null,
+          "accession": "0001045810-24-000029",
+          "period_end": "2024-01-28",
+          "source_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581024000029/nvda-20240128.htm",
+          "period_start": "2023-01-30",
+          "standard_label": true
+        },
+        {
+          "unit": "USD",
+          "value": "130497000000",
+          "number": 2,
+          "concept": "us-gaap:Revenues",
+          "instant": null,
+          "accession": "0001045810-25-000023",
+          "period_end": "2025-01-26",
+          "source_url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000023/nvda-20250126.htm",
+          "period_start": "2024-01-29",
+          "standard_label": true
+        }
+      ],
+      "retriever_name": "hybrid",
+      "failed_attempts": [],
+      "has_uncited_claims": true
+    }
   }
 ]
