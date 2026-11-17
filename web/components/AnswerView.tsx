@@ -45,7 +45,7 @@ function CitationDetail({ citation }: { citation: Citation }) {
         {citation.text || `${citation.quote}…`}
       </div>
       <a
-        className="mt-2 inline-block text-blue-700 underline hover:text-blue-900"
+        className="mt-2 inline-block text-accent underline hover:text-accent-strong"
         href={citation.source_url}
         target="_blank"
         rel="noreferrer"
@@ -80,7 +80,7 @@ function FactDetailView({
         )}
       </dl>
       <a
-        className="mt-2 inline-block text-blue-700 underline hover:text-blue-900"
+        className="mt-2 inline-block text-accent underline hover:text-accent-strong"
         href={detail.link}
         target="_blank"
         rel="noreferrer"
@@ -91,19 +91,19 @@ function FactDetailView({
   );
 }
 
-// Colours that stay apart for colour-blind readers (blue, grey, orange), with a different
-// symbol for each label so the colour is never the only cue.
+// Green, red and amber (app/globals.css; they pass the contrast checks in lib/theme.test.ts),
+// with a different symbol for each label, so the colour is never the only cue.
 const BADGE_CLASS: Record<NumberLabel["label"], string> = {
-  verified: "border-sky-700 bg-sky-50 text-sky-800",
-  unverified: "border-slate-400 bg-white text-slate-600",
-  conflict: "border-orange-600 bg-orange-50 text-orange-800",
+  verified: "border-verified-line bg-verified-bg text-verified",
+  unverified: "border-unverified-line bg-unverified-bg text-unverified",
+  conflict: "border-conflict-line bg-conflict-bg text-conflict",
 };
 
 /** The three labels, one line each, with the badges the answers use. */
 export function LabelGuide() {
   return (
-    <section className="mt-8 text-sm text-slate-700" aria-labelledby="labels-title">
-      <h2 id="labels-title" className="text-sm font-medium text-slate-600">
+    <section className="mt-6 text-sm text-slate-700" aria-labelledby="labels-title">
+      <h2 id="labels-title" className="text-sm font-medium text-slate-800">
         The three labels on a number
       </h2>
       <ul className="mt-2 space-y-1">
@@ -160,12 +160,14 @@ function LabelBadge({
   );
 }
 
+// Citation chips in the accent: a filled chip for a passage, an outlined "F" chip for a fact.
+// Green is kept for the Verified label.
 function chipClass(isOpen: boolean, fact: boolean): string {
   if (isOpen)
-    return fact ? "bg-emerald-700 text-white" : "bg-blue-700 text-white";
+    return fact ? "bg-accent-strong text-white" : "bg-accent text-white";
   return fact
-    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-    : "bg-blue-100 text-blue-800 hover:bg-blue-200";
+    ? "bg-white text-accent-strong ring-1 ring-inset ring-accent/50 hover:bg-accent-soft"
+    : "bg-accent-soft text-accent-strong hover:ring-1 hover:ring-inset hover:ring-accent";
 }
 
 /** The answer text with each citation marker as a chip that opens its passage or fact. */
@@ -242,7 +244,7 @@ export function ChecksPanel({ answer }: { answer: Answer }) {
   if (answer.mode !== "agent") return null;
   const { summary, lookups } = checkReport(answer);
   return (
-    <section className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+    <section className="mt-4 rounded-md border-l-4 border-accent bg-slate-50 px-3 py-2 text-sm text-slate-700">
       <h3 className="font-medium text-slate-800">What was checked</h3>
       <p className="mt-1">{summary}</p>
       {lookups.map((lines, i) => (

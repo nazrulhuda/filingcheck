@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/* One accent for the logo, buttons and links; one colour family per number label. The label
+   colours pass the WCAG contrast checks (lib/theme.test.ts), and each label keeps its own symbol,
+   so colour is never the only cue. */
+@theme {
+  --color-accent: #1e40af;
+  --color-accent-strong: #1e3a8a;
+  --color-accent-soft: #dbeafe;
+
+  --color-verified: #166534;
+  --color-verified-bg: #f0fdf4;
+  --color-verified-line: #15803d;
+
+  --color-conflict: #b91c1c;
+  --color-conflict-bg: #fef2f2;
+  --color-conflict-line: #dc2626;
+
+  --color-unverified: #92400e;
+  --color-unverified-bg: #fffbeb;
+  --color-unverified-line: #d97706;
+}
+
 :root {
   color-scheme: light;
 }

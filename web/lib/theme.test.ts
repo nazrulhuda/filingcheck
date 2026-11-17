@@ -63,3 +63,15 @@ test("the three labels are green, red and amber, and each differs from the accen
   const accent = hue(colour("accent"));
   assert.ok(accent > 200 && accent < 250, `the accent is blue (${accent})`);
 });
+
+test("the favicon, the logo mark and the link preview draw the same mark in the accent", () => {
+  const icon = readFileSync(new URL("../app/icon.svg", import.meta.url), "utf8");
+  const logo = readFileSync(new URL("../components/Logo.tsx", import.meta.url), "utf8");
+  const preview = readFileSync(new URL("../app/opengraph-image.tsx", import.meta.url), "utf8");
+  const mark = /MARK_CHECK = "([^"]+)"/.exec(logo);
+  assert.ok(mark, "the mark's path in Logo.tsx");
+  assert.ok(icon.includes(`d="${mark[1]}"`), "icon.svg draws the same check");
+  assert.ok(preview.includes("d={MARK_CHECK}"), "the preview draws the same check");
+  assert.ok(icon.includes(`fill="${colour("accent")}"`), "icon.svg uses the accent");
+  assert.ok(preview.includes(`const ACCENT = "${colour("accent")}"`), "the preview uses the accent");
+});

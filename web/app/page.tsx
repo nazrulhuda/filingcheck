@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import {
   AnswerText,
@@ -8,6 +8,7 @@ import {
   CostLine,
   LabelGuide,
 } from "@/components/AnswerView";
+import { Logo } from "@/components/Logo";
 import examplesData from "@/data/examples.json";
 import resultsData from "@/data/results.json";
 import trapData from "@/data/trap_examples.json";
@@ -28,6 +29,17 @@ import {
   cachedNotice,
   pageQuestion,
 } from "@/lib/display";
+import {
+  FILTER_HINT,
+  FIRST_EXAMPLE,
+  FIRST_EXAMPLE_LINE,
+  INSIDE,
+  SENTENCE,
+  STACK,
+  STEPS,
+  TRAP_LINE,
+  resultTiles,
+} from "@/lib/glance";
 import { reviewNote } from "@/lib/notes";
 import { type Results, resultLines } from "@/lib/results";
 import {
@@ -44,12 +56,20 @@ const PLAIN = plainExamples(EXAMPLES, TRAPS);
 const RESULTS = resultsData as Results;
 const REPO = "https://github.com/nazrulhuda/filingcheck";
 const REPORT = `${REPO}/blob/main/${RESULTS.report}`;
+const PREREGISTRATION = `${REPO}/blob/main/eval/PREREGISTRATION.md`;
+const KNOWN_LIMITS = `${REPO}#known-limits`;
 const MAX_QUESTION = 500;
 const HEALTH_TIMEOUT_MS = 3000;
 const WAKE_RETRY_MS = 5000;
 const WAKE_GIVE_UP_MS = 70_000;
 const NO_STEPS: Progress = { steps: [], restarted: null };
-const WIDE = "(min-width: 640px)";
+
+const LINK = "text-accent underline hover:text-accent-strong";
+const BOX = "rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
+const TILE = "rounded-lg border border-slate-200 bg-white p-4";
+const SECTION_TITLE = "text-lg font-semibold text-slate-900";
+const EXAMPLE_BUTTON =
+  "rounded-md border border-slate-300 bg-white px-2.5 py-0.5 text-left text-xs leading-snug text-slate-700 hover:border-accent hover:text-accent-strong";
 
 /** A finished tool call's status in words. */
 function statusWords(status: string): string {
@@ -72,64 +92,32 @@ type Shown =
       /** For a clicked example: the filters it was asked with, and any review note. */
       asked?: string;
       note?: string | null;
+      /** The line above the saved example shown on first load. */
+      intro?: string;
     }
   | { kind: "error"; message: string };
 
-const RESULTS_TITLE = "What the measurement found";
-const BOX =
-  "mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
-
-function ResultsBody() {
-  return (
-    <>
-      <ul className="mt-1 list-disc space-y-1 pl-5">
-        {resultLines(RESULTS).map((line) => (
-          <li key={line.lead}>
-            <span className="font-medium">{line.lead}</span> {line.rest}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2">
-        <a href={REPORT} className="text-blue-700 underline hover:text-blue-900">
-          The full report
-        </a>
-      </p>
-    </>
-  );
+/** A saved example's answer as the page shows it, with no request made. */
+function exampleShown(example: Example, intro?: string): Shown {
+  return {
+    kind: "answer",
+    question: example.question,
+    answer: example.answer,
+    source: "example",
+    notice: null,
+    asked: askedWith(example.company_name, example.ticker, example.fiscal_year),
+    note: reviewNote(example.question),
+    ...(intro ? { intro } : {}),
+  };
 }
 
-/** The measured result in the README's three lines; every number from results.json. On
- * phones a closed panel, so the question box is not pushed far down; on wider screens open. */
-function ResultsStrip() {
-  return (
-    <>
-      <details className={`${BOX} sm:hidden`}>
-        <summary className="cursor-pointer font-medium text-slate-800">
-          {RESULTS_TITLE}
-        </summary>
-        <ResultsBody />
-      </details>
-      <section aria-labelledby="results-title" className={`${BOX} hidden sm:block`}>
-        <h2 id="results-title" className="font-medium text-slate-800">
-          {RESULTS_TITLE}
-        </h2>
-        <ResultsBody />
-      </section>
-    </>
-  );
-}
+const FIRST = EXAMPLES.find((e) => e.question === FIRST_EXAMPLE);
+const FIRST_SHOWN: Shown = FIRST ? exampleShown(FIRST, FIRST_EXAMPLE_LINE) : { kind: "none" };
 
-/** What the data holds and what it cannot answer: open on wide screens, closed on phones. */
+/** What the data holds and what it cannot answer: closed until opened, on every screen. */
 function WhatYouCanAsk({ companies }: { companies: Company[] }) {
-  const panel = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    if (panel.current && window.matchMedia(WIDE).matches) panel.current.open = true;
-  }, []);
   return (
-    <details
-      ref={panel}
-      className="mt-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
-    >
+    <details className="mt-3 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
       <summary className="cursor-pointer font-medium text-slate-800">
         What you can ask
       </summary>
@@ -171,6 +159,135 @@ function WhatYouCanAsk({ companies }: { companies: Company[] }) {
   );
 }
 
+/** Three steps in a row (stacked on phones); the earlier explainer, unchanged, in a closed panel. */
+function HowItWorks() {
+  return (
+    <section className="mt-14" aria-labelledby="how-title">
+      <h2 id="how-title" className={SECTION_TITLE}>
+        How it works
+      </h2>
+      <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+        {STEPS.map((step, i) => (
+          <li key={step} className={`${TILE} flex items-start gap-3 text-sm text-slate-800`}>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
+              {i + 1}.
+            </span>
+            <span className="pt-0.5">{step}</span>
+          </li>
+        ))}
+      </ol>
+      <details className={`mt-3 ${BOX}`}>
+        <summary className="cursor-pointer font-medium text-slate-800">In more detail</summary>
+        <p className="mt-2">
+          The model answers with three tools. Before each tool call runs, the
+          server checks it against the question and the data: it can correct the
+          call or send it back to the model. Every number in the answer is then
+          labeled against the sources the answer used.
+        </p>
+      </details>
+      <LabelGuide />
+    </section>
+  );
+}
+
+/** The measured result as four tiles in the README's order; the README's three lines, unchanged,
+ * in a closed panel. Every number is from results.json or checked against the report. */
+function ResultsSection() {
+  return (
+    <section className="mt-14" aria-labelledby="results-title">
+      <h2 id="results-title" className={SECTION_TITLE}>
+        What the measurement found
+      </h2>
+      <p className="mt-1 text-sm text-slate-600">{TRAP_LINE}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {resultTiles(RESULTS).map((tile) => (
+          <div key={tile.figure} className={TILE}>
+            <p className="text-2xl font-semibold tabular-nums text-accent-strong">
+              {tile.figure}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">{tile.text}</p>
+            {tile.note && <p className="mt-2 text-xs text-slate-500">{tile.note}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-sm">
+        <a href={REPORT} className={LINK}>
+          The full report
+        </a>
+      </p>
+      <details className={`mt-3 ${BOX}`}>
+        <summary className="cursor-pointer font-medium text-slate-800">Details</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {resultLines(RESULTS).map((line) => (
+            <li key={line.lead}>
+              <span className="font-medium">{line.lead}</span> {line.rest}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </section>
+  );
+}
+
+/** One tile per part of the system: what it is, with no claim about its effect. */
+function Inside() {
+  return (
+    <section className="mt-14" aria-labelledby="inside-title">
+      <h2 id="inside-title" className={SECTION_TITLE}>
+        What&apos;s inside
+      </h2>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {INSIDE.map((tile) => (
+          <div key={tile.name} className={TILE}>
+            <p className="text-sm font-semibold text-slate-900">{tile.name}</p>
+            <p className="mt-1 text-sm text-slate-700">{tile.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-14 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-600">
+      <p>
+        Built by Nazrul Huda Shanto
+        {" · "}
+        <a href="https://github.com/nazrulhuda" className={LINK}>
+          GitHub
+        </a>
+        {" · "}
+        <a href="https://www.linkedin.com/in/mshanto/" className={LINK}>
+          LinkedIn
+        </a>
+        {" · "}
+        <a href="https://dev.nazrulhuda.com" className={LINK}>
+          dev.nazrulhuda.com
+        </a>
+      </p>
+      <p>
+        <a href={REPO} className={LINK}>
+          Code
+        </a>
+        {" · "}
+        <a href={REPORT} className={LINK}>
+          Full report
+        </a>
+        {" · "}
+        <a href={PREREGISTRATION} className={LINK}>
+          Pre-registration
+        </a>
+        {" · "}
+        <a href={KNOWN_LIMITS} className={LINK}>
+          Known limits
+        </a>
+      </p>
+      <p className="text-xs text-slate-500">{STACK}</p>
+    </footer>
+  );
+}
+
 export default function Home() {
   const [backend, setBackend] = useState<Backend>("checking");
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -178,7 +295,7 @@ export default function Home() {
   const [ticker, setTicker] = useState("");
   const [year, setYear] = useState("");
   const [checks, setChecks] = useState(true);
-  const [shown, setShown] = useState<Shown>({ kind: "none" });
+  const [shown, setShown] = useState<Shown>(FIRST_SHOWN);
   const [busy, setBusy] = useState(false);
 
   // /health makes no database query, so asking it while the backend wakes is cheap.
@@ -252,60 +369,33 @@ export default function Home() {
     setQuestion(example.question);
     setTicker(example.ticker ?? "");
     setYear(example.fiscal_year ? String(example.fiscal_year) : "");
-    setShown({
-      kind: "answer",
-      question: example.question,
-      answer: example.answer,
-      source: "example",
-      notice: null,
-      asked: askedWith(
-        example.company_name,
-        example.ticker,
-        example.fiscal_year,
-      ),
-      note: reviewNote(example.question),
-    });
+    setShown(exampleShown(example));
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">FilingCheck</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        Questions about the 10-K filings of 25 public companies, answered from
-        the filings&apos; text and their own XBRL numbers; the model is asked to
-        cite a passage or a fact for each claim.
-      </p>
-
-      <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        The model answers with three tools. Before each tool call runs, the
-        server checks it against the question and the data: it can correct the
-        call or send it back to the model. Every number in the answer is then
-        labeled against the sources the answer used.
-      </p>
-
-      <ResultsStrip />
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
+      <Logo />
+      <p className="mt-2 text-base text-slate-700">{SENTENCE}</p>
 
       {backend === "waking" && (
-        <p className="mt-4 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
+        <p className="mt-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
           The backend is waking up (up to a minute). The saved examples below
           work meanwhile.
         </p>
       )}
       {backend === "unreachable" && (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
           The backend is not answering right now. The saved examples below still
           work.
         </p>
       )}
       {backend === "no-model" && (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
           The backend is up but has no language model configured right now.
         </p>
       )}
 
-      <WhatYouCanAsk companies={companies} />
-
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={submit} className="mt-3 space-y-2">
         <label htmlFor="question" className="block text-sm font-medium">
           Your question
         </label>
@@ -314,15 +404,18 @@ export default function Home() {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={MAX_QUESTION}
-          rows={3}
+          rows={2}
           placeholder="For example: What does Netflix say about intellectual-property claims?"
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none"
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
         <p className="text-xs text-slate-500">
           Each question stands alone (no chat history). Questions are logged to
           improve the demo. Each question is sent to OpenAI to search the
           filings, and through OpenRouter to Groq, or to Google if that is busy,
           to write the answer; please don&apos;t enter personal information.
+        </p>
+        <p id="filter-hint" className="text-sm text-slate-600">
+          {FILTER_HINT}
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
@@ -334,7 +427,8 @@ export default function Home() {
                 setYear("");
               }}
               disabled={companies.length === 0}
-              className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5"
+              aria-describedby="filter-hint"
+              className="mt-1 w-full max-w-[15rem] rounded-md border border-slate-300 bg-white px-2 py-1.5"
             >
               <option value="">Any company</option>
               {companies.map((c) => (
@@ -350,6 +444,7 @@ export default function Home() {
               value={year}
               onChange={(e) => setYear(e.target.value)}
               disabled={years.length === 0}
+              aria-describedby="filter-hint"
               className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5"
             >
               <option value="">Any year</option>
@@ -363,7 +458,7 @@ export default function Home() {
           <button
             type="submit"
             disabled={busy || !question.trim() || backend !== "ok"}
-            className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="rounded-md bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {busy ? "Answering…" : "Ask"}
           </button>
@@ -374,7 +469,7 @@ export default function Home() {
                 checked={checks}
                 onChange={(e) => setChecks(e.target.checked)}
                 aria-describedby="checks-hint"
-                className="h-4 w-4"
+                className="h-4 w-4 accent-accent"
               />
               Skeptical checks: {checks ? "on" : "off"}
             </label>
@@ -385,15 +480,19 @@ export default function Home() {
         </div>
       </form>
 
-      <section className="mt-6">
-        <h2 className="text-sm font-medium text-slate-600">Examples</h2>
-        <div className="mt-2 flex flex-wrap gap-2">
+      <WhatYouCanAsk companies={companies} />
+
+      <section className="mt-3" aria-labelledby="examples-title">
+        <h2 id="examples-title" className="text-sm font-medium text-slate-700">
+          Examples
+        </h2>
+        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
           {PLAIN.map((example) => (
             <button
               key={example.question}
               type="button"
               onClick={() => showExample(example)}
-              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-left text-sm hover:border-blue-600 hover:text-blue-800"
+              className={EXAMPLE_BUTTON}
             >
               {example.question}
             </button>
@@ -401,29 +500,31 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-6" aria-labelledby="traps-title">
-        <h2 id="traps-title" className="text-sm font-medium text-slate-600">
-          Try a trap question
-        </h2>
-        <p className="mt-0.5 text-xs text-slate-500">{TRAP_NOTE}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+      <section className="mt-3" aria-labelledby="traps-title">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <h2 id="traps-title" className="text-sm font-medium text-slate-700">
+            Try a trap question
+          </h2>
+          <p className="text-xs text-slate-500">{TRAP_NOTE}</p>
+        </div>
+        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
           {TRAPS.map((trap) => (
             <button
               key={trap.id}
               type="button"
               onClick={() => showExample(trap)}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-left text-sm hover:border-blue-600 hover:text-blue-800"
+              className={EXAMPLE_BUTTON}
             >
-              <span className="block">{trap.question}</span>
-              <span className="block text-xs text-slate-500">{trap.trap}</span>
+              {trap.question}
+              <span className="ml-1.5 text-xs text-slate-500">· {trap.trap}</span>
             </button>
           ))}
         </div>
       </section>
 
-      <section className="mt-8" aria-live="polite">
+      <section className="mt-4" aria-live="polite">
         {shown.kind === "streaming" && (
-          <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
             {shown.progress.restarted && (
               <p className="mb-2 text-sm text-slate-500">
                 {shown.progress.restarted}
@@ -447,7 +548,12 @@ export default function Home() {
           </div>
         )}
         {shown.kind === "answer" && (
-          <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            {shown.intro && (
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent-strong">
+                {shown.intro}
+              </p>
+            )}
             {shown.notice ? (
               <p
                 role="status"
@@ -489,17 +595,10 @@ export default function Home() {
         )}
       </section>
 
-      <LabelGuide />
-
-      <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
-        <a href={REPO} className="text-blue-700 underline hover:text-blue-900">
-          The code on GitHub
-        </a>
-        {" · "}
-        <a href={REPORT} className="text-blue-700 underline hover:text-blue-900">
-          The full results report
-        </a>
-      </footer>
+      <HowItWorks />
+      <ResultsSection />
+      <Inside />
+      <Footer />
     </main>
   );
 }
