@@ -7,12 +7,15 @@ import { test } from "node:test";
 import { checkReport } from "./checks.ts";
 import {
   answerInView,
+  cardLine,
   CHIPS,
   CONTROL,
+  enterAsks,
   FIRST_EXAMPLE,
   INSIDE,
   INSIDE_FIGURES,
   insideTiles,
+  JUMP_LINKS,
   MORE_CHIPS,
   PRIVACY_NOTE,
   resultTiles,
@@ -20,7 +23,7 @@ import {
   STEPS,
 } from "./glance.ts";
 import type { Results } from "./results.ts";
-import { type Example, type TrapExample, trapExamples } from "./traps.ts";
+import { type Example, TRAP_NOTE, type TrapExample, trapExamples } from "./traps.ts";
 
 const repo = (path: string) => new URL(`../../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(repo(path), "utf8");
@@ -247,4 +250,38 @@ test("the answer card is brought into view only when its top is off the screen",
   assert.equal(answerInView(704, 800), true, "96 px show");
   assert.equal(scrollBehavior(true), "auto", "no animation with reduced motion");
   assert.equal(scrollBehavior(false), "smooth");
+});
+
+test("each card says what it is, in its strip, once", () => {
+  assert.equal(cardLine("example", true), TRAP_NOTE, "a saved trap example");
+  assert.equal(cardLine("example", false), "Saved example");
+  assert.equal(cardLine("after-limit", true), TRAP_NOTE, "a saved trap answer served after the limit");
+  assert.equal(cardLine("after-limit", false), "Saved example");
+  assert.equal(cardLine("new", false), "Answer", "a live answer");
+  assert.equal(cardLine("new", true), "Answer", "a live answer to a question like a trap");
+  assert.equal(cardLine("working", false), "Answering…");
+  const page = read("web/app/page.tsx");
+  assert.ok(!page.includes("FIRST_EXAMPLE_LINE"), "the first-load line is the trap line now");
+  assert.equal(page.split("{TRAP_NOTE}").length - 1, 0, "no second note at the bottom of the card");
+});
+
+test("Enter asks the question; Shift+Enter and composing do not", () => {
+  assert.equal(enterAsks("Enter", false, false), true);
+  assert.equal(enterAsks("Enter", true, false), false, "Shift+Enter starts a new line");
+  assert.equal(enterAsks("Enter", false, true), false, "not while a character is being composed");
+  assert.equal(enterAsks("a", false, false), false);
+});
+
+test("the header's jump links go to the page's sections and the code, with no result figure", () => {
+  assert.deepEqual(
+    JUMP_LINKS.map((link) => link.label),
+    ["How it works", "Results", "What's inside", "Code"],
+  );
+  const page = read("web/app/page.tsx");
+  for (const { href } of JUMP_LINKS.slice(0, 3)) {
+    assert.match(href, /^#[a-z-]+$/);
+    assert.ok(page.includes(`id="${href.slice(1)}"`), `${href} has a section`);
+  }
+  assert.equal(JUMP_LINKS[3].href, "https://github.com/nazrulhuda/filingcheck");
+  assert.doesNotMatch(JUMP_LINKS.map((l) => l.label).join(" "), /\d/);
 });

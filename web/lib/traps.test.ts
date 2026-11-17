@@ -67,9 +67,9 @@ test("an example shown as a trap is not shown twice", () => {
   assert.ok(!plain.some((e) => e.question.includes("Nike")));
 });
 
-test("the page says the trap examples were chosen", () => {
+test("a saved trap example's card says it was chosen", () => {
   assert.equal(
     TRAP_NOTE,
-    "Saved examples, chosen to show a check at work. How often the checks work is in the results.",
+    "Saved example, chosen to show a check at work. How often the checks work is in the results.",
   );
 });

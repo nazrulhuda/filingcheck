@@ -84,3 +84,14 @@ test("the header band keeps the logo and the sentence readable", () => {
   assert.ok(contrast("#0f172a", band) >= 4.5, "the name on the band");
   assert.ok(contrast(band, WHITE) < 1.2, "the band is a soft tint");
 });
+
+test("the answer card is the only box with an accent border, and its strip text passes", () => {
+  assert.ok(contrast(colour("accent-strong"), colour("accent-soft")) >= 4.5, "the strip's text");
+  const source = ["../app/page.tsx", "../components/AnswerView.tsx"]
+    .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+    .join("\n");
+  // Class names that draw an accent border at rest (hover: and focus: states are not boxes).
+  const borders = [...source.matchAll(/(?<![\w:-])border(?:-[lrtbxy])?-accent(?![\w-])/g)];
+  assert.equal(borders.length, 1, borders.map((m) => m[0]).join(", "));
+  assert.match(source, /const CARD =\s*"[^"]*\bborder-2 border-accent\b/);
+});
