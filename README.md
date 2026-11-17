@@ -40,7 +40,9 @@ Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, 
 
 Measured once on the 110 sealed held-out trap questions, 3 runs each, from the tagged commit `week6-measured`, by rules fixed in advance ([pre-registration](eval/PREREGISTRATION.md)). The search-only baseline's low confidently-wrong rate comes from abstaining often (on more than half the held-out questions). The [full report](eval/results/2026-11-14_final_report.md) has the development and control sets, the step-by-step differences, the error analysis, the graders' checks and the cost, and `make report` recomputes every number.
 
-**How it is built** (the source is [docs/architecture.mmd](docs/architecture.mmd)):
+## How it is built
+
+The diagram's source is [docs/architecture.mmd](docs/architecture.mmd).
 
 ```mermaid
 flowchart TD
@@ -55,7 +57,9 @@ flowchart TD
 
 [What works today](docs/what_works_today.md) lists each part, with its report.
 
-**How one question goes through it**, from the saved example "How much revenue did Nike make last year?" (`web/data/examples.json`; the page shows it):
+## How one question goes through it
+
+From the saved example "How much revenue did Nike make last year?" (`web/data/examples.json`; the page shows it):
 
 1. The model asked `get_financial_fact` for Nike's revenue for fiscal **2025**.
 2. The fiscal-year check read "last year" as the latest annual report and **repaired** the year to 2026; its record reads: "'last year' read as the latest annual report; the model sent 2025; used fiscal 2026 (Jun 1, 2025 to May 31, 2026)". The company, metric, units and segment checks passed the call.

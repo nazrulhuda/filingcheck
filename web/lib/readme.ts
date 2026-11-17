@@ -19,13 +19,8 @@ export const ABOUT_SECTIONS = [
   "Related work",
 ];
 
-/** The sections the README starts with a bold lead instead of a heading. */
-const BOLD_LEADS = [
-  "What this project shows",
-  "By the numbers",
-  "How it is built",
-  "How one question goes through it",
-];
+/** The sections the README starts with a bold lead instead of a heading: the two above Results. */
+const BOLD_LEADS = ["What this project shows", "By the numbers"];
 
 /** The README's chart in these sections, and the drawn diagram, by their file in public/about/
  * (copied there before each build by scripts/about-assets.mjs). */
@@ -201,7 +196,7 @@ function blocksOf(lines: string[]): Block[] {
 }
 
 /** The README's sections the About page shows, each with its blocks, in the README's order. A
- * section starts at its "## " heading or, for four of them, at its bold lead; the title block
+ * section starts at its "## " heading or, for the first two, at its bold lead; the title block
  * before them and the sections not listed are left out. */
 export function readmeSections(markdown: string): Section[] {
   const found: { title: string; lines: string[] }[] = [];
