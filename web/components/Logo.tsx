@@ -27,14 +27,17 @@ export function LogoMark({ size = 28 }: { size?: number }) {
   );
 }
 
-/** The page title: the mark and "FilingCheck", read as one word. */
+/** The logo in the top bar: the mark and "FilingCheck", read as one word, linking to the top. */
 export function Logo() {
   return (
-    <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-      <LogoMark />
+    <a
+      href="#top"
+      className="flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-[23px]"
+    >
+      <LogoMark size={26} />
       <span>
         Filing<span className="text-accent">Check</span>
       </span>
-    </h1>
+    </a>
   );
 }

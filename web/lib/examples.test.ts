@@ -26,7 +26,7 @@ const pageQuestions = readFileSync(
   .filter((line) => line.trim())
   .map((line) => JSON.parse(line) as { question: string; ticker: string; fiscal_year: number });
 
-test("the examples are the page's seven questions, with their company and year", () => {
+test("the examples are the page's eight questions, with their company and year", () => {
   assert.deepEqual(
     examples.map((e) => [e.question, e.ticker, e.fiscal_year]),
     pageQuestions.map((q) => [q.question, q.ticker, q.fiscal_year]),
@@ -69,10 +69,14 @@ test("every example names the company it was asked with", () => {
   }
 });
 
-test("the seven saved answers are byte for byte as they were before the trap examples", () => {
-  const bytes = readFileSync(new URL("../data/examples.json", import.meta.url));
+test("the first seven saved answers are byte for byte as they were; the calculation one follows", () => {
+  const text = readFileSync(new URL("../data/examples.json", import.meta.url), "utf8");
+  // The export writes the list with two-space indents: cutting the last entry off gives the
+  // seven-answer file exactly as it was.
+  const seven = `${text.slice(0, text.lastIndexOf(",\n  {\n"))}\n]\n`;
   assert.equal(
-    createHash("sha256").update(bytes).digest("hex"),
+    createHash("sha256").update(seven).digest("hex"),
     "782553747aa1f1f14cae54bcbed058bad8eeb287f74f2659e70fb48c79cc807b",
   );
+  assert.equal(examples.length, 8);
 });

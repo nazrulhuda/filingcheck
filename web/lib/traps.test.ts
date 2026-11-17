@@ -63,13 +63,13 @@ test("the Nike answer is the saved example itself, and the list follows the plan
 
 test("an example shown as a trap is not shown twice", () => {
   const plain = plainExamples(examples, trapExamples(picked, examples));
-  assert.equal(plain.length, 6);
+  assert.equal(plain.length, 7); // the eight saved examples less the Nike one, shown as a trap
   assert.ok(!plain.some((e) => e.question.includes("Nike")));
 });
 
-test("the page says the trap examples were chosen", () => {
+test("a saved trap example's card says it was chosen", () => {
   assert.equal(
     TRAP_NOTE,
-    "Saved examples, chosen to show a check at work. How often the checks work is in the results.",
+    "Saved example, chosen to show a check at work. How often the checks work is in the results.",
   );
 });

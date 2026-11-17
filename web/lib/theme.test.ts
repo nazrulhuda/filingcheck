@@ -75,3 +75,25 @@ test("the favicon, the logo mark and the link preview draw the same mark in the 
   assert.ok(icon.includes(`fill="${colour("accent")}"`), "icon.svg uses the accent");
   assert.ok(preview.includes(`const ACCENT = "${colour("accent")}"`), "the preview uses the accent");
 });
+
+test("the selected example card's tint keeps its tag and question readable", () => {
+  const tint = colour("band");
+  assert.ok(contrast(colour("accent"), tint) >= 4.5, "a tag in the accent");
+  // A trap tag is Tailwind's amber-800, the question slate-900.
+  assert.ok(contrast("#92400e", tint) >= 4.5, "a trap tag");
+  assert.ok(contrast("#0f172a", tint) >= 4.5, "the question");
+  assert.ok(contrast(tint, WHITE) < 1.2, "a soft tint");
+});
+
+test("the answer card is the only box with an accent border, and its strip text passes", () => {
+  assert.ok(contrast(colour("accent-strong"), colour("accent-soft")) >= 4.5, "the strip's text");
+  const source = ["../app/page.tsx", "../components/AnswerView.tsx"]
+    .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+    .join("\n");
+  // Class names that draw an accent border at rest (hover: and focus: states are not boxes):
+  // the answer card's 2 px border, and the selected example card's 1.5 px one.
+  const borders = [...source.matchAll(/(?<![\w:-])border(?:-[lrtbxy])?-accent(?![\w-])/g)];
+  assert.equal(borders.length, 2, borders.map((m) => m[0]).join(", "));
+  assert.match(source, /const CARD =\s*"[^"]*\bborder-2 border-accent\b/);
+  assert.match(source, /const SELECTED =\s*"[^"]*\bborder-\[1\.5px\] border-accent\b/);
+});

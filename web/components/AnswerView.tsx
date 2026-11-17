@@ -17,6 +17,7 @@ import {
   hasBadges,
   withBadges,
 } from "@/lib/labels";
+import { mathText } from "@/lib/math";
 
 /** **bold** inside a run of answer text; everything else is shown as written. */
 function Emphasis({ text }: { text: string }) {
@@ -189,7 +190,7 @@ export function AnswerText({ answer }: { answer: Answer }) {
       <p className="whitespace-pre-line leading-7">
         {parts.map((part, i) =>
           part.kind === "text" ? (
-            <Emphasis key={i} text={part.text} />
+            <Emphasis key={i} text={mathText(part.text)} />
           ) : part.kind === "badge" ? (
             <LabelBadge
               key={i}
@@ -244,7 +245,7 @@ export function ChecksPanel({ answer }: { answer: Answer }) {
   if (answer.mode !== "agent") return null;
   const { summary, lookups } = checkReport(answer);
   return (
-    <section className="mt-4 rounded-md border-l-4 border-accent bg-slate-50 px-3 py-2 text-sm text-slate-700">
+    <section className="mt-3 rounded-md border-l-4 border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
       <h3 className="font-medium text-slate-800">What was checked</h3>
       <p className="mt-1">{summary}</p>
       {lookups.map((lines, i) => (
@@ -272,6 +273,6 @@ export function CostLine({
   source: AnswerSource;
 }) {
   return (
-    <p className="mt-4 text-xs text-slate-500">{costLine(answer, source)}</p>
+    <p className="mt-2 text-xs text-slate-500">{costLine(answer, source)}</p>
   );
 }

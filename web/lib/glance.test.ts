@@ -6,16 +6,27 @@ import { test } from "node:test";
 
 import { checkReport } from "./checks.ts";
 import {
+  answerInView,
+  cardLine,
   CONTROL,
+  enterAsks,
+  EXAMPLE_CARDS,
   FIRST_EXAMPLE,
+  HEADLINE,
   INSIDE,
   INSIDE_FIGURES,
   insideTiles,
+  JUMP_LINKS,
+  MORE_CARDS,
+  PRIVACY_NOTE,
   resultTiles,
+  scrollBehavior,
+  SENTENCE,
   STEPS,
+  SUBLINE,
 } from "./glance.ts";
 import type { Results } from "./results.ts";
-import type { Example } from "./traps.ts";
+import { type Example, TRAP_NOTE, type TrapExample, trapExamples } from "./traps.ts";
 
 const repo = (path: string) => new URL(`../../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(repo(path), "utf8");
@@ -187,4 +198,136 @@ test("the README's By the numbers table starts with the six tiles, word for word
     .map((m) => ({ name: m[1], text: m[2] }))
     .filter((row) => row.name !== "Part");
   assert.deepEqual(rows.slice(0, 6), INSIDE);
+});
+
+test("the example cards: five with their tags and full questions, then four behind More", () => {
+  assert.deepEqual(
+    EXAMPLE_CARDS.map((card) => [card.tag, card.question]),
+    [
+      ["Number lookup", "What was Costco's operating income in fiscal 2025?"],
+      ["Calculation", "How much did NVIDIA's revenue grow from fiscal 2024 to fiscal 2025, in percent?"],
+      ["Text search", "How much money does Citi have tied up in Argentina, and how does it handle the peso?"],
+      ["Trap: a relative year", "How much revenue did Nike make last year?"],
+      ["Trap: an ambiguous company name", "how much net revenue did morgan make in 2024"],
+    ],
+  );
+  assert.deepEqual(
+    MORE_CARDS.map((card) => card.tag),
+    ["Text search", "Text search", "Text search", "Text search"],
+  );
+  assert.deepEqual(
+    MORE_CARDS.map((card) => card.question.split(" ").find((w) => /^[A-Z][a-z]/.test(w) && w !== "How" && w !== "What")),
+    ["Netflix", "UnitedHealth's", "Walmart's", "American"],
+  );
+});
+
+test("each saved question has exactly one card, and the trap tags are the saved traps' sub-labels", () => {
+  const examples = JSON.parse(read("web/data/examples.json")) as Example[];
+  const traps = trapExamples(JSON.parse(read("web/data/trap_examples.json")) as TrapExample[], examples);
+  const saved = new Set([...examples, ...traps].map((e) => e.question));
+  const carded = [...EXAMPLE_CARDS, ...MORE_CARDS].map((card) => card.question);
+  assert.deepEqual([...carded].sort(), [...saved].sort());
+  for (const trap of traps) {
+    const card = EXAMPLE_CARDS.find((c) => c.question === trap.question);
+    assert.ok(card, trap.question);
+    assert.equal(card.tag, `Trap: ${trap.trap[0].toLowerCase()}${trap.trap.slice(1)}`);
+  }
+});
+
+test("the calculation example is the pipeline's saved answer, with the figures the plan names", () => {
+  const examples = JSON.parse(read("web/data/examples.json")) as Example[];
+  const calc = examples.find((e) => e.question === EXAMPLE_CARDS[1].question);
+  assert.ok(calc, "the saved calculation example");
+  assert.equal(calc.ticker, "NVDA");
+  const answer = calc.answer;
+  assert.equal(answer.mode, "agent");
+  assert.equal(answer.checks, true);
+  assert.deepEqual(
+    (answer.tool_calls ?? []).map((c) => c.name),
+    ["get_financial_fact", "get_financial_fact", "calculate"],
+  );
+  assert.deepEqual(
+    // The stored fact keeps its value as filed; the page's type lists only what the page uses.
+    ((answer.facts_used ?? []) as unknown as { fiscal_year: number; value: string }[]).map((f) => [
+      f.fiscal_year,
+      f.value,
+    ]),
+    [
+      [2024, "60922000000"],
+      [2025, "130497000000"],
+    ],
+  );
+  const verified = (answer.number_labels ?? []).filter((l) => l.label === "verified").map((l) => l.figure);
+  for (const figure of ["$60,922 million", "$130,497 million"]) assert.ok(verified.includes(figure), figure);
+  assert.ok(verified.some((f) => f.startsWith("114.20")), "114.20 %");
+  assert.ok((answer.overrides ?? []).every((o) => o.outcome === "pass"), "every check passed");
+});
+
+test("the headline and the line under it are the one sentence, split in two", () => {
+  assert.equal(HEADLINE, "Ask about 25 companies' annual reports");
+  assert.equal(`${HEADLINE}. ${SUBLINE}`, SENTENCE);
+});
+
+test("the footer names the builder with GitHub and LinkedIn, and no portfolio site", () => {
+  const page = read("web/app/page.tsx");
+  assert.ok(page.includes("Built by Nazrul Huda Shanto"));
+  assert.ok(page.includes("https://github.com/nazrulhuda"));
+  assert.ok(page.includes("https://www.linkedin.com/in/mshanto/"));
+  assert.ok(!page.includes("nazrulhuda.com"), "no portfolio site");
+});
+
+test("the privacy note drops only its first sentence, which stays in What you can ask", () => {
+  const page = read("web/app/page.tsx");
+  assert.equal(
+    PRIVACY_NOTE,
+    "Questions are logged to improve the demo. Each question is sent to OpenAI to search the " +
+      "filings, and through OpenRouter to Groq, or to Google if that is busy, to write the " +
+      "answer; please don't enter personal information.",
+  );
+  assert.ok(page.includes("<li>Each question stands alone (no chat history).</li>"));
+});
+
+test("the page stays put only when the whole answer card is on screen", () => {
+  assert.equal(answerInView(300, 700, 800), true, "the whole card shows");
+  assert.equal(answerInView(0, 800, 800), true, "exactly the screen");
+  assert.equal(answerInView(770, 1180, 800), false, "its top shows, its bottom does not");
+  assert.equal(answerInView(120, 900, 800), false, "its top shows, its last 100 px do not");
+  assert.equal(answerInView(-40, 300, 800), false, "its top is above the screen");
+  assert.equal(answerInView(900, 1200, 800), false, "below the screen");
+  assert.equal(scrollBehavior(true), "auto", "no animation with reduced motion");
+  assert.equal(scrollBehavior(false), "smooth");
+});
+
+test("each card says what it is, in its strip, once", () => {
+  assert.equal(cardLine("example", true), TRAP_NOTE, "a saved trap example");
+  assert.equal(cardLine("example", false), "Saved example");
+  assert.equal(cardLine("after-limit", true), TRAP_NOTE, "a saved trap answer served after the limit");
+  assert.equal(cardLine("after-limit", false), "Saved example");
+  assert.equal(cardLine("new", false), "Answer", "a live answer");
+  assert.equal(cardLine("new", true), "Answer", "a live answer to a question like a trap");
+  assert.equal(cardLine("working", false), "Answering…");
+  const page = read("web/app/page.tsx");
+  assert.ok(!page.includes("FIRST_EXAMPLE_LINE"), "the first-load line is the trap line now");
+  assert.equal(page.split("{TRAP_NOTE}").length - 1, 0, "no second note at the bottom of the card");
+});
+
+test("Enter asks the question; Shift+Enter and composing do not", () => {
+  assert.equal(enterAsks("Enter", false, false), true);
+  assert.equal(enterAsks("Enter", true, false), false, "Shift+Enter starts a new line");
+  assert.equal(enterAsks("Enter", false, true), false, "not while a character is being composed");
+  assert.equal(enterAsks("a", false, false), false);
+});
+
+test("the header's jump links go to the page's sections and the code, with no result figure", () => {
+  assert.deepEqual(
+    JUMP_LINKS.map((link) => link.label),
+    ["How it works", "Results", "What's inside", "GitHub"],
+  );
+  const page = read("web/app/page.tsx");
+  for (const { href } of JUMP_LINKS.slice(0, 3)) {
+    assert.match(href, /^#[a-z-]+$/);
+    assert.ok(page.includes(`id="${href.slice(1)}"`), `${href} has a section`);
+  }
+  assert.equal(JUMP_LINKS[3].href, "https://github.com/nazrulhuda/filingcheck");
+  assert.doesNotMatch(JUMP_LINKS.map((l) => l.label).join(" "), /\d/);
 });
