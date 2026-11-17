@@ -11,8 +11,8 @@ an answer or a reported number is listed here, in this one place:
 
 The check fails, naming each file, if any file under those paths differs from its commit,
 whether a tracked change or a new file, or if the tag no longer points at its commit. One
-paragraph is exempt, `REWORDED`: the pre-registration's first paragraph, on who wrote it and
-when, reworded on 2026-11-18 (the paragraph says so); every definition in the file stays
+paragraph is exempt, `REWORDED`: the pre-registration's first paragraph, on when it was
+written, reworded on 2026-11-18 (the paragraph says so); every definition in the file stays
 pinned. What moves the pin: a version 2 of the system, measured again on new sealed questions
 under a new pre-registration, with its own tag. CI runs the check on every push (its checkout
 needs the whole history, so the tag and both commits are there).
@@ -62,9 +62,11 @@ ROWS: tuple[str, ...] = (
     "eval/results/2026-11-14_*-final_llm.jsonl",
 )
 # One paragraph that may be reworded without touching a definition: the pre-registration's first
-# paragraph, on who wrote it and when. Every other line of the file stays pinned, and the file must
-# still hold the paragraph.
-REWORDED: dict[str, str] = {"eval/PREREGISTRATION.md": "**Who wrote this and when.**"}
+# paragraph, found by its lead as merged and by its lead now. Every other line of the file stays
+# pinned, and the file must still hold the paragraph under its new lead.
+REWORDED: dict[str, tuple[str, str]] = {
+    "eval/PREREGISTRATION.md": ("**Who wrote this and when.**", "**When this was written.**")
+}
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -93,12 +95,15 @@ def without_paragraph(text: str, marker: str) -> str:
     return "\n\n".join(p for p in text.split("\n\n") if not p.startswith(marker))
 
 
-def _only_reworded(root: Path, commit: str, name: str, reworded: Mapping[str, str]) -> bool:
-    """Whether a tracked file differs from `commit` only in its marked, reworded paragraph."""
-    marker = reworded.get(name)
+def _only_reworded(
+    root: Path, commit: str, name: str, reworded: Mapping[str, tuple[str, str]]
+) -> bool:
+    """Whether a tracked file differs from `commit` only in its reworded paragraph."""
+    leads = reworded.get(name)
     path = root / name
-    if marker is None or not path.is_file():
+    if leads is None or not path.is_file():
         return False
+    old_lead, new_lead = leads
     old = subprocess.run(
         ["git", "show", f"{commit}:{name}"],
         cwd=root,
@@ -108,12 +113,17 @@ def _only_reworded(root: Path, commit: str, name: str, reworded: Mapping[str, st
         encoding="utf-8",
     ).stdout
     new = path.read_text(encoding="utf-8")
-    holds = all(any(p.startswith(marker) for p in t.split("\n\n")) for t in (old, new))
-    return holds and without_paragraph(old, marker) == without_paragraph(new, marker)
+    holds = any(p.startswith(old_lead) for p in old.split("\n\n")) and any(
+        p.startswith(new_lead) for p in new.split("\n\n")
+    )
+    return holds and without_paragraph(old, old_lead) == without_paragraph(new, new_lead)
 
 
 def reworded_only(
-    root: Path, commit: str, paths: Sequence[str], reworded: Mapping[str, str] = REWORDED
+    root: Path,
+    commit: str,
+    paths: Sequence[str],
+    reworded: Mapping[str, tuple[str, str]] = REWORDED,
 ) -> list[str]:
     """The files under `paths` whose only difference from `commit` is their reworded paragraph."""
     tracked = _git(root, "diff", "--name-only", "--no-renames", commit, "--", *paths)
@@ -121,11 +131,14 @@ def reworded_only(
 
 
 def changed_files(
-    root: Path, commit: str, paths: Sequence[str], reworded: Mapping[str, str] = REWORDED
+    root: Path,
+    commit: str,
+    paths: Sequence[str],
+    reworded: Mapping[str, tuple[str, str]] = REWORDED,
 ) -> list[str]:
     """The files under `paths` that differ from `commit`: changed, deleted or new.
 
-    A file in `reworded` whose only difference is its marked paragraph does not count.
+    A file in `reworded` whose only difference is its reworded paragraph does not count.
     """
     tracked = _git(root, "diff", "--name-only", "--no-renames", commit, "--", *paths)
     new = _git(root, "ls-files", "--others", "--exclude-standard", "--", *paths)
@@ -134,7 +147,9 @@ def changed_files(
 
 
 def problems(
-    root: Path = REPO_ROOT, pins: Sequence[Pin] = PINS, reworded: Mapping[str, str] = REWORDED
+    root: Path = REPO_ROOT,
+    pins: Sequence[Pin] = PINS,
+    reworded: Mapping[str, tuple[str, str]] = REWORDED,
 ) -> list[str]:
     """Everything that breaks a pin, one line each; empty when the measured system is intact."""
     found: list[str] = []
@@ -153,7 +168,7 @@ def problems(
 def main(
     argv: Sequence[str] | None = None,
     pins: Sequence[Pin] = PINS,
-    reworded: Mapping[str, str] = REWORDED,
+    reworded: Mapping[str, tuple[str, str]] = REWORDED,
 ) -> int:
     """Print the verdict; exit 1 when the measured system is not intact."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.measured")
@@ -167,8 +182,8 @@ def main(
         for pin in pins:
             for name in reworded_only(args.root, pin.commit, pin.paths, reworded):
                 print(
-                    f"  {name}: only its first paragraph (who wrote it and when) was reworded; "
-                    "every definition is unchanged"
+                    f"  {name}: only its first paragraph was reworded; every definition is "
+                    "unchanged"
                 )
         return 0
     print(f"verify-measured: {len(found)} problem(s):")
