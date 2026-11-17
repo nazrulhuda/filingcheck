@@ -72,9 +72,10 @@ def test_page_examples_are_searched_with_their_ticker_and_fiscal_year() -> None:
 
 TEXT_IDS = ["ret-008", "ret-024", "ret-040", "ret-016", "ret-010"]
 NUMBER_IDS = ["fact-001", "fact-002"]
+CALCULATION_IDS = ["calc-001"]
 
 
-def test_the_page_examples_file_holds_five_text_and_two_number_questions() -> None:
+def test_the_page_examples_file_holds_five_text_two_number_and_one_calculation_question() -> None:
     repo = Path(__file__).resolve().parents[2]
     questions = repo / "eval" / "questions"
     filings = json.loads((repo / "data" / "manifest.json").read_text(encoding="utf-8"))["filings"]
@@ -82,7 +83,7 @@ def test_the_page_examples_file_holds_five_text_and_two_number_questions() -> No
     companies = {f["ticker"] for f in filings}
     retrieval = {q["id"]: q for q in load_example_questions(questions / "retrieval.jsonl")}
     page = load_example_questions(questions / "page_examples.jsonl")
-    assert [q["id"] for q in page] == TEXT_IDS + NUMBER_IDS
+    assert [q["id"] for q in page] == TEXT_IDS + NUMBER_IDS + CALCULATION_IDS
     for q in page:
         assert set(q) == {"id", "question", "ticker", "fiscal_year"}
         assert q["ticker"] in companies
@@ -104,10 +105,14 @@ def test_the_page_examples_file_holds_five_text_and_two_number_questions() -> No
         for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     }
-    plain, relative = page[5:]
-    assert plain["question"] not in evaluated and relative["question"] not in evaluated
+    plain, relative, calculation = page[5:]
+    for q in (plain, relative, calculation):
+        assert q["question"] not in evaluated
     assert plain["fiscal_year"] is not None
     assert "last year" in relative["question"] and relative["fiscal_year"] is None
+    # The calculation question names both years, so the page leaves the year open.
+    assert "fiscal 2024" in calculation["question"] and "fiscal 2025" in calculation["question"]
+    assert calculation["fiscal_year"] is None
 
 
 # ---------------------------------------------------------------- make examples-export

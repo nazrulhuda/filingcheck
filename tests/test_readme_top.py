@@ -207,3 +207,12 @@ def test_known_limits_says_the_control_questions_were_seen_in_development() -> N
         "was built after a dry run on them (decisions, Nov 12), so the rise in control accuracy "
         "is not held-out evidence." in limits
     )
+
+
+def test_known_limits_says_a_figure_rewritten_in_the_working_is_unverified() -> None:
+    limits = README[README.index("## Known limits") : README.index("## What works today")]
+    assert (
+        "- In an answer with a calculation, a figure the model writes again in its working (for "
+        'example "130,497 M") is labeled Unverified, because the labeler reads figures as written.'
+        in limits
+    )

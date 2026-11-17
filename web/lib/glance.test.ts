@@ -8,19 +8,22 @@ import { checkReport } from "./checks.ts";
 import {
   answerInView,
   cardLine,
-  CHIPS,
   CONTROL,
   enterAsks,
+  EXAMPLE_CARDS,
   FIRST_EXAMPLE,
+  HEADLINE,
   INSIDE,
   INSIDE_FIGURES,
   insideTiles,
   JUMP_LINKS,
-  MORE_CHIPS,
+  MORE_CARDS,
   PRIVACY_NOTE,
   resultTiles,
   scrollBehavior,
+  SENTENCE,
   STEPS,
+  SUBLINE,
 } from "./glance.ts";
 import type { Results } from "./results.ts";
 import { type Example, TRAP_NOTE, type TrapExample, trapExamples } from "./traps.ts";
@@ -197,38 +200,76 @@ test("the README's By the numbers table starts with the six tiles, word for word
   assert.deepEqual(rows.slice(0, 6), INSIDE);
 });
 
-test("the chips are the five the plan names, in its order, then three behind More", () => {
+test("the example cards: five with their tags and full questions, then four behind More", () => {
   assert.deepEqual(
-    CHIPS.map((chip) => chip.label),
+    EXAMPLE_CARDS.map((card) => [card.tag, card.question]),
     [
-      "Costco: operating income",
-      "Citi: money in Argentina",
-      "Netflix: IP claims",
-      "Trap: Nike, 'last year'",
-      "Trap: 'morgan'",
+      ["Number lookup", "What was Costco's operating income in fiscal 2025?"],
+      ["Calculation", "How much did NVIDIA's revenue grow from fiscal 2024 to fiscal 2025, in percent?"],
+      ["Text search", "How much money does Citi have tied up in Argentina, and how does it handle the peso?"],
+      ["Trap: a relative year", "How much revenue did Nike make last year?"],
+      ["Trap: an ambiguous company name", "how much net revenue did morgan make in 2024"],
     ],
   );
-  assert.equal(MORE_CHIPS.length, 3);
-  for (const chip of [...CHIPS, ...MORE_CHIPS]) assert.ok(chip.label.length <= 36, chip.label);
+  assert.deepEqual(
+    MORE_CARDS.map((card) => card.tag),
+    ["Text search", "Text search", "Text search", "Text search"],
+  );
+  assert.deepEqual(
+    MORE_CARDS.map((card) => card.question.split(" ").find((w) => /^[A-Z][a-z]/.test(w) && w !== "How" && w !== "What")),
+    ["Netflix", "UnitedHealth's", "Walmart's", "American"],
+  );
 });
 
-test("each saved question has exactly one chip, and the trap chips are the saved trap examples", () => {
+test("each saved question has exactly one card, and the trap tags are the saved traps' sub-labels", () => {
   const examples = JSON.parse(read("web/data/examples.json")) as Example[];
   const traps = trapExamples(JSON.parse(read("web/data/trap_examples.json")) as TrapExample[], examples);
   const saved = new Set([...examples, ...traps].map((e) => e.question));
-  const chipped = [...CHIPS, ...MORE_CHIPS].map((chip) => chip.question);
-  assert.deepEqual([...chipped].sort(), [...saved].sort());
-  assert.deepEqual(
-    CHIPS.filter((chip) => chip.label.startsWith("Trap:")).map((chip) => chip.question).sort(),
-    traps.map((t) => t.question).sort(),
-  );
-  for (const chip of [...CHIPS, ...MORE_CHIPS]) {
-    const words = chip.label.replace(/^Trap: /, "").split(/[^A-Za-z]+/).filter((w) => w.length > 3);
-    assert.ok(
-      words.some((w) => chip.question.toLowerCase().includes(w.toLowerCase())),
-      `${chip.label} names its question`,
-    );
+  const carded = [...EXAMPLE_CARDS, ...MORE_CARDS].map((card) => card.question);
+  assert.deepEqual([...carded].sort(), [...saved].sort());
+  for (const trap of traps) {
+    const card = EXAMPLE_CARDS.find((c) => c.question === trap.question);
+    assert.ok(card, trap.question);
+    assert.equal(card.tag, `Trap: ${trap.trap[0].toLowerCase()}${trap.trap.slice(1)}`);
   }
+});
+
+test("the calculation example is the pipeline's saved answer, with the figures the plan names", () => {
+  const examples = JSON.parse(read("web/data/examples.json")) as Example[];
+  const calc = examples.find((e) => e.question === EXAMPLE_CARDS[1].question);
+  assert.ok(calc, "the saved calculation example");
+  assert.equal(calc.ticker, "NVDA");
+  const answer = calc.answer;
+  assert.equal(answer.mode, "agent");
+  assert.equal(answer.checks, true);
+  assert.deepEqual(
+    (answer.tool_calls ?? []).map((c) => c.name),
+    ["get_financial_fact", "get_financial_fact", "calculate"],
+  );
+  assert.deepEqual(
+    (answer.facts_used ?? []).map((f) => [f.fiscal_year, f.value]),
+    [
+      [2024, "60922000000"],
+      [2025, "130497000000"],
+    ],
+  );
+  const verified = (answer.number_labels ?? []).filter((l) => l.label === "verified").map((l) => l.figure);
+  for (const figure of ["$60,922 million", "$130,497 million"]) assert.ok(verified.includes(figure), figure);
+  assert.ok(verified.some((f) => f.startsWith("114.20")), "114.20 %");
+  assert.ok((answer.overrides ?? []).every((o) => o.outcome === "pass"), "every check passed");
+});
+
+test("the headline and the line under it are the one sentence, split in two", () => {
+  assert.equal(HEADLINE, "Ask about 25 companies' annual reports");
+  assert.equal(`${HEADLINE}. ${SUBLINE}`, SENTENCE);
+});
+
+test("the footer names the builder with GitHub and LinkedIn, and no portfolio site", () => {
+  const page = read("web/app/page.tsx");
+  assert.ok(page.includes("Built by Nazrul Huda Shanto"));
+  assert.ok(page.includes("https://github.com/nazrulhuda"));
+  assert.ok(page.includes("https://www.linkedin.com/in/mshanto/"));
+  assert.ok(!page.includes("nazrulhuda.com"), "no portfolio site");
 });
 
 test("the privacy note drops only its first sentence, which stays in What you can ask", () => {
@@ -275,7 +316,7 @@ test("Enter asks the question; Shift+Enter and composing do not", () => {
 test("the header's jump links go to the page's sections and the code, with no result figure", () => {
   assert.deepEqual(
     JUMP_LINKS.map((link) => link.label),
-    ["How it works", "Results", "What's inside", "Code"],
+    ["How it works", "Results", "What's inside", "GitHub"],
   );
   const page = read("web/app/page.tsx");
   for (const { href } of JUMP_LINKS.slice(0, 3)) {

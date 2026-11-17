@@ -40,6 +40,11 @@ def chain(
     return run_checks(call, context, CHECKS)
 
 
+# A question that names its years but is asked with the year left open is checked with a year
+# it names: the calculation example names fiscal 2024 and 2025.
+NAMED_YEAR = {"calc-001": 2025}
+
+
 def real_questions() -> list[Any]:
     cases = []
     for name in ("examples.jsonl", "page_examples.jsonl", "retrieval.jsonl"):
@@ -54,7 +59,7 @@ def real_questions() -> list[Any]:
                 pytest.param(
                     row["question"],
                     ticker,
-                    row.get("fiscal_year") or LATEST[ticker],
+                    row.get("fiscal_year") or NAMED_YEAR.get(row["id"]) or LATEST[ticker],
                     row.get("metric") or "revenue",
                     id=row["id"],
                 )
@@ -78,7 +83,7 @@ def test_every_real_question_passes_unless_it_is_a_trap(
 
 
 def test_the_real_question_files_are_the_ones_meant() -> None:
-    assert len(real_questions()) == 52  # 6 + 7 + 40 questions, trap-001 left out
+    assert len(real_questions()) == 53  # 6 + 8 + 40 questions, trap-001 left out
 
 
 # ---------------------------------------------------------------- the ten review probes
