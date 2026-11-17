@@ -1,4 +1,4 @@
-"""Ask Google Gemini, outside the coding session, to write the second held-out file (Day 37).
+"""Request the second held-out file from the Gemini API, from the committed prompt alone (Day 37).
 
 The model receives only the committed prompt's bytes as one user message: no system
 instruction, no tools, no search grounding, the provider's default temperature, and an output

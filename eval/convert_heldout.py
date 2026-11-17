@@ -7,11 +7,11 @@ Each source line is `type | question | what a good answer does`. The question is
 word, and the good-answer text becomes the `trap_note` word for word; no question is fixed or
 dropped. What a line does not say (the ticker, the fiscal year, the metric, the expected
 behavior) is set below, one row per line in the source's order, with the second answer a note
-accepts in `also_accept`; a person checks them before the file is sealed.
+accepts in `also_accept`; they are checked before the file is sealed.
 
-File 1 (28 questions, held-001 to held-028) was written by an AI agent launched from the coding
-session; file 2 (84 questions, held-029 to held-112) by Google Gemini through its API, outside
-the session (`eval/gemini_writer.py`).
+File 1 (28 questions, held-001 to held-028) and file 2 (84 questions, held-029 to held-112, made
+by `eval/gemini_writer.py`) come from the prompts and raw outputs in
+`eval/questions/heldout_source/`.
 
 The refusal note (`REFUSAL_NOTE`) is added to refusal questions whose figure the pinned filing
 states, in its text or its tables, or whose writer's note allows an answer; the reasons are in
@@ -90,7 +90,7 @@ ALSO_ACCEPT_1: dict[int, dict[str, Any]] = {
     28: {"expected_behavior": "refuse"},  # "gives the real one or declines"
 }
 
-# File 2, held-029 to held-112, in the source's order (Gemini's 84 lines).
+# File 2, held-029 to held-112, in the source's order (its 84 lines).
 FIELDS_2: Fields = [
     # type 1: a name that fits two companies, or a nickname
     ("GOOGL", 2024, "net_income", "answer"),  # google = Alphabet
