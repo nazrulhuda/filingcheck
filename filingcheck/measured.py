@@ -10,16 +10,18 @@ an answer or a reported number is listed here, in this one place:
   that merged them, `ROWS_COMMIT`.
 
 The check fails, naming each file, if any file under those paths differs from its commit,
-whether a tracked change or a new file, or if the tag no longer points at its commit. What
-moves the pin: a version 2 of the system, measured again on new sealed questions under a new
-pre-registration, with its own tag. CI runs the check on every push (its checkout needs the
-whole history, so the tag and both commits are there).
+whether a tracked change or a new file, or if the tag no longer points at its commit. One
+paragraph is exempt, `REWORDED`: the pre-registration's first paragraph, on who wrote it and
+when, reworded on 2026-11-18 (the paragraph says so); every definition in the file stays
+pinned. What moves the pin: a version 2 of the system, measured again on new sealed questions
+under a new pre-registration, with its own tag. CI runs the check on every push (its checkout
+needs the whole history, so the tag and both commits are there).
 """
 
 import argparse
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,6 +61,11 @@ ROWS: tuple[str, ...] = (
     "eval/results/2026-11-14_*-final.jsonl",
     "eval/results/2026-11-14_*-final_llm.jsonl",
 )
+# One paragraph that may be reworded without touching a definition: the pre-registration's first
+# paragraph, on who wrote it and when. Every other line of the file stays pinned, and the file must
+# still hold the paragraph.
+REWORDED: dict[str, str] = {"eval/PREREGISTRATION.md": "**Who wrote this and when.**"}
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -81,14 +88,54 @@ def _git(root: Path, *args: str) -> list[str]:
     return [line for line in done.stdout.splitlines() if line.strip()]
 
 
-def changed_files(root: Path, commit: str, paths: Sequence[str]) -> list[str]:
-    """The files under `paths` that differ from `commit`: changed, deleted or new."""
+def without_paragraph(text: str, marker: str) -> str:
+    """The text without the paragraph that starts with `marker` (split on blank lines)."""
+    return "\n\n".join(p for p in text.split("\n\n") if not p.startswith(marker))
+
+
+def _only_reworded(root: Path, commit: str, name: str, reworded: Mapping[str, str]) -> bool:
+    """Whether a tracked file differs from `commit` only in its marked, reworded paragraph."""
+    marker = reworded.get(name)
+    path = root / name
+    if marker is None or not path.is_file():
+        return False
+    old = subprocess.run(
+        ["git", "show", f"{commit}:{name}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+        encoding="utf-8",
+    ).stdout
+    new = path.read_text(encoding="utf-8")
+    holds = all(any(p.startswith(marker) for p in t.split("\n\n")) for t in (old, new))
+    return holds and without_paragraph(old, marker) == without_paragraph(new, marker)
+
+
+def reworded_only(
+    root: Path, commit: str, paths: Sequence[str], reworded: Mapping[str, str] = REWORDED
+) -> list[str]:
+    """The files under `paths` whose only difference from `commit` is their reworded paragraph."""
+    tracked = _git(root, "diff", "--name-only", "--no-renames", commit, "--", *paths)
+    return sorted(name for name in tracked if _only_reworded(root, commit, name, reworded))
+
+
+def changed_files(
+    root: Path, commit: str, paths: Sequence[str], reworded: Mapping[str, str] = REWORDED
+) -> list[str]:
+    """The files under `paths` that differ from `commit`: changed, deleted or new.
+
+    A file in `reworded` whose only difference is its marked paragraph does not count.
+    """
     tracked = _git(root, "diff", "--name-only", "--no-renames", commit, "--", *paths)
     new = _git(root, "ls-files", "--others", "--exclude-standard", "--", *paths)
-    return sorted(set(tracked) | set(new))
+    kept = {name for name in tracked if not _only_reworded(root, commit, name, reworded)}
+    return sorted(kept | set(new))
 
 
-def problems(root: Path = REPO_ROOT, pins: Sequence[Pin] = PINS) -> list[str]:
+def problems(
+    root: Path = REPO_ROOT, pins: Sequence[Pin] = PINS, reworded: Mapping[str, str] = REWORDED
+) -> list[str]:
     """Everything that breaks a pin, one line each; empty when the measured system is intact."""
     found: list[str] = []
     for pin in pins:
@@ -98,21 +145,31 @@ def problems(root: Path = REPO_ROOT, pins: Sequence[Pin] = PINS) -> list[str]:
                 found.append(f"the tag {pin.tag} points to {points_to[:12]}, not {pin.commit[:12]}")
         found += [
             f"{name} differs from {pin.commit[:12]}"
-            for name in changed_files(root, pin.commit, pin.paths)
+            for name in changed_files(root, pin.commit, pin.paths, reworded)
         ]
     return found
 
 
-def main(argv: Sequence[str] | None = None, pins: Sequence[Pin] = PINS) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    pins: Sequence[Pin] = PINS,
+    reworded: Mapping[str, str] = REWORDED,
+) -> int:
     """Print the verdict; exit 1 when the measured system is not intact."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.measured")
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)
-    found = problems(args.root, pins)
+    found = problems(args.root, pins, reworded)
     if not found:
         paths = sum(len(pin.paths) for pin in pins)
         commits = ", ".join(pin.commit[:12] for pin in pins)
         print(f"verify-measured: the {paths} pinned paths are unchanged since {commits}")
+        for pin in pins:
+            for name in reworded_only(args.root, pin.commit, pin.paths, reworded):
+                print(
+                    f"  {name}: only its first paragraph (who wrote it and when) was reworded; "
+                    "every definition is unchanged"
+                )
         return 0
     print(f"verify-measured: {len(found)} problem(s):")
     for line in found:

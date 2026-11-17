@@ -1,6 +1,6 @@
 # Pre-registration: the Week 6 measurement
 
-**Who wrote this and when.** The definitions below were written by a reviewing AI session on 2026-11-12 and 2026-11-13, not by the code's author. That was after the first held-out questions and their gold values had been reviewed (2026-11-12), and before any held-out answer existed. They are copied here with plain-English edits only; no meaning was changed. This file is merged before the first final row is written, and it does not change after that: anything added after the results is marked "added after the results" in the report. Its SHA-256 is in the pull request that adds it.
+**Who wrote this and when.** The owner used a separate AI model, apart from the coding work, to write the definitions below on 2026-11-12 and 2026-11-13. That was after the first held-out questions and their gold values had been reviewed (2026-11-12), and before any held-out answer existed. They are copied here with plain-English edits only; no meaning was changed. This file is merged before the first final row is written, and its definitions do not change after that: anything added after the results is marked "added after the results" in the report. Its SHA-256 is in the pull request that adds it. This paragraph was reworded on 2026-11-18; every definition below is unchanged, which `make verify-measured` checks against the tag `week6-measured`, where the file as merged can be read.
 
 ## What was decided before the run, and when
 

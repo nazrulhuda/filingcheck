@@ -1030,8 +1030,8 @@ METHOD = [
     "pre-registration's SHA-256 were printed and checked before the run; every row records the "
     "commit, a clean tree and its question file's SHA-256 "
     "(`eval/results/2026-11-14_final-run_record.md`). The definitions are "
-    "`eval/PREREGISTRATION.md`, unchanged since it was merged; its last section says how the "
-    "code reads seven of them.",
+    "`eval/PREREGISTRATION.md`, unchanged since it was merged apart from its first "
+    "paragraph's wording; its last section says how the code reads seven of them.",
     "- **Grading:** the deterministic grader decides number-graded runs (strict clarify "
     "rule) and the LLM grader (prompt version 2, frozen) decides text-graded runs; the LLM "
     "gave a second opinion on every number-graded run, which changes no grade. All grading ran "
