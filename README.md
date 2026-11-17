@@ -2,7 +2,34 @@
 
 An agent that answers questions about 25 public companies' SEC 10-K filings, where the server checks every number lookup the model asks for before it runs, and every number in the answer is labeled against the filing's own data.
 
+![The live page on first load: the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
+
 **Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)** [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
+
+<!-- Video: the link to the two-minute demo goes here when it exists. -->
+
+Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, Docker, GitHub Actions.
+
+**What this project shows**
+
+- A working agent with three typed tools, and a live demo.
+- Six server-side checks on the model's number lookups and searches: each call is passed, repaired or rejected before it runs.
+- A pre-registered, reproducible evaluation.
+
+**By the numbers**
+
+| Part | What it is |
+|---|---|
+| Data | 75 annual reports (10-Ks) from 25 companies, 3 years each, each pinned by its SEC accession number. |
+| Search | 42,612 passages from Items 1, 1A, 7, 7A and 8 of each report, searched by meaning and by keyword. |
+| Numbers | 13 financial metrics read from each filing's own XBRL data; 1,123 figures cross-checked against the SEC's companyfacts file, 0 disagreements. |
+| Agent | 3 tools (search, number lookup, exact calculator). |
+| Checks | 6 server-side rules on the model's lookups, every decision logged and shown. |
+| Testing | 3,855 test answers across 5 setups; every published number recomputed by one command. |
+| Coverage | 915 of 975 company-year metric values are in the filings' data; for the rest the number tool answers "unavailable" and derives nothing ([coverage](docs/facts_coverage.md)). |
+| Not compared | 18 figures had no companyfacts entry to compare, all from S&P Global's fiscal 2024 filing ([facts report](docs/facts_report.md)). |
+| CI gate | 24 scripted agent scenarios run the real agent, checks, lookup and grader with no model, in CI. |
+| Reproduction | `make report` recomputes every published number from the committed rows, with no API key and no database. |
 
 **The result** (110 sealed held-out trap questions, 3 runs each, scored by rules fixed in advance; [full report](eval/results/2026-11-14_final_report.md)):
 
@@ -102,6 +129,7 @@ The [full report](eval/results/2026-11-14_final_report.md) has every set, the pe
 - **`search_filings` searches passages, not tables**, so a figure that only a table states cannot be found by search.
 - **The gold values come from the same lookup the agent uses**, cross-checked against the SEC's companyfacts.
 - **The development traps were written alongside the checks**, so their results are not evidence.
+- The control questions were used during development: the fiscal-year check on searches was built after a dry run on them (decisions, Nov 12), so the rise in control accuracy is not held-out evidence.
 - **Latency is from batch mode**, and the PC slept during one arm, so one run's time includes the sleep (reported apart). The live page's fallback answers, given when the main model is rate-limited, were not measured. A reranker was never built or measured.
 - The checks cover the arguments of the tools, not the text of an answer. A text answer is not compared with the passage it cites, so it can be confidently unsupported: one answer gave a reason for a Goldman Sachs decision that the filing does not give, and a saved example calls Walmart's currency swaps "10-year-old", which the filing does not say. In the Week 5 dry run, a third or more of the text answers to normal questions said more than their cited passages support, and sending searches to the latest filing did not change that.
 - On questions the filings do not answer (a reason a filing never gives), searching the right filing makes the model answer more often, not less: with the checks on it answered more of the 10 unanswerable questions in the final run too.
