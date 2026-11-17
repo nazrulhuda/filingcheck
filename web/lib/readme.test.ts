@@ -96,6 +96,20 @@ test("the diagram is drawn from docs/architecture.mmd, and the drawing is of its
   assert.equal(ABOUT_ASSETS["docs/architecture.svg"], "architecture.svg");
 });
 
+test("below Results every section is a README heading, and the two build sections open with whole sentences", () => {
+  for (const title of ABOUT_SECTIONS.slice(2)) assert.ok(README.includes(`\n## ${title}\n`), title);
+  const [built] = blocks("How it is built");
+  assert.deepEqual(built, {
+    kind: "paragraph",
+    text: "The diagram's source is [docs/architecture.mmd](docs/architecture.mmd).",
+  });
+  const [one] = blocks("How one question goes through it");
+  assert.deepEqual(one, {
+    kind: "paragraph",
+    text: 'From the saved example "How much revenue did Nike make last year?" (`web/data/examples.json`; the page shows it):',
+  });
+});
+
 test("the README's pictures in these sections are served by the site", () => {
   const images = sections
     .flatMap((s) => s.blocks)

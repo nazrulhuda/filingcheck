@@ -212,6 +212,28 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     assert "final_rates.png" not in README
 
 
+def test_after_results_every_section_is_a_heading_so_github_ends_results_there() -> None:
+    results = README.index("\n## Results\n")
+    # Bold leads come only above the results; below them every section has a "##" heading.
+    for line in README.splitlines():
+        if line.startswith("**"):
+            assert README.index(line) < results, line[:60]
+    after = README[results + 1 :].splitlines()[1:]
+    assert next(line for line in after if line.startswith(("## ", "**"))) == "## How it is built"
+
+
+def test_the_two_build_sections_open_with_whole_sentences() -> None:
+    built = [line for line in section("How it is built").splitlines() if line.strip()]
+    assert built[1] == "The diagram's source is [docs/architecture.mmd](docs/architecture.mmd)."
+    one = [
+        line for line in section("How one question goes through it").splitlines() if line.strip()
+    ]
+    assert one[1] == (
+        'From the saved example "How much revenue did Nike make last year?" '
+        "(`web/data/examples.json`; the page shows it):"
+    )
+
+
 def test_known_limits_has_the_eight_and_links_all_sixteen() -> None:
     limits = section("Known limits")
     mine = [line[2:] for line in limits.splitlines() if line.startswith("- ")]
