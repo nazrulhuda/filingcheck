@@ -12,13 +12,14 @@ an answer or a reported number is listed here, in this one place:
 The check fails, naming each file, if any file under those paths differs from its commit,
 whether a tracked change or a new file, or if the tag no longer points at its commit. One
 paragraph is exempt, `REWORDED`: the pre-registration's first paragraph, on when it was
-written, reworded on 2026-11-18 (the paragraph says so); every definition in the file stays
-pinned. What moves the pin: a version 2 of the system, measured again on new sealed questions
-under a new pre-registration, with its own tag. CI runs the check on every push (its checkout
-needs the whole history, so the tag and both commits are there).
+written, reworded on 2026-11-17 (the paragraph says so) and pinned by its own SHA-256; every
+definition in the file stays pinned. What moves the pin: a version 2 of the system, measured
+again on new sealed questions under a new pre-registration, with its own tag. CI runs the check
+on every push (its checkout needs the whole history, so the tag and both commits are there).
 """
 
 import argparse
+import hashlib
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
@@ -62,10 +63,14 @@ ROWS: tuple[str, ...] = (
     "eval/results/2026-11-14_*-final_llm.jsonl",
 )
 # One paragraph that may be reworded without touching a definition: the pre-registration's first
-# paragraph, found by its lead as merged and by its lead now. Every other line of the file stays
-# pinned, and the file must still hold the paragraph under its new lead.
-REWORDED: dict[str, tuple[str, str]] = {
-    "eval/PREREGISTRATION.md": ("**Who wrote this and when.**", "**When this was written.**")
+# paragraph, found by its lead as merged and by its lead now. Its new text is pinned by its
+# SHA-256, so the whole file is fixed again; every other line of the file stays pinned.
+REWORDED: dict[str, tuple[str, str, str]] = {
+    "eval/PREREGISTRATION.md": (
+        "**Who wrote this and when.**",
+        "**When this was written.**",
+        "a88c38bd62100d37a45698420f5e8af88f85c94385b1014264223858aca681fe",
+    )
 }
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -96,14 +101,14 @@ def without_paragraph(text: str, marker: str) -> str:
 
 
 def _only_reworded(
-    root: Path, commit: str, name: str, reworded: Mapping[str, tuple[str, str]]
+    root: Path, commit: str, name: str, reworded: Mapping[str, tuple[str, str, str]]
 ) -> bool:
-    """Whether a tracked file differs from `commit` only in its reworded paragraph."""
-    leads = reworded.get(name)
+    """Whether a tracked file differs from `commit` only in its reworded, pinned paragraph."""
+    exemption = reworded.get(name)
     path = root / name
-    if leads is None or not path.is_file():
+    if exemption is None or not path.is_file():
         return False
-    old_lead, new_lead = leads
+    old_lead, new_lead, digest = exemption
     old = subprocess.run(
         ["git", "show", f"{commit}:{name}"],
         cwd=root,
@@ -113,17 +118,17 @@ def _only_reworded(
         encoding="utf-8",
     ).stdout
     new = path.read_text(encoding="utf-8")
-    holds = any(p.startswith(old_lead) for p in old.split("\n\n")) and any(
-        p.startswith(new_lead) for p in new.split("\n\n")
-    )
-    return holds and without_paragraph(old, old_lead) == without_paragraph(new, new_lead)
+    new_paragraphs = [p for p in new.split("\n\n") if p.startswith(new_lead)]
+    holds = any(p.startswith(old_lead) for p in old.split("\n\n")) and len(new_paragraphs) == 1
+    exact = holds and hashlib.sha256(new_paragraphs[0].encode()).hexdigest() == digest
+    return exact and without_paragraph(old, old_lead) == without_paragraph(new, new_lead)
 
 
 def reworded_only(
     root: Path,
     commit: str,
     paths: Sequence[str],
-    reworded: Mapping[str, tuple[str, str]] = REWORDED,
+    reworded: Mapping[str, tuple[str, str, str]] = REWORDED,
 ) -> list[str]:
     """The files under `paths` whose only difference from `commit` is their reworded paragraph."""
     tracked = _git(root, "diff", "--name-only", "--no-renames", commit, "--", *paths)
@@ -134,7 +139,7 @@ def changed_files(
     root: Path,
     commit: str,
     paths: Sequence[str],
-    reworded: Mapping[str, tuple[str, str]] = REWORDED,
+    reworded: Mapping[str, tuple[str, str, str]] = REWORDED,
 ) -> list[str]:
     """The files under `paths` that differ from `commit`: changed, deleted or new.
 
@@ -149,7 +154,7 @@ def changed_files(
 def problems(
     root: Path = REPO_ROOT,
     pins: Sequence[Pin] = PINS,
-    reworded: Mapping[str, tuple[str, str]] = REWORDED,
+    reworded: Mapping[str, tuple[str, str, str]] = REWORDED,
 ) -> list[str]:
     """Everything that breaks a pin, one line each; empty when the measured system is intact."""
     found: list[str] = []
@@ -168,7 +173,7 @@ def problems(
 def main(
     argv: Sequence[str] | None = None,
     pins: Sequence[Pin] = PINS,
-    reworded: Mapping[str, tuple[str, str]] = REWORDED,
+    reworded: Mapping[str, tuple[str, str, str]] = REWORDED,
 ) -> int:
     """Print the verdict; exit 1 when the measured system is not intact."""
     parser = argparse.ArgumentParser(prog="python -m filingcheck.measured")

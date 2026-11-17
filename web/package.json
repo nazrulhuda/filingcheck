@@ -7,7 +7,9 @@
     "node": ">=24"
   },
   "scripts": {
+    "predev": "node scripts/about-assets.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/about-assets.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

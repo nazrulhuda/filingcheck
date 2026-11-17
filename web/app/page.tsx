@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
@@ -9,7 +10,7 @@ import {
   LabelGuide,
 } from "@/components/AnswerView";
 import { Icon, INSIDE_ICONS, STEP_ICONS } from "@/components/Icons";
-import { Logo } from "@/components/Logo";
+import { Footer, TopBar } from "@/components/SiteChrome";
 import examplesData from "@/data/examples.json";
 import resultsData from "@/data/results.json";
 import trapData from "@/data/trap_examples.json";
@@ -39,19 +40,17 @@ import {
   FIRST_EXAMPLE,
   HEADLINE,
   INSIDE,
-  JUMP_LINKS,
   MORE_CARDS,
   PRIVACY_NOTE,
   resultTiles,
   scrollBehavior,
-  STACK,
   STEPS,
   SUBLINE,
   TRAP_LINE,
 } from "@/lib/glance";
 import { mathText } from "@/lib/math";
 import { reviewNote } from "@/lib/notes";
-import { type Results, resultLines } from "@/lib/results";
+import type { Results } from "@/lib/results";
 import { type Example, type TrapExample, trapExamples } from "@/lib/traps";
 
 const EXAMPLES = examplesData as Example[];
@@ -59,10 +58,6 @@ const TRAPS = trapExamples(trapData as TrapExample[], EXAMPLES);
 const TRAP_QUESTIONS = new Set(TRAPS.map((t) => t.question));
 const SAVED = new Map<string, Example>([...EXAMPLES, ...TRAPS].map((e) => [e.question, e]));
 const RESULTS = resultsData as Results;
-const REPO = "https://github.com/nazrulhuda/filingcheck";
-const REPORT = `${REPO}/blob/main/${RESULTS.report}`;
-const PREREGISTRATION = `${REPO}/blob/main/eval/PREREGISTRATION.md`;
-const KNOWN_LIMITS = `${REPO}#known-limits`;
 const MAX_QUESTION = 500;
 const HEALTH_TIMEOUT_MS = 3000;
 const WAKE_RETRY_MS = 5000;
@@ -203,41 +198,30 @@ function HowItWorks() {
   );
 }
 
-/** The measured result as four tiles in the README's order; the README's three lines, unchanged,
- * in a closed panel. Every number is from results.json or checked against the report. */
-function ResultsSection() {
+/** A short results strip: the first two tiles, in the README's order, with their numbers from
+ * results.json; all the results, and how they were measured, are on the About page. */
+function ResultsStrip() {
   return (
-    <section id="results" className="mt-12 scroll-mt-4" aria-labelledby="results-title">
+    <section className="mt-12" aria-labelledby="results-title">
       <h2 id="results-title" className={SECTION_TITLE}>
         What the measurement found
       </h2>
       <p className="mt-1 text-sm text-slate-600">{TRAP_LINE}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {resultTiles(RESULTS).map((tile) => (
+        {resultTiles(RESULTS).slice(0, 2).map((tile) => (
           <div key={tile.figure} className={TILE}>
             <p className="text-2xl font-semibold tabular-nums text-accent-strong">
               {tile.figure}
             </p>
             <p className="mt-1 text-sm text-slate-700">{tile.text}</p>
-            {tile.note && <p className="mt-2 text-xs text-slate-500">{tile.note}</p>}
           </div>
         ))}
       </div>
       <p className="mt-3 text-sm">
-        <a href={REPORT} className={LINK}>
-          The full report
-        </a>
+        <Link href="/about#results" className={LINK}>
+          All results and how they were measured
+        </Link>
       </p>
-      <details className={`mt-3 ${BOX}`}>
-        <summary className="cursor-pointer font-medium text-slate-800">Details</summary>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          {resultLines(RESULTS).map((line) => (
-            <li key={line.lead}>
-              <span className="font-medium">{line.lead}</span> {line.rest}
-            </li>
-          ))}
-        </ul>
-      </details>
     </section>
   );
 }
@@ -260,43 +244,12 @@ function Inside() {
           </div>
         ))}
       </div>
+      <p className="mt-3 text-sm">
+        <Link href="/about" className={LINK}>
+          How it was built
+        </Link>
+      </p>
     </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="mt-12 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-600">
-      <p>
-        Built by Nazrul Huda Shanto
-        {" · "}
-        <a href="https://github.com/nazrulhuda" className={LINK}>
-          GitHub
-        </a>
-        {" · "}
-        <a href="https://www.linkedin.com/in/mshanto/" className={LINK}>
-          LinkedIn
-        </a>
-      </p>
-      <p>
-        <a href={REPO} className={LINK}>
-          Code
-        </a>
-        {" · "}
-        <a href={REPORT} className={LINK}>
-          Full report
-        </a>
-        {" · "}
-        <a href={PREREGISTRATION} className={LINK}>
-          Pre-registration
-        </a>
-        {" · "}
-        <a href={KNOWN_LIMITS} className={LINK}>
-          Known limits
-        </a>
-      </p>
-      <p className="text-xs text-slate-500">{STACK}</p>
-    </footer>
   );
 }
 
@@ -435,25 +388,7 @@ export default function Home() {
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-2">
-          <Logo />
-          <nav
-            aria-label="Sections"
-            className="flex min-w-0 gap-4 overflow-x-auto whitespace-nowrap text-[13px] font-medium sm:gap-7 sm:text-[15px]"
-          >
-            {JUMP_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="py-2 text-slate-700 hover:text-accent"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </header>
+      <TopBar />
       <main id="top" className="mx-auto max-w-5xl px-4 pb-8 pt-4 sm:pt-7">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[32px] sm:leading-tight">
           {HEADLINE}
@@ -657,7 +592,7 @@ export default function Home() {
 
         <WhatYouCanAsk companies={companies} />
         <HowItWorks />
-        <ResultsSection />
+        <ResultsStrip />
         <Inside />
         <Footer />
       </main>

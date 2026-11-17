@@ -25,6 +25,7 @@ import {
   STEPS,
   SUBLINE,
 } from "./glance.ts";
+import { readmeSections } from "./readme.ts";
 import type { Results } from "./results.ts";
 import { type Example, TRAP_NOTE, type TrapExample, trapExamples } from "./traps.ts";
 
@@ -269,11 +270,33 @@ test("the headline and the line under it are the one sentence, split in two", ()
 });
 
 test("the footer names the builder with GitHub and LinkedIn, and no portfolio site", () => {
+  const chrome = read("web/components/SiteChrome.tsx");
+  assert.ok(chrome.includes("Built by Nazrul Huda Shanto"));
+  assert.ok(chrome.includes("https://github.com/nazrulhuda"));
+  assert.ok(chrome.includes("https://www.linkedin.com/in/mshanto/"));
+  for (const path of ["web/components/SiteChrome.tsx", "web/app/page.tsx", "web/app/about/page.tsx"]) {
+    assert.ok(!read(path).includes("nazrulhuda.com"), `${path}: no portfolio site`);
+  }
+});
+
+test("both pages share the top bar and the footer", () => {
+  for (const path of ["web/app/page.tsx", "web/app/about/page.tsx"]) {
+    const page = read(path);
+    assert.ok(page.includes("<TopBar />") && page.includes("<Footer />"), path);
+  }
+});
+
+test("the home page's results strip: the trap line, the first two tiles, and the link to the rest", () => {
   const page = read("web/app/page.tsx");
-  assert.ok(page.includes("Built by Nazrul Huda Shanto"));
-  assert.ok(page.includes("https://github.com/nazrulhuda"));
-  assert.ok(page.includes("https://www.linkedin.com/in/mshanto/"));
-  assert.ok(!page.includes("nazrulhuda.com"), "no portfolio site");
+  assert.ok(page.includes("resultTiles(RESULTS).slice(0, 2)"));
+  assert.ok(page.includes("{TRAP_LINE}"));
+  assert.ok(page.includes('href="/about#results"') && page.includes("All results and how they were measured"));
+  assert.ok(page.includes('href="/about"') && page.includes("How it was built"));
+  assert.ok(!page.includes("resultLines("), "the Details panel left the home page");
+  assert.deepEqual(
+    resultTiles(RESULTS).slice(0, 2).map((tile) => tile.figure),
+    ["85.2% vs 75.5%", "18.5% → 10.6%"],
+  );
 });
 
 test("the privacy note drops only its first sentence, which stays in What you can ask", () => {
@@ -318,16 +341,36 @@ test("Enter asks the question; Shift+Enter and composing do not", () => {
   assert.equal(enterAsks("a", false, false), false);
 });
 
-test("the header's jump links go to the page's sections and the code, with no result figure", () => {
+test("the top bar's links reach their targets from both pages, with no result figure", () => {
   assert.deepEqual(
-    JUMP_LINKS.map((link) => link.label),
-    ["How it works", "Results", "What's inside", "GitHub"],
+    JUMP_LINKS.map((link) => [link.label, link.href]),
+    [
+      ["How it works", "/#how-it-works"],
+      ["What's inside", "/#whats-inside"],
+      ["Results", "/about#results"],
+      ["About the project", "/about"],
+      ["GitHub", "https://github.com/nazrulhuda/filingcheck"],
+    ],
   );
-  const page = read("web/app/page.tsx");
-  for (const { href } of JUMP_LINKS.slice(0, 3)) {
-    assert.match(href, /^#[a-z-]+$/);
-    assert.ok(page.includes(`id="${href.slice(1)}"`), `${href} has a section`);
-  }
-  assert.equal(JUMP_LINKS[3].href, "https://github.com/nazrulhuda/filingcheck");
+  const home = read("web/app/page.tsx");
+  for (const id of ["how-it-works", "whats-inside"]) assert.ok(home.includes(`id="${id}"`), id);
+  assert.ok(readmeSections(read("README.md")).some((s) => s.id === "results"), "/about#results");
   assert.doesNotMatch(JUMP_LINKS.map((l) => l.label).join(" "), /\d/);
+});
+
+test("on phones the top bar shows short labels, each part of its full label", () => {
+  assert.deepEqual(
+    JUMP_LINKS.map((link) => link.short),
+    ["How it works", "Inside", "Results", "About", "GitHub"],
+  );
+  for (const link of JUMP_LINKS) {
+    assert.ok(link.label.toLowerCase().includes(link.short.toLowerCase()), link.label);
+  }
+});
+
+test("the footer's Known limits goes to the About page's section", () => {
+  const chrome = read("web/components/SiteChrome.tsx");
+  assert.ok(chrome.includes('"/about#known-limits"'));
+  assert.ok(!chrome.includes("#known-limits`"), "not the README on GitHub");
+  assert.ok(readmeSections(read("README.md")).some((s) => s.id === "known-limits"));
 });
