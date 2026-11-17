@@ -33,21 +33,23 @@ import {
 import {
   answerInView,
   cardLine,
-  CHIPS,
-  type Chip,
+  EXAMPLE_CARDS,
+  type ExampleCard,
   enterAsks,
   FIRST_EXAMPLE,
+  HEADLINE,
   INSIDE,
   JUMP_LINKS,
-  MORE_CHIPS,
+  MORE_CARDS,
   PRIVACY_NOTE,
   resultTiles,
   scrollBehavior,
-  SENTENCE,
   STACK,
   STEPS,
+  SUBLINE,
   TRAP_LINE,
 } from "@/lib/glance";
+import { mathText } from "@/lib/math";
 import { reviewNote } from "@/lib/notes";
 import { type Results, resultLines } from "@/lib/results";
 import { type Example, type TrapExample, trapExamples } from "@/lib/traps";
@@ -74,8 +76,10 @@ const LINK = "text-accent underline hover:text-accent-strong";
 const BOX = "rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
 const TILE = "rounded-lg border border-slate-200 bg-white p-4";
 const SECTION_TITLE = "text-lg font-semibold text-slate-900";
-const CHIP =
-  "rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[13px] text-slate-700 hover:border-accent hover:text-accent-strong";
+const EXAMPLE = "flex flex-col gap-1 rounded-[10px] px-3.5 py-2.5 text-left";
+const UNSELECTED = "border border-slate-300 bg-white hover:border-slate-400";
+// The example whose answer is showing: the accent's colour at 1.5 px and a light tint.
+const SELECTED = "border-[1.5px] border-accent bg-band";
 // The answer card is the only box with an accent border, and its strip says what it holds.
 const CARD = "overflow-hidden rounded-lg border-2 border-accent bg-white";
 const STRIP = "bg-accent-soft px-4 py-1.5 text-xs font-semibold text-accent-strong";
@@ -273,10 +277,6 @@ function Footer() {
         <a href="https://www.linkedin.com/in/mshanto/" className={LINK}>
           LinkedIn
         </a>
-        {" · "}
-        <a href="https://dev.nazrulhuda.com" className={LINK}>
-          dev.nazrulhuda.com
-        </a>
       </p>
       <p>
         <a href={REPO} className={LINK}>
@@ -310,7 +310,7 @@ export default function Home() {
   const [shown, setShown] = useState<Shown>(FIRST_SHOWN);
   const [busy, setBusy] = useState(false);
   const [more, setMore] = useState(false);
-  // Counts requests to bring the answer card into view: an answer starting, or a chip clicked.
+  // Counts requests to bring the answer card into view: an answer starting, or an example clicked.
   const [reveal, setReveal] = useState(0);
   const box = useRef<HTMLTextAreaElement>(null);
   const answerArea = useRef<HTMLElement>(null);
@@ -402,8 +402,8 @@ export default function Home() {
     }
   }
 
-  function showChip(chip: Chip) {
-    const example = SAVED.get(chip.question);
+  function showExample(card: ExampleCard) {
+    const example = SAVED.get(card.question);
     if (!example) return;
     setQuestion(example.question);
     setTicker(example.ticker ?? "");
@@ -412,59 +412,72 @@ export default function Home() {
     setReveal((n) => n + 1);
   }
 
-  function chipButton(chip: Chip) {
+  function exampleCard(card: ExampleCard) {
+    const selected =
+      shown.kind === "answer" && shown.source === "example" && shown.question === card.question;
+    const trap = card.tag.startsWith("Trap:");
     return (
       <button
-        key={chip.question}
+        key={card.question}
         type="button"
-        onClick={() => showChip(chip)}
-        title={chip.question}
-        aria-label={chip.question}
-        className={CHIP}
+        onClick={() => showExample(card)}
+        aria-pressed={selected}
+        className={`${EXAMPLE} ${selected ? SELECTED : UNSELECTED}`}
       >
-        {chip.label}
+        <span className={`text-xs font-semibold ${trap ? "text-amber-800" : "text-accent"}`}>
+          {card.tag}
+        </span>
+        <span className="text-[15px] leading-snug text-slate-900">{card.question}</span>
       </button>
     );
   }
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-band">
-        <div className="mx-auto flex max-w-5xl flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-2">
           <Logo />
-          <div>
-            <p className="text-sm text-slate-700 sm:text-[15px]">{SENTENCE}</p>
-            <nav aria-label="On this page" className="mt-1 flex flex-wrap gap-x-4 text-sm">
-              {JUMP_LINKS.map((link) => (
-                <a key={link.href} href={link.href} className={LINK}>
-                  {link.label}
-                </a>
-              ))}
-            </nav>
-          </div>
+          <nav
+            aria-label="Sections"
+            className="flex min-w-0 gap-4 overflow-x-auto whitespace-nowrap text-[13px] font-medium sm:gap-7 sm:text-[15px]"
+          >
+            {JUMP_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="py-2 text-slate-700 hover:text-accent"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 pb-8 pt-3">
+      <main id="top" className="mx-auto max-w-5xl px-4 pb-8 pt-4 sm:pt-7">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[32px] sm:leading-tight">
+          {HEADLINE}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600 sm:mt-1.5 sm:text-base">{SUBLINE}</p>
         {backend === "waking" && (
-          <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
+          <p className="mt-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
             The backend is waking up (up to a minute). The saved examples below
             work meanwhile.
           </p>
         )}
         {backend === "unreachable" && (
-          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
             The backend is not answering right now. The saved examples below still
             work.
           </p>
         )}
         {backend === "no-model" && (
-          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
             The backend is up but has no language model configured right now.
           </p>
         )}
 
-        <form onSubmit={submit}>
-          <label htmlFor="question" className="sr-only">
+        <form onSubmit={submit} className="mt-4 sm:mt-5">
+          <label htmlFor="question" className="mb-1.5 block text-sm font-semibold text-slate-700">
             Your question
           </label>
           <textarea
@@ -546,24 +559,28 @@ export default function Home() {
           <p className="mt-1.5 text-xs text-slate-500">{PRIVACY_NOTE}</p>
         </form>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Saved examples">
-          <span className="mr-0.5 text-sm font-medium text-slate-700">Try:</span>
-          {CHIPS.map(chipButton)}
-          <button
-            type="button"
-            onClick={() => setMore((open) => !open)}
-            aria-expanded={more}
-            aria-controls="more-examples"
-            className={CHIP}
-          >
-            {more ? "Fewer" : "More"}
-          </button>
-          <span id="more-examples" hidden={!more} className="contents">
-            {MORE_CHIPS.map(chipButton)}
-          </span>
-        </div>
+        <section className="mt-5" aria-labelledby="examples-title">
+          <h2 id="examples-title" className="text-[17px] font-semibold text-slate-800">
+            Try an example
+          </h2>
+          <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
+            {EXAMPLE_CARDS.map(exampleCard)}
+            <button
+              type="button"
+              onClick={() => setMore((open) => !open)}
+              aria-expanded={more}
+              aria-controls="more-examples"
+              className="flex min-h-11 items-center justify-center rounded-[10px] border border-dashed border-slate-400 text-[15px] font-medium text-accent hover:text-accent-strong"
+            >
+              {more ? "Fewer examples" : "More examples"}
+            </button>
+          </div>
+          <div id="more-examples" hidden={!more} className="mt-3 grid gap-3 sm:grid-cols-3">
+            {MORE_CARDS.map(exampleCard)}
+          </div>
+        </section>
 
-        <section ref={answerArea} className="mt-3 scroll-mt-4" aria-live="polite">
+        <section ref={answerArea} className="mt-5 scroll-mt-4" aria-live="polite">
           {shown.kind === "streaming" && (
             <div className={CARD}>
               <p className={STRIP}>{cardLine("working", false)}</p>
@@ -586,7 +603,7 @@ export default function Home() {
                   </ul>
                 )}
                 <p className="whitespace-pre-line leading-7 text-slate-800">
-                  {shown.text || "Working on it…"}
+                  {mathText(shown.text) || "Working on it…"}
                 </p>
               </div>
             </div>

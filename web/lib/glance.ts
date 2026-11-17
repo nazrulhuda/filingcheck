@@ -5,9 +5,13 @@
 import type { Results } from "./results.ts";
 import { TRAP_NOTE } from "./traps.ts";
 
-export const SENTENCE =
-  "Ask about 25 companies' annual reports. Before the AI looks anything up, the server checks " +
-  "its request, and every number in the answer is labeled against the SEC data it cites.";
+/** The page's heading and the line under it: the one sentence, split in two. */
+export const HEADLINE = "Ask about 25 companies' annual reports";
+export const SUBLINE =
+  "Before the AI looks anything up, the server checks its request, and every number in the " +
+  "answer is labeled against the SEC data it cites.";
+/** The whole sentence, for the meta description and the link preview. */
+export const SENTENCE = `${HEADLINE}. ${SUBLINE}`;
 
 /** The privacy note under the options row; its first sentence ("Each question stands alone (no
  * chat history).") is said in "What you can ask" instead. */
@@ -16,36 +20,40 @@ export const PRIVACY_NOTE =
   "filings, and through OpenRouter to Groq, or to Google if that is busy, to write the answer; " +
   "please don't enter personal information.";
 
-export type Chip = { label: string; question: string };
+export type ExampleCard = { tag: string; question: string };
 
-/** The "Try:" row: a short label for each saved question; a chip shows its saved answer. */
-export const CHIPS: Chip[] = [
-  { label: "Costco: operating income", question: "What was Costco's operating income in fiscal 2025?" },
+/** "Try an example": a tag for what each saved question shows, and the full question. */
+export const EXAMPLE_CARDS: ExampleCard[] = [
+  { tag: "Number lookup", question: "What was Costco's operating income in fiscal 2025?" },
   {
-    label: "Citi: money in Argentina",
+    tag: "Calculation",
+    question: "How much did NVIDIA's revenue grow from fiscal 2024 to fiscal 2025, in percent?",
+  },
+  {
+    tag: "Text search",
     question: "How much money does Citi have tied up in Argentina, and how does it handle the peso?",
   },
-  {
-    label: "Netflix: IP claims",
-    question: "What does Netflix say about others claiming it infringed their intellectual property?",
-  },
-  { label: "Trap: Nike, 'last year'", question: "How much revenue did Nike make last year?" },
-  { label: "Trap: 'morgan'", question: "how much net revenue did morgan make in 2024" },
+  { tag: "Trap: a relative year", question: "How much revenue did Nike make last year?" },
+  { tag: "Trap: an ambiguous company name", question: "how much net revenue did morgan make in 2024" },
 ];
 
-/** The other saved examples, shown when "More" is opened. */
-export const MORE_CHIPS: Chip[] = [
+/** The other saved examples, shown when "More examples" is opened. */
+export const MORE_CARDS: ExampleCard[] = [
   {
-    label: "UnitedHealth: fixed-rate debt",
+    tag: "Text search",
+    question: "What does Netflix say about others claiming it infringed their intellectual property?",
+  },
+  {
+    tag: "Text search",
     question: "How much of UnitedHealth's debt carries a fixed rate that isn't swapped?",
   },
   {
-    label: "Walmart: currency swaps",
+    tag: "Text search",
     question:
       "How much would Walmart's currency swaps change in value if the dollar weakened by ten percent?",
   },
   {
-    label: "American Express: controls",
+    tag: "Text search",
     question: "What framework did American Express management use to judge its internal controls?",
   },
 ];
@@ -79,12 +87,12 @@ export function enterAsks(key: string, shift: boolean, composing: boolean): bool
   return key === "Enter" && !shift && !composing;
 }
 
-/** The header's jump links: three sections lower on the page, then the code. */
+/** The top bar's links: three sections lower on the page, then the code on GitHub. */
 export const JUMP_LINKS = [
   { label: "How it works", href: "#how-it-works" },
   { label: "Results", href: "#results" },
   { label: "What's inside", href: "#whats-inside" },
-  { label: "Code", href: "https://github.com/nazrulhuda/filingcheck" },
+  { label: "GitHub", href: "https://github.com/nazrulhuda/filingcheck" },
 ];
 
 export const STEPS = [

@@ -17,6 +17,7 @@ import {
   hasBadges,
   withBadges,
 } from "@/lib/labels";
+import { mathText } from "@/lib/math";
 
 /** **bold** inside a run of answer text; everything else is shown as written. */
 function Emphasis({ text }: { text: string }) {
@@ -189,7 +190,7 @@ export function AnswerText({ answer }: { answer: Answer }) {
       <p className="whitespace-pre-line leading-7">
         {parts.map((part, i) =>
           part.kind === "text" ? (
-            <Emphasis key={i} text={part.text} />
+            <Emphasis key={i} text={mathText(part.text)} />
           ) : part.kind === "badge" ? (
             <LabelBadge
               key={i}

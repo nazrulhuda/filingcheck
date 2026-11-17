@@ -2,7 +2,7 @@
 
 An agent that answers questions about 25 public companies' SEC 10-K filings, where the server checks every number lookup the model asks for before it runs, and every number in the answer is labeled against the filing's own data.
 
-![The live page on first load: the question box, the example chips, and directly under them the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
+![The live page on first load: the question box, "Try an example" with five example questions and their tags, and under them the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
 
 **Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)** [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 
@@ -130,6 +130,7 @@ The [full report](eval/results/2026-11-14_final_report.md) has every set, the pe
 - **The gold values come from the same lookup the agent uses**, cross-checked against the SEC's companyfacts.
 - **The development traps were written alongside the checks**, so their results are not evidence.
 - The control questions were used during development: the fiscal-year check on searches was built after a dry run on them (decisions, Nov 12), so the rise in control accuracy is not held-out evidence.
+- In an answer with a calculation, a figure the model writes again in its working (for example "130,497 M") is labeled Unverified, because the labeler reads figures as written.
 - **Latency is from batch mode**, and the PC slept during one arm, so one run's time includes the sleep (reported apart). The live page's fallback answers, given when the main model is rate-limited, were not measured. A reranker was never built or measured.
 - The checks cover the arguments of the tools, not the text of an answer. A text answer is not compared with the passage it cites, so it can be confidently unsupported: one answer gave a reason for a Goldman Sachs decision that the filing does not give, and a saved example calls Walmart's currency swaps "10-year-old", which the filing does not say. In the Week 5 dry run, a third or more of the text answers to normal questions said more than their cited passages support, and sending searches to the latest filing did not change that.
 - On questions the filings do not answer (a reason a filing never gives), searching the right filing makes the model answer more often, not less: with the checks on it answered more of the 10 unanswerable questions in the final run too.

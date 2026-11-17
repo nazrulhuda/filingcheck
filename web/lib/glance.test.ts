@@ -247,7 +247,11 @@ test("the calculation example is the pipeline's saved answer, with the figures t
     ["get_financial_fact", "get_financial_fact", "calculate"],
   );
   assert.deepEqual(
-    (answer.facts_used ?? []).map((f) => [f.fiscal_year, f.value]),
+    // The stored fact keeps its value as filed; the page's type lists only what the page uses.
+    ((answer.facts_used ?? []) as unknown as { fiscal_year: number; value: string }[]).map((f) => [
+      f.fiscal_year,
+      f.value,
+    ]),
     [
       [2024, "60922000000"],
       [2025, "130497000000"],
