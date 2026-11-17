@@ -31,10 +31,10 @@ def block(title: str) -> str:
 
 
 def section(title: str) -> str:
-    """The README's "## title" section, up to the next heading."""
+    """The README's "## title" section, to the next heading or bold lead, as the page reads it."""
     start = README.index(f"\n## {title}\n")
-    end = README.find("\n## ", start + 1)
-    return README[start : end if end > 0 else len(README)]
+    ends = [i for i in (README.find("\n## ", start + 1), README.find("\n**", start + 1)) if i > 0]
+    return README[start : min(ends, default=len(README))]
 
 
 def rows() -> dict[str, str]:
@@ -97,7 +97,7 @@ def test_search_is_the_data_reports_passages_from_those_items() -> None:
 def test_numbers_are_the_metric_map_and_the_companyfacts_cross_check() -> None:
     m = find(
         r"^(\d+) financial metrics .*; ([\d,]+) figures cross-checked .*, (\d+) disagreements",
-        rows()["Numbers"],
+        re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", rows()["Numbers"]),  # read past the link
     )
     assert number(m[1]) == len(
         re.findall(r'MetricSpec\(\s*"', read("filingcheck/facts/metrics.py"))
@@ -183,7 +183,7 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     results = section("Results")
     assert README.count("\n## Results\n") == 1
     assert "**The result**" not in README and "## What the measurement showed" not in README
-    lines = [line for line in results.splitlines()[1:] if line.strip()]
+    lines = [line for line in results.strip().splitlines()[1:] if line.strip()]
     # The first claim is the prompt-rules result with its interval; nothing comes before it.
     assert lines[0].startswith(
         "- **The same rules written into the model's prompt were more accurate than enforcing "
@@ -195,7 +195,8 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     bullets = [line for line in lines if line.startswith("- ")]
     assert len(bullets) == 4
     assert "18.5% to 10.6%" in bullets[1] and "-12.7 to -3.6" in bullets[1]
-    assert "23" in bullets[2] and "17" in bullets[2] and "90" in bullets[2]
+    assert "of 90 failed checks-on runs" in bullets[2]
+    assert "23 came from gaps in the checks and 17 from a check's own action" in bullets[2]
     assert "18% to 29%" in bullets[3]
     assert lines[4] == next(line for line in lines if line.startswith("![")), "then the chart"
     assert "(docs/results/final_summary.png)" in lines[4]
@@ -204,8 +205,10 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     assert "(eval/PREREGISTRATION.md)" in after
     assert "(eval/results/2026-11-14_final_report.md)" in after
     assert "make report" in after
-    words = len(re.sub(r"\]\([^)]*\)|[*`#\[\]!]", " ", results).split())
-    assert 150 <= words <= 260, words
+    # About 200 words as read: the chart's alt text and the link targets are not counted.
+    shown = "\n".join(line for line in results.splitlines() if not line.startswith("!["))
+    words = len(re.sub(r"\]\([^)]*\)|[*`#\[\]!]", " ", shown).split())
+    assert 170 <= words <= 230, words
     assert "final_rates.png" not in README
 
 
@@ -251,7 +254,7 @@ def test_reproduce_is_the_two_commands_and_two_sentences() -> None:
 
 
 def test_the_readme_is_about_1600_words() -> None:
-    assert len(README.split()) <= 1800, len(README.split())
+    assert len(README.split()) <= 1700, len(README.split())
 
 
 def test_known_limits_page_says_the_control_questions_were_seen_in_development() -> None:

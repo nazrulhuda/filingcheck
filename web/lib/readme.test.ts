@@ -79,7 +79,7 @@ test("the Results section opens with the prompt-rules result, before anything el
       "**The same rules written into the model's prompt were more accurate than enforcing them on the server:**",
     ),
   );
-  const afterHeading = README.slice(README.indexOf("\n## Results\n")).split("\n").slice(1);
+  const afterHeading = README.slice(README.indexOf("\n## Results\n") + 1).split("\n").slice(1);
   assert.equal(
     afterHeading.find((line) => line.trim()),
     `- ${first.items[0]}`,
