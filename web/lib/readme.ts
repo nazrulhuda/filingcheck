@@ -42,6 +42,7 @@ export const ABOUT_ASSETS: Record<string, string> = {
 export type InlineNode =
   | { kind: "text"; text: string }
   | { kind: "bold"; children: InlineNode[] }
+  | { kind: "italic"; children: InlineNode[] }
   | { kind: "code"; text: string }
   | { kind: "link"; href: string; children: InlineNode[] };
 
@@ -81,7 +82,7 @@ export function readmeDescription(markdown: string): string {
   return lines.find((line, i) => i > 0 && line.trim() !== "") ?? "";
 }
 
-/** Bold, inline code and links, nested as the README writes them; everything else is text. */
+/** Bold, italic, inline code and links, nested as the README writes them; the rest is text. */
 export function inline(text: string): InlineNode[] {
   const out: InlineNode[] = [];
   const push = (piece: string) => {
@@ -92,7 +93,7 @@ export function inline(text: string): InlineNode[] {
   };
   let rest = text;
   while (rest) {
-    const mark = /\*\*|`|\[/.exec(rest);
+    const mark = /\*\*|\*|`|\[/.exec(rest);
     if (!mark) {
       push(rest);
       break;
@@ -115,6 +116,16 @@ export function inline(text: string): InlineNode[] {
       }
       out.push({ kind: "bold", children: inline(rest.slice(2, end)) });
       rest = rest.slice(end + 2);
+    } else if (mark[0] === "*") {
+      // *word* is italic; an asterisk with no closing pair stays as it is.
+      const italic = /^\*(\S(?:[^*]*?\S)?)\*(?!\*)/.exec(rest);
+      if (italic) {
+        out.push({ kind: "italic", children: inline(italic[1]) });
+        rest = rest.slice(italic[0].length);
+      } else {
+        push("*");
+        rest = rest.slice(1);
+      }
     } else {
       const link = /^\[([^\]]*)\]\(([^)\s]+)\)/.exec(rest);
       if (link) {

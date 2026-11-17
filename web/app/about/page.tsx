@@ -25,6 +25,7 @@ const SECTIONS = readmeSections(README);
 export const metadata: Metadata = { title: ABOUT_TITLE, description: readmeDescription(README) };
 
 const LINK = "text-accent underline hover:text-accent-strong";
+const README_ON_GITHUB = "https://github.com/nazrulhuda/filingcheck/blob/main/README.md";
 
 function Inline({ nodes }: { nodes: InlineNode[] }) {
   return (
@@ -36,8 +37,16 @@ function Inline({ nodes }: { nodes: InlineNode[] }) {
           <strong key={i} className="font-semibold text-slate-900">
             <Inline nodes={node.children} />
           </strong>
+        ) : node.kind === "italic" ? (
+          <em key={i}>
+            <Inline nodes={node.children} />
+          </em>
         ) : node.kind === "code" ? (
-          <code key={i} className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.88em] text-slate-800">
+          // Long identifiers break anywhere, so the page fits a phone's width.
+          <code
+            key={i}
+            className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.88em] text-slate-800 [overflow-wrap:anywhere]"
+          >
             {node.text}
           </code>
         ) : (
@@ -129,13 +138,18 @@ function BlockView({ block }: { block: Block }) {
         </pre>
       );
     case "image":
+      // A chart opens full size, as the diagram does.
       return (
-        // eslint-disable-next-line @next/next/no-img-element -- the README's own chart, served as a file
-        <img
-          src={imageSrc(block.src)}
-          alt={block.alt}
-          className="mt-4 w-full rounded-lg border border-slate-200 bg-white"
-        />
+        <div className="mt-4">
+          <a href={imageSrc(block.src)}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- the README's own chart, served as a file */}
+            <img
+              src={imageSrc(block.src)}
+              alt={block.alt}
+              className="block w-full rounded-lg border border-slate-200 bg-white"
+            />
+          </a>
+        </div>
       );
   }
 }
@@ -148,6 +162,13 @@ export default function About() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[32px] sm:leading-tight">
           {ABOUT_TITLE}
         </h1>
+        <p className="mt-2 text-slate-600">
+          {"This page shows the project's "}
+          <a href={README_ON_GITHUB} className={LINK}>
+            README
+          </a>
+          , as it is on GitHub.
+        </p>
         <nav aria-label="On this page" className="mt-5 rounded-lg border border-slate-200 bg-white p-4 text-sm">
           <p className="font-semibold text-slate-800">On this page</p>
           <ol className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
