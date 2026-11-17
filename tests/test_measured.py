@@ -194,6 +194,8 @@ def test_the_pinned_lists_are_the_plans_lists() -> None:
 # ---------------------------------------------------------------- the reworded paragraph
 
 MARK = "**Who wrote this and when.**"
+NEW_MARK = "**When this was written.**"
+LEADS = (MARK, NEW_MARK)
 PREREG = """# Pre-registration
 
 **Who wrote this and when.** Written on day 1.
@@ -223,10 +225,13 @@ def test_without_paragraph_drops_only_the_marked_paragraph() -> None:
 
 def test_a_reworded_first_paragraph_passes_and_any_other_change_fails(tmp_path: Path) -> None:
     root, commit = prereg_repo(tmp_path)
-    reworded = {"pinned/prereg.md": MARK}
+    reworded = {"pinned/prereg.md": LEADS}
     page = root / "pinned" / "prereg.md"
     page.write_text(
-        PREREG.replace("Written on day 1.", "Written on day 1, with a note.\nReworded on day 9."),
+        PREREG.replace(
+            "**Who wrote this and when.** Written on day 1.",
+            f"{NEW_MARK} Day 1, with a note.\nReworded on day 9.",
+        ),
         encoding="utf-8",
     )
     assert changed_files(root, commit, ("pinned",), reworded) == []
@@ -248,14 +253,35 @@ def test_the_command_says_when_only_the_paragraph_differs(
     root, commit = prereg_repo(tmp_path)
     git(root, "tag", TAG)
     (root / "pinned" / "prereg.md").write_text(
-        PREREG.replace("day 1.", "day 1 (reworded)."), encoding="utf-8"
+        PREREG.replace("**Who wrote this and when.** Written on day 1.", f"{NEW_MARK} Day 1."),
+        encoding="utf-8",
     )
     pin = (Pin(commit=commit, paths=("pinned",), tag=TAG),)
-    assert main(["--root", str(root)], pins=pin, reworded={"pinned/prereg.md": MARK}) == 0
+    assert main(["--root", str(root)], pins=pin, reworded={"pinned/prereg.md": LEADS}) == 0
     out = capsys.readouterr().out
     assert "pinned/prereg.md" in out and "first paragraph" in out and "unchanged" in out
 
 
-def test_only_the_pre_registrations_who_and_when_paragraph_may_be_reworded() -> None:
-    assert REWORDED == {"eval/PREREGISTRATION.md": "**Who wrote this and when.**"}
+def test_only_the_pre_registrations_first_paragraph_may_be_reworded() -> None:
+    assert REWORDED == {
+        "eval/PREREGISTRATION.md": ("**Who wrote this and when.**", "**When this was written.**")
+    }
     assert "eval/PREREGISTRATION.md" in PINNED
+
+
+def test_the_paragraph_may_take_its_new_lead_but_not_lose_it(tmp_path: Path) -> None:
+    root, commit = prereg_repo(tmp_path)
+    page = root / "pinned" / "prereg.md"
+    reworded = {"pinned/prereg.md": LEADS}
+    page.write_text(
+        PREREG.replace("**Who wrote this and when.** Written on day 1.", f"{NEW_MARK} Day 1."),
+        encoding="utf-8",
+    )
+    assert changed_files(root, commit, ("pinned",), reworded) == []
+    # The old lead is not enough now, and neither is a paragraph with no lead.
+    page.write_text(PREREG.replace("Written on day 1.", "Day 1, reworded."), encoding="utf-8")
+    assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
+    page.write_text(
+        PREREG.replace("**Who wrote this and when.** Written on day 1.", "Day 1."), encoding="utf-8"
+    )
+    assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
