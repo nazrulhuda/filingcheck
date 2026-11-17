@@ -287,12 +287,13 @@ test("the privacy note drops only its first sentence, which stays in What you ca
   assert.ok(page.includes("<li>Each question stands alone (no chat history).</li>"));
 });
 
-test("the answer card is brought into view only when its top is off the screen", () => {
-  assert.equal(answerInView(300, 800), true);
-  assert.equal(answerInView(0, 800), true);
-  assert.equal(answerInView(-40, 800), false, "above the screen");
-  assert.equal(answerInView(760, 800), false, "only its first 40 px show");
-  assert.equal(answerInView(704, 800), true, "96 px show");
+test("the page stays put only when the whole answer card is on screen", () => {
+  assert.equal(answerInView(300, 700, 800), true, "the whole card shows");
+  assert.equal(answerInView(0, 800, 800), true, "exactly the screen");
+  assert.equal(answerInView(770, 1180, 800), false, "its top shows, its bottom does not");
+  assert.equal(answerInView(120, 900, 800), false, "its top shows, its last 100 px do not");
+  assert.equal(answerInView(-40, 300, 800), false, "its top is above the screen");
+  assert.equal(answerInView(900, 1200, 800), false, "below the screen");
   assert.equal(scrollBehavior(true), "auto", "no animation with reduced motion");
   assert.equal(scrollBehavior(false), "smooth");
 });
