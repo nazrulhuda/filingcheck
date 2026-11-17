@@ -2,7 +2,7 @@
 
 An agent that answers questions about 25 public companies' SEC 10-K filings, where the server checks every number lookup the model asks for before it runs, and every number in the answer is labeled against the filing's own data.
 
-![The live page on first load: the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
+![The live page on first load: the question box, the example chips, and directly under them the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
 
 **Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)** [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
 

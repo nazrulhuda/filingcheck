@@ -8,9 +8,56 @@ export const SENTENCE =
   "Ask about 25 companies' annual reports. Before the AI looks anything up, the server checks " +
   "its request, and every number in the answer is labeled against the SEC data it cites.";
 
-export const FILTER_HINT =
-  "Optional: narrow the search to one company and year. You can leave these as 'Any' and just " +
-  "type your question.";
+/** The privacy note under the options row; its first sentence ("Each question stands alone (no
+ * chat history).") is said in "What you can ask" instead. */
+export const PRIVACY_NOTE =
+  "Questions are logged to improve the demo. Each question is sent to OpenAI to search the " +
+  "filings, and through OpenRouter to Groq, or to Google if that is busy, to write the answer; " +
+  "please don't enter personal information.";
+
+export type Chip = { label: string; question: string };
+
+/** The "Try:" row: a short label for each saved question; a chip shows its saved answer. */
+export const CHIPS: Chip[] = [
+  { label: "Costco: operating income", question: "What was Costco's operating income in fiscal 2025?" },
+  {
+    label: "Citi: money in Argentina",
+    question: "How much money does Citi have tied up in Argentina, and how does it handle the peso?",
+  },
+  {
+    label: "Netflix: IP claims",
+    question: "What does Netflix say about others claiming it infringed their intellectual property?",
+  },
+  { label: "Trap: Nike, 'last year'", question: "How much revenue did Nike make last year?" },
+  { label: "Trap: 'morgan'", question: "how much net revenue did morgan make in 2024" },
+];
+
+/** The other saved examples, shown when "More" is opened. */
+export const MORE_CHIPS: Chip[] = [
+  {
+    label: "UnitedHealth: fixed-rate debt",
+    question: "How much of UnitedHealth's debt carries a fixed rate that isn't swapped?",
+  },
+  {
+    label: "Walmart: currency swaps",
+    question:
+      "How much would Walmart's currency swaps change in value if the dollar weakened by ten percent?",
+  },
+  {
+    label: "American Express: controls",
+    question: "What framework did American Express management use to judge its internal controls?",
+  },
+];
+
+/** Whether the answer card's top is on the screen with at least `margin` px of it showing. */
+export function answerInView(top: number, viewport: number, margin = 96): boolean {
+  return top >= 0 && top <= viewport - margin;
+}
+
+/** How to scroll to the answer: no animation for visitors who ask for reduced motion. */
+export function scrollBehavior(reducedMotion: boolean): ScrollBehavior {
+  return reducedMotion ? "auto" : "smooth";
+}
 
 /** The saved example shown on first load, and the line above it. */
 export const FIRST_EXAMPLE = "How much revenue did Nike make last year?";

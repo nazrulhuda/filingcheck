@@ -7,6 +7,8 @@
   --color-accent: #1e40af;
   --color-accent-strong: #1e3a8a;
   --color-accent-soft: #dbeafe;
+  /* The soft tint behind the logo and the sentence. */
+  --color-band: #eff6ff;
 
   --color-verified: #166534;
   --color-verified-bg: #f0fdf4;

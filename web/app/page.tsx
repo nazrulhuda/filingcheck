@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
   AnswerText,
@@ -8,6 +8,7 @@ import {
   CostLine,
   LabelGuide,
 } from "@/components/AnswerView";
+import { Icon, INSIDE_ICONS, STEP_ICONS } from "@/components/Icons";
 import { Logo } from "@/components/Logo";
 import examplesData from "@/data/examples.json";
 import resultsData from "@/data/results.json";
@@ -30,15 +31,20 @@ import {
   pageQuestion,
 } from "@/lib/display";
 import {
-  FILTER_HINT,
+  answerInView,
+  CHIPS,
+  type Chip,
   FIRST_EXAMPLE,
   FIRST_EXAMPLE_LINE,
   INSIDE,
+  MORE_CHIPS,
+  PRIVACY_NOTE,
+  resultTiles,
+  scrollBehavior,
   SENTENCE,
   STACK,
   STEPS,
   TRAP_LINE,
-  resultTiles,
 } from "@/lib/glance";
 import { reviewNote } from "@/lib/notes";
 import { type Results, resultLines } from "@/lib/results";
@@ -46,13 +52,13 @@ import {
   type Example,
   TRAP_NOTE,
   type TrapExample,
-  plainExamples,
   trapExamples,
 } from "@/lib/traps";
 
 const EXAMPLES = examplesData as Example[];
 const TRAPS = trapExamples(trapData as TrapExample[], EXAMPLES);
-const PLAIN = plainExamples(EXAMPLES, TRAPS);
+const TRAP_QUESTIONS = new Set(TRAPS.map((t) => t.question));
+const SAVED = new Map<string, Example>([...EXAMPLES, ...TRAPS].map((e) => [e.question, e]));
 const RESULTS = resultsData as Results;
 const REPO = "https://github.com/nazrulhuda/filingcheck";
 const REPORT = `${REPO}/blob/main/${RESULTS.report}`;
@@ -63,13 +69,16 @@ const HEALTH_TIMEOUT_MS = 3000;
 const WAKE_RETRY_MS = 5000;
 const WAKE_GIVE_UP_MS = 70_000;
 const NO_STEPS: Progress = { steps: [], restarted: null };
+// The question box grows with its text up to six rows: 6 × 28 px lines + 16 px padding + border.
+const BOX_MAX_PX = 6 * 28 + 16 + 2;
+const CHECKS_HINT = "Turn the checks off and ask the same question to compare.";
 
 const LINK = "text-accent underline hover:text-accent-strong";
 const BOX = "rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700";
 const TILE = "rounded-lg border border-slate-200 bg-white p-4";
 const SECTION_TITLE = "text-lg font-semibold text-slate-900";
-const EXAMPLE_BUTTON =
-  "rounded-md border border-slate-300 bg-white px-2.5 py-0.5 text-left text-xs leading-snug text-slate-700 hover:border-accent hover:text-accent-strong";
+const CHIP =
+  "rounded-full border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:border-accent hover:text-accent-strong";
 
 /** A finished tool call's status in words. */
 function statusWords(status: string): string {
@@ -94,6 +103,8 @@ type Shown =
       note?: string | null;
       /** The line above the saved example shown on first load. */
       intro?: string;
+      /** A saved trap example: its card carries the trap row's note. */
+      trap?: boolean;
     }
   | { kind: "error"; message: string };
 
@@ -107,17 +118,18 @@ function exampleShown(example: Example, intro?: string): Shown {
     notice: null,
     asked: askedWith(example.company_name, example.ticker, example.fiscal_year),
     note: reviewNote(example.question),
+    trap: TRAP_QUESTIONS.has(example.question),
     ...(intro ? { intro } : {}),
   };
 }
 
-const FIRST = EXAMPLES.find((e) => e.question === FIRST_EXAMPLE);
+const FIRST = SAVED.get(FIRST_EXAMPLE);
 const FIRST_SHOWN: Shown = FIRST ? exampleShown(FIRST, FIRST_EXAMPLE_LINE) : { kind: "none" };
 
 /** What the data holds and what it cannot answer: closed until opened, on every screen. */
 function WhatYouCanAsk({ companies }: { companies: Company[] }) {
   return (
-    <details className="mt-3 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
+    <details className={`mt-12 ${BOX}`}>
       <summary className="cursor-pointer font-medium text-slate-800">
         What you can ask
       </summary>
@@ -162,17 +174,17 @@ function WhatYouCanAsk({ companies }: { companies: Company[] }) {
 /** Three steps in a row (stacked on phones); the earlier explainer, unchanged, in a closed panel. */
 function HowItWorks() {
   return (
-    <section className="mt-14" aria-labelledby="how-title">
+    <section className="mt-12" aria-labelledby="how-title">
       <h2 id="how-title" className={SECTION_TITLE}>
         How it works
       </h2>
       <ol className="mt-3 grid gap-3 sm:grid-cols-3">
         {STEPS.map((step, i) => (
-          <li key={step} className={`${TILE} flex items-start gap-3 text-sm text-slate-800`}>
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
-              {i + 1}.
+          <li key={step} className={`${TILE} flex items-center gap-3 text-sm text-slate-800`}>
+            <Icon name={STEP_ICONS[i]} />
+            <span>
+              {i + 1}. {step}
             </span>
-            <span className="pt-0.5">{step}</span>
           </li>
         ))}
       </ol>
@@ -194,7 +206,7 @@ function HowItWorks() {
  * in a closed panel. Every number is from results.json or checked against the report. */
 function ResultsSection() {
   return (
-    <section className="mt-14" aria-labelledby="results-title">
+    <section className="mt-12" aria-labelledby="results-title">
       <h2 id="results-title" className={SECTION_TITLE}>
         What the measurement found
       </h2>
@@ -232,15 +244,18 @@ function ResultsSection() {
 /** One tile per part of the system: what it is, with no claim about its effect. */
 function Inside() {
   return (
-    <section className="mt-14" aria-labelledby="inside-title">
+    <section className="mt-12" aria-labelledby="inside-title">
       <h2 id="inside-title" className={SECTION_TITLE}>
         What&apos;s inside
       </h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {INSIDE.map((tile) => (
-          <div key={tile.name} className={TILE}>
-            <p className="text-sm font-semibold text-slate-900">{tile.name}</p>
-            <p className="mt-1 text-sm text-slate-700">{tile.text}</p>
+          <div key={tile.name} className={`${TILE} flex gap-3`}>
+            <Icon name={INSIDE_ICONS[tile.name]} />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">{tile.name}</p>
+              <p className="mt-1 text-sm text-slate-700">{tile.text}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -250,7 +265,7 @@ function Inside() {
 
 function Footer() {
   return (
-    <footer className="mt-14 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-600">
+    <footer className="mt-12 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-600">
       <p>
         Built by Nazrul Huda Shanto
         {" · "}
@@ -297,6 +312,11 @@ export default function Home() {
   const [checks, setChecks] = useState(true);
   const [shown, setShown] = useState<Shown>(FIRST_SHOWN);
   const [busy, setBusy] = useState(false);
+  const [more, setMore] = useState(false);
+  // Counts requests to bring the answer card into view: an answer starting, or a chip clicked.
+  const [reveal, setReveal] = useState(0);
+  const box = useRef<HTMLTextAreaElement>(null);
+  const answerArea = useRef<HTMLElement>(null);
 
   // /health makes no database query, so asking it while the backend wakes is cheap.
   useEffect(() => {
@@ -323,6 +343,23 @@ export default function Home() {
     };
   }, []);
 
+  // The question box grows with its text, from three rows up to six.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight + 2, BOX_MAX_PX)}px`;
+  }, [question]);
+
+  // Bring the answer card into view if its top is off the screen.
+  useEffect(() => {
+    const el = answerArea.current;
+    if (reveal === 0 || !el) return;
+    if (answerInView(el.getBoundingClientRect().top, window.innerHeight)) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: scrollBehavior(reduced), block: "start" });
+  }, [reveal]);
+
   const years = companies.find((c) => c.ticker === ticker)?.fiscal_years ?? [];
 
   async function submit(event: FormEvent) {
@@ -333,6 +370,7 @@ export default function Home() {
     let progress = NO_STEPS;
     let soFar = "";
     setShown({ kind: "streaming", text: "", progress });
+    setReveal((n) => n + 1);
     try {
       const result = await askStreaming(
         pageQuestion(text, ticker, year, checks),
@@ -365,105 +403,113 @@ export default function Home() {
     }
   }
 
-  function showExample(example: Example) {
+  function showChip(chip: Chip) {
+    const example = SAVED.get(chip.question);
+    if (!example) return;
     setQuestion(example.question);
     setTicker(example.ticker ?? "");
     setYear(example.fiscal_year ? String(example.fiscal_year) : "");
     setShown(exampleShown(example));
+    setReveal((n) => n + 1);
+  }
+
+  function chipButton(chip: Chip) {
+    return (
+      <button
+        key={chip.question}
+        type="button"
+        onClick={() => showChip(chip)}
+        title={chip.question}
+        aria-label={chip.question}
+        className={CHIP}
+      >
+        {chip.label}
+      </button>
+    );
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
-      <Logo />
-      <p className="mt-2 text-base text-slate-700">{SENTENCE}</p>
+    <>
+      <header className="border-b border-slate-200 bg-band">
+        <div className="mx-auto flex max-w-4xl flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
+          <Logo />
+          <p className="text-sm text-slate-700 sm:text-[15px]">{SENTENCE}</p>
+        </div>
+      </header>
+      <main className="mx-auto max-w-4xl px-4 pb-8 pt-3">
+        {backend === "waking" && (
+          <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
+            The backend is waking up (up to a minute). The saved examples below
+            work meanwhile.
+          </p>
+        )}
+        {backend === "unreachable" && (
+          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+            The backend is not answering right now. The saved examples below still
+            work.
+          </p>
+        )}
+        {backend === "no-model" && (
+          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+            The backend is up but has no language model configured right now.
+          </p>
+        )}
 
-      {backend === "waking" && (
-        <p className="mt-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
-          The backend is waking up (up to a minute). The saved examples below
-          work meanwhile.
-        </p>
-      )}
-      {backend === "unreachable" && (
-        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
-          The backend is not answering right now. The saved examples below still
-          work.
-        </p>
-      )}
-      {backend === "no-model" && (
-        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
-          The backend is up but has no language model configured right now.
-        </p>
-      )}
-
-      <form onSubmit={submit} className="mt-3 space-y-2">
-        <label htmlFor="question" className="block text-sm font-medium">
-          Your question
-        </label>
-        <textarea
-          id="question"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          maxLength={MAX_QUESTION}
-          rows={2}
-          placeholder="For example: What does Netflix say about intellectual-property claims?"
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        />
-        <p className="text-xs text-slate-500">
-          Each question stands alone (no chat history). Questions are logged to
-          improve the demo. Each question is sent to OpenAI to search the
-          filings, and through OpenRouter to Groq, or to Google if that is busy,
-          to write the answer; please don&apos;t enter personal information.
-        </p>
-        <p id="filter-hint" className="text-sm text-slate-600">
-          {FILTER_HINT}
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            <span className="block text-slate-600">Company (optional)</span>
-            <select
-              value={ticker}
-              onChange={(e) => {
-                setTicker(e.target.value);
-                setYear("");
-              }}
-              disabled={companies.length === 0}
-              aria-describedby="filter-hint"
-              className="mt-1 w-full max-w-[15rem] rounded-md border border-slate-300 bg-white px-2 py-1.5"
-            >
-              <option value="">Any company</option>
-              {companies.map((c) => (
-                <option key={c.ticker} value={c.ticker}>
-                  {c.name} ({c.ticker})
-                </option>
-              ))}
-            </select>
+        <form onSubmit={submit}>
+          <label htmlFor="question" className="sr-only">
+            Your question
           </label>
-          <label className="text-sm">
-            <span className="block text-slate-600">Fiscal year (optional)</span>
-            <select
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              disabled={years.length === 0}
-              aria-describedby="filter-hint"
-              className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1.5"
+          <textarea
+            id="question"
+            ref={box}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            maxLength={MAX_QUESTION}
+            rows={3}
+            placeholder="For example: What does Netflix say about intellectual-property claims?"
+            style={{ maxHeight: BOX_MAX_PX }}
+            className="block w-full resize-none overflow-y-auto rounded-lg border border-slate-400 bg-white px-3 py-2 text-lg leading-7 text-slate-900 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+          <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+            <label className="min-w-[9rem] flex-1 text-xs sm:flex-none">
+              <span className="block text-slate-600">Company (optional)</span>
+              <select
+                value={ticker}
+                onChange={(e) => {
+                  setTicker(e.target.value);
+                  setYear("");
+                }}
+                disabled={companies.length === 0}
+                className="mt-0.5 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm sm:w-60"
+              >
+                <option value="">Any company</option>
+                {companies.map((c) => (
+                  <option key={c.ticker} value={c.ticker}>
+                    {c.name} ({c.ticker})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs">
+              <span className="block text-slate-600">Fiscal year (optional)</span>
+              <select
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                disabled={years.length === 0}
+                className="mt-0.5 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              >
+                <option value="">Any year</option>
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label
+              title={CHECKS_HINT}
+              className="flex cursor-pointer items-center gap-2 py-1.5 text-sm text-slate-700"
             >
-              <option value="">Any year</option>
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={busy || !question.trim() || backend !== "ok"}
-            className="rounded-md bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {busy ? "Answering…" : "Ask"}
-          </button>
-          <div className="text-sm sm:ml-auto">
-            <label className="flex cursor-pointer items-center gap-2 text-slate-700">
               <input
                 type="checkbox"
                 checked={checks}
@@ -472,133 +518,118 @@ export default function Home() {
                 className="h-4 w-4 accent-accent"
               />
               Skeptical checks: {checks ? "on" : "off"}
+              <span id="checks-hint" className="sr-only">
+                {CHECKS_HINT}
+              </span>
             </label>
-            <p id="checks-hint" className="mt-0.5 text-xs text-slate-500">
-              Turn the checks off and ask the same question to compare.
-            </p>
-          </div>
-        </div>
-      </form>
-
-      <WhatYouCanAsk companies={companies} />
-
-      <section className="mt-3" aria-labelledby="examples-title">
-        <h2 id="examples-title" className="text-sm font-medium text-slate-700">
-          Examples
-        </h2>
-        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-          {PLAIN.map((example) => (
             <button
-              key={example.question}
-              type="button"
-              onClick={() => showExample(example)}
-              className={EXAMPLE_BUTTON}
+              type="submit"
+              disabled={busy || !question.trim() || backend !== "ok"}
+              className="ml-auto rounded-md bg-accent px-6 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {example.question}
+              {busy ? "Answering…" : "Ask"}
             </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-3" aria-labelledby="traps-title">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <h2 id="traps-title" className="text-sm font-medium text-slate-700">
-            Try a trap question
-          </h2>
-          <p className="text-xs text-slate-500">{TRAP_NOTE}</p>
-        </div>
-        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-          {TRAPS.map((trap) => (
-            <button
-              key={trap.id}
-              type="button"
-              onClick={() => showExample(trap)}
-              className={EXAMPLE_BUTTON}
-            >
-              {trap.question}
-              <span className="ml-1.5 text-xs text-slate-500">· {trap.trap}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-4" aria-live="polite">
-        {shown.kind === "streaming" && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {shown.progress.restarted && (
-              <p className="mb-2 text-sm text-slate-500">
-                {shown.progress.restarted}
-              </p>
-            )}
-            {shown.progress.steps.length > 0 && (
-              <ul className="mb-3 space-y-1 text-sm text-slate-600">
-                {shown.progress.steps.map((step, i) => (
-                  <li key={i}>
-                    {step.label}…{" "}
-                    <span className="text-slate-400">
-                      {statusWords(step.status)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="whitespace-pre-line leading-7 text-slate-800">
-              {shown.text || "Working on it…"}
-            </p>
           </div>
-        )}
-        {shown.kind === "answer" && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {shown.intro && (
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent-strong">
-                {shown.intro}
-              </p>
-            )}
-            {shown.notice ? (
-              <p
-                role="status"
-                className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
-              >
-                {shown.notice}
-              </p>
-            ) : (
-              <div className="mb-3">
-                <p className="text-sm font-medium text-slate-600">
-                  {shown.question}
-                </p>
-                {shown.asked && (
-                  <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>
-                )}
-              </div>
-            )}
-            {/* A new answer starts with every citation closed. */}
-            <AnswerText
-              key={`${shown.question}\n${shown.answer.text}`}
-              answer={shown.answer}
-            />
-            {shown.note && (
-              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {shown.note}
-              </p>
-            )}
-            <ChecksPanel answer={shown.answer} />
-            <CostLine answer={shown.answer} source={shown.source} />
-          </div>
-        )}
-        {shown.kind === "error" && (
-          <p
-            role="alert"
-            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+          <p className="mt-1.5 text-xs text-slate-500">{PRIVACY_NOTE}</p>
+        </form>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Saved examples">
+          <span className="mr-0.5 text-sm font-medium text-slate-700">Try:</span>
+          {CHIPS.map(chipButton)}
+          <button
+            type="button"
+            onClick={() => setMore((open) => !open)}
+            aria-expanded={more}
+            aria-controls="more-examples"
+            className="rounded-full px-2 py-1 text-sm text-accent underline hover:text-accent-strong"
           >
-            {shown.message}
-          </p>
-        )}
-      </section>
+            {more ? "Fewer" : "More"}
+          </button>
+          <span id="more-examples" hidden={!more} className="contents">
+            {MORE_CHIPS.map(chipButton)}
+          </span>
+        </div>
 
-      <HowItWorks />
-      <ResultsSection />
-      <Inside />
-      <Footer />
-    </main>
+        <section ref={answerArea} className="mt-3 scroll-mt-4" aria-live="polite">
+          {shown.kind === "streaming" && (
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              {shown.progress.restarted && (
+                <p className="mb-2 text-sm text-slate-500">
+                  {shown.progress.restarted}
+                </p>
+              )}
+              {shown.progress.steps.length > 0 && (
+                <ul className="mb-3 space-y-1 text-sm text-slate-600">
+                  {shown.progress.steps.map((step, i) => (
+                    <li key={i}>
+                      {step.label}…{" "}
+                      <span className="text-slate-400">
+                        {statusWords(step.status)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="whitespace-pre-line leading-7 text-slate-800">
+                {shown.text || "Working on it…"}
+              </p>
+            </div>
+          )}
+          {shown.kind === "answer" && (
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              {shown.intro && (
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-accent-strong">
+                  {shown.intro}
+                </p>
+              )}
+              {shown.notice ? (
+                <p
+                  role="status"
+                  className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                >
+                  {shown.notice}
+                </p>
+              ) : (
+                <div className="mb-2">
+                  <p className="text-sm font-medium text-slate-600">
+                    {shown.question}
+                  </p>
+                  {shown.asked && (
+                    <p className="mt-0.5 text-xs text-slate-500">{shown.asked}</p>
+                  )}
+                </div>
+              )}
+              {/* A new answer starts with every citation closed. */}
+              <AnswerText
+                key={`${shown.question}\n${shown.answer.text}`}
+                answer={shown.answer}
+              />
+              {shown.note && (
+                <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  {shown.note}
+                </p>
+              )}
+              <ChecksPanel answer={shown.answer} />
+              {shown.trap && <p className="mt-2 text-xs text-slate-500">{TRAP_NOTE}</p>}
+              <CostLine answer={shown.answer} source={shown.source} />
+            </div>
+          )}
+          {shown.kind === "error" && (
+            <p
+              role="alert"
+              className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+            >
+              {shown.message}
+            </p>
+          )}
+        </section>
+
+        <WhatYouCanAsk companies={companies} />
+        <HowItWorks />
+        <ResultsSection />
+        <Inside />
+        <Footer />
+      </main>
+    </>
   );
 }
