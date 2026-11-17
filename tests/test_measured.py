@@ -8,6 +8,7 @@ import pytest
 
 from filingcheck.measured import (
     PINNED,
+    REWORDED,
     ROWS,
     ROWS_COMMIT,
     TAG,
@@ -16,6 +17,7 @@ from filingcheck.measured import (
     changed_files,
     main,
     problems,
+    without_paragraph,
 )
 
 
@@ -187,3 +189,73 @@ def test_the_pinned_lists_are_the_plans_lists() -> None:
         "eval/results/2026-11-14_*-final_llm.jsonl",
     )
     assert len([p for pattern in ROWS for p in root.glob(pattern)]) == 50
+
+
+# ---------------------------------------------------------------- the reworded paragraph
+
+MARK = "**Who wrote this and when.**"
+PREREG = """# Pre-registration
+
+**Who wrote this and when.** Written on day 1.
+
+## Rules
+
+Rule 1: the headline is confidently wrong answers.
+"""
+
+
+def prereg_repo(tmp_path: Path) -> tuple[Path, str]:
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "config", "user.email", "test@example.com")
+    git(tmp_path, "config", "user.name", "test")
+    (tmp_path / "pinned").mkdir()
+    (tmp_path / "pinned" / "prereg.md").write_text(PREREG, encoding="utf-8")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "commit", "-q", "-m", "the pre-registration")
+    return tmp_path, git(tmp_path, "rev-parse", "HEAD")
+
+
+def test_without_paragraph_drops_only_the_marked_paragraph() -> None:
+    assert without_paragraph(PREREG, MARK) == (
+        "# Pre-registration\n\n## Rules\n\nRule 1: the headline is confidently wrong answers.\n"
+    )
+
+
+def test_a_reworded_first_paragraph_passes_and_any_other_change_fails(tmp_path: Path) -> None:
+    root, commit = prereg_repo(tmp_path)
+    reworded = {"pinned/prereg.md": MARK}
+    page = root / "pinned" / "prereg.md"
+    page.write_text(
+        PREREG.replace("Written on day 1.", "Written on day 1, with a note.\nReworded on day 9."),
+        encoding="utf-8",
+    )
+    assert changed_files(root, commit, ("pinned",), reworded) == []
+    # Without the exemption the same edit is a change.
+    assert changed_files(root, commit, ("pinned",), {}) == ["pinned/prereg.md"]
+    # A changed definition fails, whatever happens to the paragraph.
+    page.write_text(PREREG.replace("Rule 1:", "Rule 2:"), encoding="utf-8")
+    assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
+    # So does a missing paragraph.
+    page.write_text(
+        PREREG.replace("**Who wrote this and when.** Written on day 1.\n\n", ""), encoding="utf-8"
+    )
+    assert changed_files(root, commit, ("pinned",), reworded) == ["pinned/prereg.md"]
+
+
+def test_the_command_says_when_only_the_paragraph_differs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, commit = prereg_repo(tmp_path)
+    git(root, "tag", TAG)
+    (root / "pinned" / "prereg.md").write_text(
+        PREREG.replace("day 1.", "day 1 (reworded)."), encoding="utf-8"
+    )
+    pin = (Pin(commit=commit, paths=("pinned",), tag=TAG),)
+    assert main(["--root", str(root)], pins=pin, reworded={"pinned/prereg.md": MARK}) == 0
+    out = capsys.readouterr().out
+    assert "pinned/prereg.md" in out and "first paragraph" in out and "unchanged" in out
+
+
+def test_only_the_pre_registrations_who_and_when_paragraph_may_be_reworded() -> None:
+    assert REWORDED == {"eval/PREREGISTRATION.md": "**Who wrote this and when.**"}
+    assert "eval/PREREGISTRATION.md" in PINNED
