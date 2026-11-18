@@ -205,8 +205,8 @@ export function insideTiles(f: typeof INSIDE_FIGURES): { name: string; text: str
     {
       name: "Engineering",
       text:
-        `Unit and integration tests and ${f.ciJobs} CI jobs on every push; a FastAPI service in ` +
-        "Docker on Render, Postgres + pgvector on Neon, the page on Vercel.",
+        `Unit and integration tests and ${f.ciJobs} CI jobs on every pull request; a FastAPI ` +
+        "service in Docker on Render, Postgres + pgvector on Neon, the page on Vercel.",
     },
   ];
 }

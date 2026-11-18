@@ -15,11 +15,14 @@ import {
   inline,
   readmeDescription,
   readmeSections,
+  readmeWhy,
 } from "@/lib/readme";
 
 // The page is static: the README is read once, when the site is built.
 const README = readFileSync(join(process.cwd(), "..", "README.md"), "utf8");
 const SECTIONS = readmeSections(README);
+// The README's hook, shown under the page's title.
+const WHY = readmeWhy(README);
 
 // Its own title and description; the link preview stays the home page's.
 export const metadata: Metadata = { title: ABOUT_TITLE, description: readmeDescription(README) };
@@ -162,6 +165,7 @@ export default function About() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[32px] sm:leading-tight">
           {ABOUT_TITLE}
         </h1>
+        {WHY && <p className="mt-3 leading-7 text-slate-700">{text(WHY)}</p>}
         <p className="mt-2 text-slate-600">
           {"This page shows the project's "}
           <a href={README_ON_GITHUB} className={LINK}>

@@ -18,7 +18,7 @@ Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, 
 - A working agent with three typed tools, and a live demo.
 - Six server-side checks on the model's number lookups and searches: each call is passed, repaired or rejected before it runs.
 - A pre-registered, reproducible evaluation on sealed held-out questions.
-- A deployed service, with unit and integration tests and 4 CI jobs on every push.
+- A deployed service, with unit and integration tests in CI on every pull request.
 
 **By the numbers**
 
@@ -29,7 +29,7 @@ Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, 
 | Agent | 3 tools (search, number lookup, exact calculator). |
 | Checks | 6 server-side rules on the model's lookups, every decision logged and shown. |
 | Evaluation | 3,855 test answers across 5 setups; every published number recomputed by one command. |
-| Engineering | Unit and integration tests and 4 CI jobs on every push; a FastAPI service in Docker on Render, Postgres + pgvector on Neon, the page on Vercel. |
+| Engineering | Unit and integration tests and 4 CI jobs on every pull request; a FastAPI service in Docker on Render, Postgres + pgvector on Neon, the page on Vercel. |
 | Cost | About $0.09 per 100 questions with the checks on, in the final run. |
 | CI gate | 24 scripted agent scenarios run the real agent, checks, lookup and grader with no model, in CI. |
 | Reproduction | `make report` recomputes every published number from the committed rows, with no API key and no database. |
