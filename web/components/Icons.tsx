@@ -39,6 +39,13 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   testing: <path d="M10 6h10M10 12h10M10 18h10M3.5 6l1.3 1.3L7.5 4.6M3.5 12l1.3 1.3 2.7-2.7M3.5 18l1.3 1.3 2.7-2.7" />,
+  server: (
+    <>
+      <rect x="4" y="4" width="16" height="7" rx="1.5" />
+      <rect x="4" y="13" width="16" height="7" rx="1.5" />
+      <path d="M8 7.5h.01M8 16.5h.01M12 7.5h4M12 16.5h4" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;
@@ -68,9 +75,9 @@ export function Icon({ name }: { name: IconName }) {
 export const STEP_ICONS: IconName[] = ["ask", "check", "label"];
 export const INSIDE_ICONS: Record<string, IconName> = {
   Data: "data",
-  Search: "search",
   Numbers: "numbers",
   Agent: "agent",
   Checks: "check",
-  Testing: "testing",
+  Evaluation: "testing",
+  Engineering: "server",
 };

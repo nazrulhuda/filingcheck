@@ -219,6 +219,7 @@ def test_the_why_line_sits_under_the_description_and_is_the_saved_baseline_answe
         baseline.index("## trap-001: How much net revenue did Morgan report last year?") :
     ]
     answer = next(line for line in entry.splitlines() if line.startswith("> "))
+    answer = answer.replace(chr(0x202F), " ")  # the saved answer writes narrow no-break spaces
     assert "Morgan Stanley" in answer and "fiscal year ended December 31, 2023" in answer
     assert "?" not in answer  # it answered without asking which Morgan
     filings = json.loads(read("data/manifest.json"))["filings"]
@@ -284,10 +285,11 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     assert "(eval/PREREGISTRATION.md)" in after
     assert "(eval/results/2026-11-14_final_report.md)" in after
     assert "make report" in after
-    # About 200 words as read: the chart's alt text and the link targets are not counted.
+    # About 200 words as read, plus the sentence on why the checks matter (put back after the
+    # trim): the chart's alt text and the link targets are not counted.
     shown = "\n".join(line for line in results.splitlines() if not line.startswith("!["))
     words = len(re.sub(r"\]\([^)]*\)|[*`#\[\]!]", " ", shown).split())
-    assert 170 <= words <= 230, words
+    assert 170 <= words <= 250, words
     assert "final_rates.png" not in README
 
 
@@ -357,8 +359,10 @@ def test_reproduce_is_the_two_commands_and_two_sentences_then_the_records_line()
     assert len(reproduce.split()) <= 110
 
 
-def test_the_readme_is_about_1600_words() -> None:
-    assert len(README.split()) <= 1700, len(README.split())
+def test_the_readme_is_about_1800_words() -> None:
+    # About 1,600 after the trim, plus the Why line, the five shows bullets, the Engineering and
+    # Cost rows, the checks sentence and the records line.
+    assert len(README.split()) <= 1900, len(README.split())
 
 
 def test_known_limits_page_says_the_control_questions_were_seen_in_development() -> None:
