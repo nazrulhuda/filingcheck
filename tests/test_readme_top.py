@@ -62,7 +62,7 @@ SHOWS = [
     "Six server-side checks on the model's number lookups and searches: each call is passed, "
     "repaired or rejected before it runs.",
     "A pre-registered, reproducible evaluation on sealed held-out questions.",
-    "A deployed service, with unit and integration tests and 4 CI jobs on every push.",
+    "A deployed service, with unit and integration tests in CI on every pull request.",
 ]
 CHECKS_MATTER = (
     "The checks add enforcement that does not depend on the model following instructions, and a "
@@ -150,8 +150,8 @@ def test_evaluation_is_the_committed_final_rows() -> None:
 
 def test_engineering_is_the_ci_jobs_and_the_deploy_files() -> None:
     assert rows()["Engineering"] == (
-        "Unit and integration tests and 4 CI jobs on every push; a FastAPI service in Docker on "
-        "Render, Postgres + pgvector on Neon, the page on Vercel."
+        "Unit and integration tests and 4 CI jobs on every pull request; a FastAPI service in "
+        "Docker on Render, Postgres + pgvector on Neon, the page on Vercel."
     )
     ci = yaml.safe_load(read(".github/workflows/ci.yml"))
     assert len(ci["jobs"]) == number(find(r"and (\d+) CI jobs", rows()["Engineering"])[1])
@@ -204,9 +204,11 @@ def test_what_this_project_shows_is_five_lines_with_no_effect_claim_and_no_figur
     assert lines == SHOWS
     joined = " ".join(lines)
     assert not re.search(r"cut|better|fewer|reduc|improv|accura", joined, re.IGNORECASE)
-    # The figures live in "By the numbers"; the one count here is the CI jobs, said as there.
-    assert re.findall(r"\d[\d,.%]*", joined) == ["4"]
-    assert "4 CI jobs on every push" in rows()["Engineering"]
+    # The figures live in "By the numbers", so the bullets hold none.
+    assert not re.search(r"\d", joined)
+    # CI runs on every pull request (and on pushes to main), as both places say.
+    assert "on every pull request" in lines[4] and "on every pull request" in rows()["Engineering"]
+    assert "every push" not in README
 
 
 def test_the_why_line_sits_under_the_description_and_is_the_saved_baseline_answer() -> None:

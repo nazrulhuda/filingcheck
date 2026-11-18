@@ -175,8 +175,8 @@ test("the Data and Engineering tiles are the plan's sentences", () => {
   );
   assert.equal(
     text("Engineering"),
-    "Unit and integration tests and 4 CI jobs on every push; a FastAPI service in Docker on " +
-      "Render, Postgres + pgvector on Neon, the page on Vercel.",
+    "Unit and integration tests and 4 CI jobs on every pull request; a FastAPI service in " +
+      "Docker on Render, Postgres + pgvector on Neon, the page on Vercel.",
   );
 });
 
