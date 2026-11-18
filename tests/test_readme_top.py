@@ -50,14 +50,40 @@ def find(pattern: str, text: str) -> re.Match[str]:
     return match
 
 
-def test_the_table_has_the_page_tiles_then_the_two_more_lines() -> None:
+WHY = (
+    '**Why:** in finance a confident wrong number is worse than "I don\'t know". Asked "How much '
+    'net revenue did Morgan report last year?", a plain retrieval-augmented answer picked Morgan '
+    "Stanley without asking and gave its fiscal 2023 figure, though the latest report is for 2025 "
+    "([baseline answers](docs/baseline_examples.md))."
+)
+SHOWS = [
+    "Its own data, built from raw SEC EDGAR files, because no public dataset covers these filings.",
+    "A working agent with three typed tools, and a live demo.",
+    "Six server-side checks on the model's number lookups and searches: each call is passed, "
+    "repaired or rejected before it runs.",
+    "A pre-registered, reproducible evaluation on sealed held-out questions.",
+    "A deployed service, with unit and integration tests and 4 CI jobs on every push.",
+]
+CHECKS_MATTER = (
+    "The checks add enforcement that does not depend on the model following instructions, and a "
+    "log of every decision; on these questions that did not make the answers more accurate."
+)
+RECORDS = (
+    "Every design decision, with its alternatives and evidence, is in "
+    "[docs/decisions.md](docs/decisions.md); each claim with the file that proves it is in "
+    "[docs/evidence.md](docs/evidence.md)."
+)
+
+
+def test_the_table_has_the_page_tiles_then_the_three_more_lines() -> None:
     assert list(rows()) == [
         "Data",
-        "Search",
         "Numbers",
         "Agent",
         "Checks",
-        "Testing",
+        "Evaluation",
+        "Engineering",
+        "Cost",
         "CI gate",
         "Reproduction",
     ]
@@ -65,10 +91,13 @@ def test_the_table_has_the_page_tiles_then_the_two_more_lines() -> None:
     assert "(docs/facts_report.md)" in rows()["Numbers"]
 
 
-def test_data_is_the_pinned_manifest() -> None:
+def test_data_is_the_pinned_manifest_downloaded_from_edgar_and_split_into_passages() -> None:
     filings = json.loads(read("data/manifest.json"))["filings"]
     m = find(
-        r"^(\d+) annual reports \(10-Ks\) from (\d+) companies, (\d+) years each", rows()["Data"]
+        r"^(\d+) annual reports \(10-Ks\) from (\d+) companies, (\d+) years each, downloaded from "
+        r"SEC EDGAR, pinned by accession number and split into ([\d,]+) passages, searched by "
+        r"meaning and by keyword\.$",
+        rows()["Data"],
     )
     years: dict[str, set[int]] = {}
     for f in filings:
@@ -77,21 +106,9 @@ def test_data_is_the_pinned_manifest() -> None:
     assert number(m[2]) == len(years)
     assert {len(held) for held in years.values()} == {number(m[3])}
     assert all(re.fullmatch(r"\d{10}-\d{2}-\d{6}", f["accession"]) for f in filings)
-
-
-def test_search_is_the_data_reports_passages_from_those_items() -> None:
-    m = find(r"^([\d,]+) passages from Items 1, 1A, 7, 7A and 8 of each report", rows()["Search"])
-    assert number(m[1]) == number(find(r"\| Chunks \| ([\d,]+) \|", read("docs/data_report.md"))[1])
-    sections = json.loads(read("data/section_snapshot.json"))
-    items = {re.sub(r"^\S+ FY\d{4} Item ", "", name) for name in sections}
-    assert items == {
-        "1",
-        "1A",
-        "7",
-        "7A",
-        "8",
-        "1-7A",
-    }  # 1-7A: Items a filing's index keeps together
+    assert number(m[4]) == number(find(r"\| Chunks \| ([\d,]+) \|", read("docs/data_report.md"))[1])
+    # Downloaded from EDGAR: the filings client reads each document from the SEC's archive.
+    assert "https://www.sec.gov/Archives/edgar/data/" in read("filingcheck/ingest/filings.py")
 
 
 def test_numbers_are_the_metric_map_and_the_companyfacts_cross_check() -> None:
@@ -121,14 +138,42 @@ def test_agent_and_checks_are_the_tool_registry_and_the_reports_check_table() ->
     assert number(find(r"^(\d+) server-side rules", rows()["Checks"])[1]) == len(pairs)
 
 
-def test_testing_is_the_committed_final_rows() -> None:
+def test_evaluation_is_the_committed_final_rows() -> None:
     files = sorted((ROOT / "eval/results").glob("2026-11-14_*-final.jsonl"))
     answers = sum(
         1 for f in files for line in f.read_text(encoding="utf-8").splitlines() if line.strip()
     )
     setups = {f.name.removesuffix("-final.jsonl").rsplit("_", 1)[1] for f in files}
-    m = find(r"^([\d,]+) test answers across (\d+) setups", rows()["Testing"])
+    m = find(r"^([\d,]+) test answers across (\d+) setups", rows()["Evaluation"])
     assert (number(m[1]), number(m[2])) == (answers, len(setups))
+
+
+def test_engineering_is_the_ci_jobs_and_the_deploy_files() -> None:
+    assert rows()["Engineering"] == (
+        "Unit and integration tests and 4 CI jobs on every push; a FastAPI service in Docker on "
+        "Render, Postgres + pgvector on Neon, the page on Vercel."
+    )
+    ci = yaml.safe_load(read(".github/workflows/ci.yml"))
+    assert len(ci["jobs"]) == number(find(r"and (\d+) CI jobs", rows()["Engineering"])[1])
+    assert "integration" in ci["jobs"]
+    assert {"push", "pull_request"} <= set(ci[True])  # YAML reads the key "on" as true
+    assert "FastAPI(" in read("filingcheck/app/api.py")
+    assert "uvicorn filingcheck.app.main:app" in read("Dockerfile")
+    render = read("render.yaml")
+    assert "runtime: docker" in render and "Neon" in render
+    assert "filingcheck.vercel.app" in README
+
+
+def test_cost_is_the_final_reports_checks_on_cost_per_100_held_out_questions() -> None:
+    start = REPORT.index("\n### held-out\n")
+    held_out = REPORT[start : REPORT.index("\n### ", start + 1)]
+    row = find(r"(?m)^\| agent-checks-on \| (\d+) \| \d+ \| .* \| \$([\d.]+) \|$", held_out)
+    assert number(row[1]) == 110
+    stated = find(
+        r"^About \$([\d.]+) per 100 questions with the checks on, in the final run\.$",
+        rows()["Cost"],
+    )
+    assert f"{float(row[2]):.2f}" == stated[1]
 
 
 def test_the_gate_count_is_the_scenario_files_wherever_it_is_stated() -> None:
@@ -152,12 +197,44 @@ def test_reproduction_names_make_report() -> None:
     assert "`make report`" in rows()["Reproduction"]
 
 
-def test_what_this_project_shows_is_three_lines_with_no_effect_claim() -> None:
+def test_what_this_project_shows_is_five_lines_with_no_effect_claim_and_no_figures() -> None:
     lines = [
-        line for line in block("What this project shows").splitlines() if line.startswith("- ")
+        line[2:] for line in block("What this project shows").splitlines() if line.startswith("- ")
     ]
-    assert len(lines) == 3
-    assert not re.search(r"cut|better|fewer|reduc|improv|accura", " ".join(lines), re.IGNORECASE)
+    assert lines == SHOWS
+    joined = " ".join(lines)
+    assert not re.search(r"cut|better|fewer|reduc|improv|accura", joined, re.IGNORECASE)
+    # The figures live in "By the numbers"; the one count here is the CI jobs, said as there.
+    assert re.findall(r"\d[\d,.%]*", joined) == ["4"]
+    assert "4 CI jobs on every push" in rows()["Engineering"]
+
+
+def test_the_why_line_sits_under_the_description_and_is_the_saved_baseline_answer() -> None:
+    lines = [line for line in README.splitlines() if line.strip()]
+    assert lines[1].startswith("An agent that answers questions")
+    assert lines[2] == WHY
+    baseline = read("docs/baseline_examples.md")
+    assert "plain RAG, no agent, no checks" in baseline
+    entry = baseline[
+        baseline.index("## trap-001: How much net revenue did Morgan report last year?") :
+    ]
+    answer = next(line for line in entry.splitlines() if line.startswith("> "))
+    assert "Morgan Stanley" in answer and "fiscal year ended December 31, 2023" in answer
+    assert "?" not in answer  # it answered without asking which Morgan
+    filings = json.loads(read("data/manifest.json"))["filings"]
+    assert max(f["fiscal_year"] for f in filings if f["ticker"] == "MS") == 2025
+
+
+def test_no_test_count_is_stated() -> None:
+    count = r"\d[\d,]*\s+(?:[a-z]+\s+)?tests\b|\d[\d,]*\s+test (?:functions|cases)"
+    for path in (
+        "README.md",
+        "docs/what_works_today.md",
+        "docs/known_limits.md",
+        "web/lib/glance.ts",
+        "web/app/page.tsx",
+    ):
+        assert not re.search(count, read(path)), path
 
 
 def test_the_additions_sit_above_the_results() -> None:
@@ -192,6 +269,8 @@ def test_results_is_one_short_section_that_opens_with_the_prompt_rules_result() 
     assert (
         "85.2% against 75.5%" in lines[0] and "-9.7 points, 95% interval -16.4 to -3.0" in lines[0]
     )
+    # The README's own sentence on why the checks matter ends the first claim.
+    assert lines[0].endswith(" " + CHECKS_MATTER)
     bullets = [line for line in lines if line.startswith("- ")]
     assert len(bullets) == 4
     assert "18.5% to 10.6%" in bullets[1] and "-12.7 to -3.6" in bullets[1]
@@ -266,9 +345,12 @@ def test_what_works_today_moved_to_its_own_page_linked_once() -> None:
     assert len([line for line in page.splitlines() if line.startswith("- **")]) >= 10
 
 
-def test_reproduce_is_the_two_commands_and_two_sentences() -> None:
+def test_reproduce_is_the_two_commands_and_two_sentences_then_the_records_line() -> None:
     reproduce = section("Reproduce the results")
     assert "make setup" in reproduce and "make report" in reproduce
+    assert [line for line in reproduce.splitlines() if line.strip()][-1] == RECORDS
+    assert (ROOT / "docs/decisions.md").is_file() and (ROOT / "docs/evidence.md").is_file()
+    reproduce = reproduce.replace(RECORDS, "")
     prose = re.sub(r"```.*?```", " ", reproduce, flags=re.S).replace("## Reproduce the results", "")
     assert len(re.findall(r"[.!?](?:\s|$)", prose.strip())) == 2
     assert "make verify-measured" in prose

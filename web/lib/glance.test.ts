@@ -98,7 +98,7 @@ test("the control tile's note is the decision record: the search check came from
   assert.match(row, /text control questions/);
 });
 
-test("Data: 75 pinned filings, 25 companies, 3 fiscal years each", () => {
+test("Data: 75 pinned filings from EDGAR, 25 companies, 3 fiscal years each, in 42,612 passages", () => {
   const { filings } = JSON.parse(read("data/manifest.json")) as {
     filings: { ticker: string; fiscal_year: number; accession: string }[];
   };
@@ -108,16 +108,11 @@ test("Data: 75 pinned filings, 25 companies, 3 fiscal years each", () => {
   for (const f of filings) years.set(f.ticker, (years.get(f.ticker) ?? new Set()).add(f.fiscal_year));
   assert.equal(INSIDE_FIGURES.companies, years.size);
   for (const [ticker, held] of years) assert.equal(held.size, INSIDE_FIGURES.years, ticker);
-});
-
-test("Search: the data report's passage count, from Items 1, 1A, 7, 7A and 8", () => {
   const chunks = /\| Chunks \| ([\d,]+) \|/.exec(read("docs/data_report.md"));
   assert.ok(chunks, "the data report's chunk count");
   assert.equal(INSIDE_FIGURES.passages, Number(chunks[1].replaceAll(",", "")));
-  const sections = Object.keys(JSON.parse(read("data/section_snapshot.json")) as object);
-  const items = new Set(sections.map((name) => name.replace(/^\S+ FY\d{4} Item /, "")));
-  // "1-7A" is where a filing's own index keeps Items together (Citigroup, JPMorgan).
-  assert.deepEqual([...items].sort(), ["1", "1-7A", "1A", "7", "7A", "8"]);
+  // Downloaded from EDGAR: the filings client reads each document from the SEC's archive.
+  assert.ok(read("filingcheck/ingest/filings.py").includes("https://www.sec.gov/Archives/edgar/data/"));
 });
 
 test("Numbers: the facts layer's 13 metrics and the companyfacts cross-check", () => {
@@ -146,7 +141,7 @@ test("Agent and Checks: the tool registry and the report's check activity", () =
   assert.equal(INSIDE_FIGURES.rules, pairs.size);
 });
 
-test("Testing: the committed final rows, one per answer, across five setups", () => {
+test("Evaluation: the committed final rows, one per answer, across five setups", () => {
   const files = readdirSync(repo("eval/results")).filter(
     (name) => name.startsWith("2026-11-14_") && name.endsWith("-final.jsonl"),
   );
@@ -158,14 +153,47 @@ test("Testing: the committed final rows, one per answer, across five setups", ()
   assert.equal(INSIDE_FIGURES.setups, setups.size);
 });
 
+test("Engineering: the CI workflow's jobs, the API's Docker deploy on Render, the database on Neon", () => {
+  const ci = read(".github/workflows/ci.yml");
+  const jobs = ci.slice(ci.indexOf("\njobs:\n"));
+  const names = [...jobs.matchAll(/^ {2}([a-z_-]+):$/gm)].map((m) => m[1]);
+  assert.deepEqual(names, ["checks", "reproduce", "integration", "web"]);
+  assert.equal(INSIDE_FIGURES.ciJobs, names.length);
+  assert.match(ci, /^on:\n {2}push:\n[\s\S]*?^ {2}pull_request:/m);
+  assert.ok(read("filingcheck/app/api.py").includes("FastAPI("));
+  assert.ok(read("Dockerfile").includes("uvicorn filingcheck.app.main:app"));
+  const render = read("render.yaml");
+  assert.ok(render.includes("runtime: docker") && render.includes("Neon"));
+});
+
+test("the Data and Engineering tiles are the plan's sentences", () => {
+  const text = (name: string) => INSIDE.find((tile) => tile.name === name)?.text;
+  assert.equal(
+    text("Data"),
+    "75 annual reports (10-Ks) from 25 companies, 3 years each, downloaded from SEC EDGAR, pinned " +
+      "by accession number and split into 42,612 passages, searched by meaning and by keyword.",
+  );
+  assert.equal(
+    text("Engineering"),
+    "Unit and integration tests and 4 CI jobs on every push; a FastAPI service in Docker on " +
+      "Render, Postgres + pgvector on Neon, the page on Vercel.",
+  );
+});
+
+test("each tile has its icon", () => {
+  const icons = read("web/components/Icons.tsx");
+  const map = icons.slice(icons.indexOf("export const INSIDE_ICONS"));
+  for (const tile of INSIDE) assert.match(map, new RegExp(`\\n  ${tile.name}: "[a-z]+",`), tile.name);
+});
+
 test("the six tiles say the checked figures, one per part of the system", () => {
   assert.deepEqual(
     INSIDE.map((tile) => tile.name),
-    ["Data", "Search", "Numbers", "Agent", "Checks", "Testing"],
+    ["Data", "Numbers", "Agent", "Checks", "Evaluation", "Engineering"],
   );
   assert.deepEqual(insideTiles(INSIDE_FIGURES), INSIDE);
   const all = INSIDE.map((tile) => tile.text).join(" ");
-  for (const figure of ["75 ", "25 ", "3 years", "42,612", "13 ", "1,123", "0 disagreements", "3 tools", "6 ", "3,855", "5 setups"]) {
+  for (const figure of ["75 ", "25 ", "3 years", "42,612", "13 ", "1,123", "0 disagreements", "3 tools", "6 ", "3,855", "5 setups", "4 CI jobs"]) {
     assert.ok(all.includes(figure), figure);
   }
   // The tiles describe the parts; no tile claims an effect.

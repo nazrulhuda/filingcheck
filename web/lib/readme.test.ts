@@ -157,7 +157,7 @@ test("tables keep their header, alignment and cells", () => {
   const table = blocks("By the numbers").find((b) => b.kind === "table");
   assert.ok(table && table.kind === "table");
   assert.deepEqual(table.header, ["Part", "What it is"]);
-  assert.equal(table.rows.length, 8);
+  assert.equal(table.rows.length, 9);
   assert.deepEqual(table.align, ["left", "left"]);
 });
 
