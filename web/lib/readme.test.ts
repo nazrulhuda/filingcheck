@@ -16,6 +16,7 @@ import {
   inline,
   readmeDescription,
   readmeSections,
+  readmeWhy,
 } from "./readme.ts";
 
 const repo = (path: string) => new URL(`../../${path}`, import.meta.url);
@@ -157,7 +158,7 @@ test("tables keep their header, alignment and cells", () => {
   const table = blocks("By the numbers").find((b) => b.kind === "table");
   assert.ok(table && table.kind === "table");
   assert.deepEqual(table.header, ["Part", "What it is"]);
-  assert.equal(table.rows.length, 8);
+  assert.equal(table.rows.length, 9);
   assert.deepEqual(table.align, ["left", "left"]);
 });
 
@@ -200,6 +201,25 @@ test("no rendered text on the About page still holds a markdown marker", () => {
       assert.doesNotMatch(piece, marker, source.slice(0, 80));
     }
   }
+});
+
+test("the About page shows the README's Why line under its title line", () => {
+  const why = readmeWhy(README);
+  assert.ok(why.startsWith("**Why:** in finance a confident wrong number is worse than"), why);
+  assert.ok(README.split("\n").includes(why), "the README's own line");
+  assert.ok(README.indexOf(why) < README.indexOf("\n**What this project shows**"), "from the title block");
+  const page = read("web/app/about/page.tsx");
+  const title = page.indexOf("{ABOUT_TITLE}");
+  const shown = page.indexOf("{text(WHY)}");
+  assert.ok(title > 0 && shown > title, "under the title");
+  assert.ok(shown < page.indexOf("This page shows the project's"), "before the line about the README");
+  assert.ok(page.includes("const WHY = readmeWhy(README);"));
+  const link = inline(why).find((node) => node.kind === "link");
+  assert.ok(link && link.kind === "link");
+  assert.equal(link.href, "https://github.com/nazrulhuda/filingcheck/blob/main/docs/baseline_examples.md");
+  const marker = /\*\*|`|\]\(|<!--/;
+  for (const piece of renderedTexts(inline(why))) assert.doesNotMatch(piece, marker);
+  assert.equal(readmeWhy("# T\n\nOne line.\n\n**What this project shows**\n\n**Why:** later"), "");
 });
 
 test("the About page says it shows the README, and its charts open full size", () => {

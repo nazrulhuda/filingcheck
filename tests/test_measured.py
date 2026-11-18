@@ -315,4 +315,6 @@ def test_the_dates_of_the_reworded_paragraph_are_the_merge_day() -> None:
     measured = (root / "filingcheck/measured.py").read_text(encoding="utf-8")
     assert "reworded on 2026-11-17" in measured and "2026-11-18" not in measured
     log = (root / "docs/decisions.md").read_text(encoding="utf-8")
-    assert "2026-11-18" not in log
+    # The rows that record the rewording; later decisions may carry later dates.
+    rewording = [line for line in log.splitlines() if "reworded" in line]
+    assert rewording and all("2026-11-18" not in line for line in rewording)

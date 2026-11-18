@@ -72,6 +72,13 @@ export function readmeDescription(markdown: string): string {
   return lines.find((line, i) => i > 0 && line.trim() !== "") ?? "";
 }
 
+/** The README's "Why:" line, from its title block (before the first bold lead), or "" if none. */
+export function readmeWhy(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const end = lines.findIndex((line) => BOLD_LEADS.some((title) => line.startsWith(`**${title}**`)));
+  return lines.slice(0, end < 0 ? lines.length : end).find((line) => line.startsWith("**Why:**")) ?? "";
+}
+
 /** Bold, italic, inline code and links, nested as the README writes them; the rest is text. */
 export function inline(text: string): InlineNode[] {
   const out: InlineNode[] = [];

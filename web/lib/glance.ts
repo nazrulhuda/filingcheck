@@ -168,24 +168,21 @@ export const INSIDE_FIGURES = {
   rules: 6,
   answers: 3855,
   setups: 5,
+  ciJobs: 4,
 };
 
 const n = (value: number) => value.toLocaleString("en-US");
 
-/** The six "What's inside" tiles: what each part is, with no claim about its effect. */
+/** The six "What's inside" tiles, the README's first six "By the numbers" rows: what each part
+ * is, with no claim about its effect. */
 export function insideTiles(f: typeof INSIDE_FIGURES): { name: string; text: string }[] {
   return [
     {
       name: "Data",
       text:
         `${n(f.reports)} annual reports (10-Ks) from ${n(f.companies)} companies, ${f.years} ` +
-        "years each, each pinned by its SEC accession number.",
-    },
-    {
-      name: "Search",
-      text:
-        `${n(f.passages)} passages from Items 1, 1A, 7, 7A and 8 of each report, searched by ` +
-        "meaning and by keyword.",
+        "years each, downloaded from SEC EDGAR, pinned by accession number and split into " +
+        `${n(f.passages)} passages, searched by meaning and by keyword.`,
     },
     {
       name: "Numbers",
@@ -200,10 +197,16 @@ export function insideTiles(f: typeof INSIDE_FIGURES): { name: string; text: str
       text: `${f.rules} server-side rules on the model's lookups, every decision logged and shown.`,
     },
     {
-      name: "Testing",
+      name: "Evaluation",
       text:
         `${n(f.answers)} test answers across ${f.setups} setups; every published number ` +
         "recomputed by one command.",
+    },
+    {
+      name: "Engineering",
+      text:
+        `Unit and integration tests and ${f.ciJobs} CI jobs on every pull request; a FastAPI ` +
+        "service in Docker on Render, Postgres + pgvector on Neon, the page on Vercel.",
     },
   ];
 }

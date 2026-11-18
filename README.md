@@ -2,6 +2,8 @@
 
 An agent that answers questions about 25 public companies' SEC 10-K filings, where the server checks every number lookup the model asks for before it runs, and every number in the answer is labeled against the filing's own data.
 
+**Why:** in finance a confident wrong number is worse than "I don't know". Asked "How much net revenue did Morgan report last year?", a plain retrieval-augmented answer picked Morgan Stanley without asking and gave its fiscal 2023 figure, though the latest report is for 2025 ([baseline answers](docs/baseline_examples.md)).
+
 ![The live page on first load: the question box, "Try an example" with five example questions and their tags, and under them the saved answer to "How much revenue did Nike make last year?", with $46,398 million labeled Verified and the "What was checked" panel showing the year corrected from the model's 2025 to fiscal 2026](docs/page_saved_example.png)
 
 **Live demo: [filingcheck.vercel.app](https://filingcheck.vercel.app)** [![CI](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulhuda/filingcheck/actions/workflows/ci.yml)
@@ -12,26 +14,29 @@ Built with Python, LangGraph, FastAPI, Postgres + pgvector, Next.js/TypeScript, 
 
 **What this project shows**
 
+- Its own data, built from raw SEC EDGAR files, because no public dataset covers these filings.
 - A working agent with three typed tools, and a live demo.
 - Six server-side checks on the model's number lookups and searches: each call is passed, repaired or rejected before it runs.
-- A pre-registered, reproducible evaluation.
+- A pre-registered, reproducible evaluation on sealed held-out questions.
+- A deployed service, with unit and integration tests in CI on every pull request.
 
 **By the numbers**
 
 | Part | What it is |
 |---|---|
-| Data | 75 annual reports (10-Ks) from 25 companies, 3 years each, each pinned by its SEC accession number. |
-| Search | 42,612 passages from Items 1, 1A, 7, 7A and 8 of each report, searched by meaning and by keyword. |
+| Data | 75 annual reports (10-Ks) from 25 companies, 3 years each, downloaded from SEC EDGAR, pinned by accession number and split into 42,612 passages, searched by meaning and by keyword. |
 | Numbers | 13 financial metrics read from each filing's own XBRL data; 1,123 figures [cross-checked against the SEC's companyfacts file](docs/facts_report.md), 0 disagreements. |
 | Agent | 3 tools (search, number lookup, exact calculator). |
 | Checks | 6 server-side rules on the model's lookups, every decision logged and shown. |
-| Testing | 3,855 test answers across 5 setups; every published number recomputed by one command. |
+| Evaluation | 3,855 test answers across 5 setups; every published number recomputed by one command. |
+| Engineering | Unit and integration tests and 4 CI jobs on every pull request; a FastAPI service in Docker on Render, Postgres + pgvector on Neon, the page on Vercel. |
+| Cost | About $0.09 per 100 questions with the checks on, in the final run. |
 | CI gate | 24 scripted agent scenarios run the real agent, checks, lookup and grader with no model, in CI. |
 | Reproduction | `make report` recomputes every published number from the committed rows, with no API key and no database. |
 
 ## Results
 
-- **The same rules written into the model's prompt were more accurate than enforcing them on the server:** 85.2% against 75.5% accuracy (checks on minus prompt rules -9.7 points, 95% interval -16.4 to -3.0), at about two and a half times the cost per question, with no clear difference on confidently wrong answers (7.3% and 10.6%).
+- **The same rules written into the model's prompt were more accurate than enforcing them on the server:** 85.2% against 75.5% accuracy (checks on minus prompt rules -9.7 points, 95% interval -16.4 to -3.0), at about two and a half times the cost per question, with no clear difference on confidently wrong answers (7.3% and 10.6%). The checks add enforcement that does not depend on the model following instructions, and a log of every decision; on these questions that did not make the answers more accurate.
 - **The pre-registered headline:** against no checks, the server checks cut confidently wrong answers from 18.5% to 10.6% (-7.9 points, 95% interval -12.7 to -3.6).
 - **Where the checks failed:** of 90 failed checks-on runs read one by one, 23 came from gaps in the checks and 17 from a check's own action.
 - **The noise is large:** 18% to 29% of the trap questions change outcome between runs of the same arm, which is why every difference comes with an interval.
@@ -111,6 +116,8 @@ make report    # recomputes the report, its per-run CSV and the charts (under a 
 ```
 
 `make report` recomputes every published number from the committed rows, with no API key and no database. `make verify-measured` (also in CI) fails if the measured code or data or the pre-registration's definitions differ from the tagged commit, or if the final rows and grades differ from the commit that merged them.
+
+Every design decision, with its alternatives and evidence, is in [docs/decisions.md](docs/decisions.md); each claim with the file that proves it is in [docs/evidence.md](docs/evidence.md).
 
 ## Related work
 
